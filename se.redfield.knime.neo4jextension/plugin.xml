@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         point="org.knime.workbench.repository.nodes">
+      <node
+            category-path="/neo4j"
+            deprecated="false"
+            factory-class="se.redfield.knime.neo4jextension.Neo4JReaderFactory"
+            hidden="false">
+      </node>
+   </extension>
+   <extension
+         point="org.knime.workbench.repository.categories">
+      <category
+            icon="icons/neo4j-16x16.png"
+            level-id="neo4j"
+            locked="true"
+            name="Neo4J"
+            path="/">
+      </category>
+   </extension>
+
+</plugin>
