@@ -1,19 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE knimeNode PUBLIC "-//UNIKN//DTD KNIME Node 2.0//EN" "http://www.knime.org/Node.dtd">
-<knimeNode icon="./favicon-96x96.png" type="Source">
+<knimeNode icon="./favicon-16x16.png" type="Source">
 	<name>Reader</name>
 	
 	<shortDescription>
-	    Neo4J data source.
+	    Neo4J data reader.
 	</shortDescription>
 	
 	<fullDescription>
 		<intro>
-		Neo4J data source
+	    Neo4J data reader.
 		</intro>
 	</fullDescription>
 	
 	<ports>
-	    <outPort index="1" name="PMML Model">PMML document containing Neo4J data.</outPort>
-	</ports>	
+		<inPort index="0"  name="Neo2J Connection">Connection to Neo4J</inPort>
+	    <outPort index="0" name="Neo2J output">Table with one row the Neo4J output.</outPort>
+		<outPort index="1"  name="Neo2J Connection">Connection to Neo4J</outPort>
+	</ports>
 </knimeNode>

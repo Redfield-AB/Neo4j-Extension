@@ -11,17 +11,19 @@ import org.knime.core.node.NodeView;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class Neo4JReaderFactory extends NodeFactory<Neo4JReaderModel> {
+public class Neo4JConnectorFactory extends NodeFactory<Neo4JConnectorModel> {
     /**
      * Default constructor.
      */
-    public Neo4JReaderFactory() {
+    public Neo4JConnectorFactory() {
         super();
     }
 
     @Override
-    public Neo4JReaderModel createNodeModel() {
-        return new Neo4JReaderModel();
+    public Neo4JConnectorModel createNodeModel() {
+        Neo4JConnectorModel model = new Neo4JConnectorModel();
+        model.reset();
+        return model;
     }
 
     @Override
@@ -29,16 +31,17 @@ public class Neo4JReaderFactory extends NodeFactory<Neo4JReaderModel> {
         return 0;
     }
     @Override
-    public NodeView<Neo4JReaderModel> createNodeView(
-            final int viewIndex, final Neo4JReaderModel nodeModel) {
+    public NodeView<Neo4JConnectorModel> createNodeView(
+            final int viewIndex, final Neo4JConnectorModel nodeModel) {
         throw new UnsupportedOperationException();
     }
+
     @Override
     protected boolean hasDialog() {
         return true;
     }
     @Override
     protected NodeDialogPane createNodeDialogPane() {
-        return new Neo4JReaderDialog();
+        return new Neo4JConnectorDialog();
     }
 }

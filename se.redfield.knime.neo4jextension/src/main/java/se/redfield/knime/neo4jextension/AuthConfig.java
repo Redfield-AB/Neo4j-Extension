@@ -3,6 +3,8 @@
  */
 package se.redfield.knime.neo4jextension;
 
+import java.util.Objects;
+
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
@@ -47,5 +49,27 @@ public class AuthConfig {
     }
     public void setParameters(final String parameters) {
         this.parameters = parameters;
+    }
+    @Override
+    public boolean equals(final Object obj) {
+        if (!(obj instanceof AuthConfig)) {
+            return false;
+        }
+
+        AuthConfig that = (AuthConfig) obj;
+        return Objects.equals(scheme, that.scheme)
+                && Objects.equals(principal, that.principal)
+                && Objects.equals(credentials, that.credentials)
+                && Objects.equals(realm, that.realm)
+                && Objects.equals(parameters, that.parameters);
+    }
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                scheme,
+                principal,
+                credentials,
+                realm,
+                parameters);
     }
 }
