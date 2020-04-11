@@ -4,14 +4,22 @@
 package se.redfield.knime.neo4jextension;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JFormattedTextField;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTextField;
+import javax.swing.SwingConstants;
+import javax.swing.border.BevelBorder;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.EmptyBorder;
 
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
@@ -70,50 +78,191 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
     public Neo4JConnectorDialog() {
         super();
         addTab("Settings", createSettingsPage());
-        addTab("Encrypting", createSecurityPage());
+        addTab("Encrypting", createEncriptingPage());
         addTab("Authentication", createAuthenticationPage());
+
+    }
+
+    @Override
+    protected void addFlowVariablesTab() {
+        // ignore flow variables tab.
+    }
+    /**
+     * @return
+     */
+    private Component createAuthenticationPage() {
+        final JPanel p = new JPanel(new BorderLayout(5, 5));
+        p.setBorder(new EmptyBorder(5, 5, 5, 5));
+
+        //use auth checkbox
+        final JPanel useAuthPane = new JPanel(new BorderLayout(5, 5));
+        useAuthPane.add(new JLabel("Use authentication"), BorderLayout.WEST);
+        useAuthPane.add(this.useAuth, BorderLayout.CENTER);
+
+        p.add(useAuthPane, BorderLayout.NORTH);
+
+        this.useAuth.setSelected(true);
+        this.useAuth.addActionListener(e -> useAuthChanged(p, useAuth.isSelected()));
+
+        useAuthChanged(p, true);
+        return p;
     }
 
     /**
      * @return
      */
-    private Component createAuthenticationPage() {
-        JPanel p = new JPanel(new BorderLayout());
-        p.setBackground(Color.RED);
-        return p;
-    }
-    /**
-     * @return
-     */
-    private Component createSecurityPage() {
-        JPanel p = new JPanel(new BorderLayout());
-        p.setBackground(Color.GREEN);
-        return p;
+    private Component createEncriptingPage() {
+        final JPanel p = new JPanel(new GridBagLayout());
+        p.setBorder(new EmptyBorder(5, 5, 5, 5));
+
+        this.encrypted.setSelected(true);
+        addLabeledComponent(p, "Use encription", this.encrypted, 0);
+        addLabeledComponent(p, "Host name verification enabled",
+                this.hostnameVerificationEnabled, 1);
+
+        strategy.setEditable(false);
+        for (final Strategy s : Strategy.values()) {
+            strategy.addItem(s);
+        }
+        addLabeledComponent(p, "Use encription", this.strategy, 2);
+        addLabeledComponent(p, "Certificate file", this.certFile, 3);
+
+        strategy.addActionListener(e -> strategyChanged());
+        strategyChanged();
+
+        final JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.add(p, BorderLayout.NORTH);
+        return wrapper;
     }
     /**
      * @return settings editor page.
      */
     private JPanel createSettingsPage() {
-        JPanel p = new JPanel(new BorderLayout());
-        p.setBackground(Color.BLUE);
-        return p;
+        final JPanel root = new JPanel(new BorderLayout());
+        root.setBorder(new EmptyBorder(5, 5, 5, 5));
+
+        //settings tab
+        final JPanel north = new JPanel(new GridBagLayout());
+        root.add(north, BorderLayout.NORTH);
+
+        addLabeledComponent(north, "Neo4J URL", url, 0);
+
+        //other config
+        final JPanel p = new JPanel(new GridBagLayout());
+        p.setBorder(new BevelBorder(BevelBorder.RAISED));
+
+        addLabeledComponent(p, "Log leaked sessions:", logLeakedSessions, 0);
+        addLabeledComponent(p, "Max connection pool size:", maxConnectionPoolSize, 1);
+        addLabeledComponent(p, "Idle time before connection test:", idleTimeBeforeConnectionTest, 2);
+        addLabeledComponent(p, "Max connection life time (ms):", maxConnectionLifetimeMillis, 3);
+        addLabeledComponent(p, "Connection acquisition time out (ms):",
+                connectionAcquisitionTimeoutMillis, 4);
+        addLabeledComponent(p, "Routing failure limit (ms):", routingFailureLimit, 5);
+        addLabeledComponent(p, "Routing retry delay limit (ms):", routingRetryDelayMillis, 6);
+        addLabeledComponent(p, "Fetch size:", fetchSize, 7);
+        addLabeledComponent(p, "Routing table purge delay (ms):",
+                routingTablePurgeDelayMillis, 8);
+        addLabeledComponent(p, "Connection timeout (ms):", connectionTimeoutMillis, 9);
+        addLabeledComponent(p, "Max retry time in (ms):", retrySettings, 10);
+        addLabeledComponent(p, "Is metrics enabled:", isMetricsEnabled, 11);
+        addLabeledComponent(p, "Num event loop threads:", eventLoopThreads, 12);
+
+        final JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.add(p, BorderLayout.NORTH);
+
+        final JScrollPane sp = new JScrollPane();
+        sp.getViewport().add(wrapper);
+
+        root.add(sp, BorderLayout.CENTER);
+        return root;
+    }
+
+    private void strategyChanged() {
+        final Strategy s = (Strategy) strategy.getSelectedItem();
+        final boolean certFileEnabled = s == Strategy.TRUST_CUSTOM_CA_SIGNED_CERTIFICATES;
+        certFile.setEnabled(certFileEnabled);
+        certFile.setEditable(certFileEnabled);
+        getPanel().repaint();
+    }
+
+    private void useAuthChanged(final JPanel parent, final boolean selected) {
+        final String authFieldsContainer = "authFieldsContainer";
+
+        if (!selected) {
+            final JPanel container = (JPanel) useAuth.getClientProperty(authFieldsContainer);
+            if (container != null) {
+                parent.remove(container);
+            }
+        } else {
+            final JPanel container = new JPanel(new GridBagLayout());
+            container.setBorder(new CompoundBorder(
+                    new BevelBorder(BevelBorder.RAISED),
+                    new EmptyBorder(5, 5, 5, 5)));
+
+            addLabeledComponent(container, "Scheme:", scheme, 0);
+            addLabeledComponent(container, "Login:", principal, 1);
+            addLabeledComponent(container, "Password:", credentials, 2);
+            addLabeledComponent(container, "Realm:", realm, 3);
+            addLabeledComponent(container, "Parameters:", parameters, 4);
+
+            final JPanel wrapper = new JPanel(new BorderLayout());
+            wrapper.add(container, BorderLayout.NORTH);
+
+            parent.add(wrapper, BorderLayout.CENTER);
+            useAuth.putClientProperty(authFieldsContainer, wrapper);
+        }
+
+        getPanel().repaint();
+    }
+
+    /**
+     * @param container
+     * @param label
+     * @param component
+     * @param row
+     */
+    private void addLabeledComponent(final JPanel container, final String label,
+            final JComponent component, final int row) {
+        //add label
+        final GridBagConstraints lc = new GridBagConstraints();
+        lc.fill = GridBagConstraints.HORIZONTAL;
+        lc.gridx = 0;
+        lc.gridy = row;
+        lc.weightx = 0.;
+
+        final JLabel l = new JLabel(label);
+        l.setHorizontalTextPosition(SwingConstants.RIGHT);
+        l.setHorizontalAlignment(SwingConstants.RIGHT);
+
+        final JPanel labelWrapper = new JPanel(new BorderLayout());
+        labelWrapper.setBorder(new EmptyBorder(0, 0, 0, 5));
+        labelWrapper.add(l, BorderLayout.CENTER);
+        container.add(labelWrapper, lc);
+
+        //add component.
+        final GridBagConstraints cc = new GridBagConstraints();
+        cc.fill = GridBagConstraints.HORIZONTAL;
+        cc.gridx = 1;
+        cc.gridy = row;
+        cc.weightx = 1.;
+        container.add(component, cc);
     }
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
-        Neo4JConnectorModel model = buildModel();
+        final Neo4JConnectorModel model = buildModel();
         if (model != null) {
             model.saveSettingsTo(settings);
         }
     }
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final DataTableSpec[] specs) throws NotConfigurableException {
-        Neo4JConnectorModel model = new Neo4JConnectorModel();
+        final Neo4JConnectorModel model = new Neo4JConnectorModel();
         try {
             model.validateSettings(settings);
             model.loadValidatedSettingsFrom(settings);
             init(model);
-        } catch (InvalidSettingsException e) {
+        } catch (final InvalidSettingsException e) {
             throw new NotConfigurableException("Failed to load configuration from settings", e);
         }
     }
@@ -129,7 +278,7 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
      * @return
      */
     private Neo4JConnectorModel buildModel() {
-        Neo4JConnectorModel model = new Neo4JConnectorModel();
+        final Neo4JConnectorModel model = new Neo4JConnectorModel();
         // TODO
         return model;
     }

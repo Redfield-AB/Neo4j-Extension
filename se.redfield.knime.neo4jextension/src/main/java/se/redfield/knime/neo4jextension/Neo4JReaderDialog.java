@@ -31,38 +31,35 @@ public class Neo4JReaderDialog extends NodeDialogPane {
         addTab("Script", createScriptPage());
     }
 
+    @Override
+    protected void addFlowVariablesTab() {
+        // ignore flow variables tab.
+    }
     /**
      * @return script editor page.
      */
     private JPanel createScriptPage() {
-        JPanel p = new JPanel(new BorderLayout());
+        final JPanel p = new JPanel(new BorderLayout());
         p.add(scriptEditor, BorderLayout.CENTER);
         return p;
     }
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
-        validate();
-
-        Neo4JReaderModel model = buildModel();
+        final Neo4JReaderModel model = buildModel();
         if (model != null) {
             model.saveSettingsTo(settings);
         }
     }
-    /**
-     * Validates the dialog fields.
-     */
-    private void validate() throws InvalidSettingsException {
-    }
 
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs) throws NotConfigurableException {
-        Neo4JReaderModel m = new Neo4JReaderModel();
+        final Neo4JReaderModel m = new Neo4JReaderModel();
         try {
             m.validateSettings(settings);
             m.loadValidatedSettingsFrom(settings);
             initFromModel(m);
-        } catch (InvalidSettingsException e) {
+        } catch (final InvalidSettingsException e) {
             throw new NotConfigurableException("Failed to load configuration from settings", e);
         }
     }
@@ -76,12 +73,12 @@ public class Neo4JReaderDialog extends NodeDialogPane {
      * @return model.
      */
     private Neo4JReaderModel buildModel() {
-        String script = scriptEditor.getText();
+        final String script = scriptEditor.getText();
         if (script == null || script.trim().isEmpty()) {
             return null;
         }
 
-        Neo4JReaderModel model = new Neo4JReaderModel();
+        final Neo4JReaderModel model = new Neo4JReaderModel();
         model.setScript(script);
         return model;
     }
