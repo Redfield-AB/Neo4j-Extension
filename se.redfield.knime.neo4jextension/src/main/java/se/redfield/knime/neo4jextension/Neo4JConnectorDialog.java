@@ -7,6 +7,8 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -20,6 +22,7 @@ import javax.swing.SwingConstants;
 import javax.swing.border.BevelBorder;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
+import javax.swing.text.JTextComponent;
 
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
@@ -250,17 +253,16 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
-        final Neo4JConnectorModel model = buildModel();
+        final Neo4JConnector model = buildModel();
         if (model != null) {
-            model.saveSettingsTo(settings);
+            model.save(settings);
         }
     }
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final DataTableSpec[] specs) throws NotConfigurableException {
-        final Neo4JConnectorModel model = new Neo4JConnectorModel();
+        final Neo4JConnector model = new Neo4JConnector();
         try {
-            model.validateSettings(settings);
-            model.loadValidatedSettingsFrom(settings);
+            model.load(settings);
             init(model);
         } catch (final InvalidSettingsException e) {
             throw new NotConfigurableException("Failed to load configuration from settings", e);
@@ -270,16 +272,58 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
     /**
      * @param model
      */
-    private void init(final Neo4JConnectorModel model) {
-        // TODO set fields from model.
+    private void init(final Neo4JConnector model) {
+        this.url.setText(model.getLocation() == null
+                ? "" : model.getLocation().toASCIIString());
+        //authentication
+        final AuthConfig auth = model.getAuth();
 
+        final boolean shouldUseAuth = auth != null;
+        useAuth.setSelected(shouldUseAuth);
+        if (shouldUseAuth) {
+            principal.setText(auth.getPrincipal());
+            credentials.setText(auth.getCredentials());
+        }
     }
     /**
      * @return
      */
-    private Neo4JConnectorModel buildModel() {
-        final Neo4JConnectorModel model = new Neo4JConnectorModel();
-        // TODO
+    private Neo4JConnector buildModel() throws InvalidSettingsException {
+        final Neo4JConnector model = new Neo4JConnector();
+        model.setLocation(buildUri());
+
+        //authentication
+        if (useAuth.isSelected()) {
+            final AuthConfig auth = new AuthConfig();
+            auth.setPrincipal(getNotEmpty("user name", this.principal));
+            auth.setCredentials(getNotEmpty("password", this.credentials));
+            model.setAuth(auth);
+        }
+
         return model;
+    }
+
+    /**
+     * @param name
+     * @param comp
+     * @return
+     * @throws InvalidSettingsException
+     */
+    private String getNotEmpty(final String name, final JTextComponent comp)
+            throws InvalidSettingsException {
+        final String text = comp.getText();
+        if (text == null || text.trim().isEmpty()) {
+            throw new InvalidSettingsException("Invalid " + name + ": " + text);
+        }
+        return text;
+    }
+
+    private URI buildUri() throws InvalidSettingsException {
+        final String text = this.url.getText();
+        try {
+            return new URI(text);
+        } catch (final URISyntaxException e) {
+            throw new InvalidSettingsException("Invalid URL: " + text);
+        }
     }
 }

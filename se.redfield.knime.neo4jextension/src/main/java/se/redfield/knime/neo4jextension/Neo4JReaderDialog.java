@@ -72,10 +72,10 @@ public class Neo4JReaderDialog extends NodeDialogPane {
     /**
      * @return model.
      */
-    private Neo4JReaderModel buildModel() {
+    private Neo4JReaderModel buildModel() throws InvalidSettingsException{
         final String script = scriptEditor.getText();
         if (script == null || script.trim().isEmpty()) {
-            return null;
+            throw new InvalidSettingsException("Invalid script: " + script);
         }
 
         final Neo4JReaderModel model = new Neo4JReaderModel();
