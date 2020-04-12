@@ -15,11 +15,13 @@ import org.knime.core.node.port.AbstractSimplePortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.port.PortTypeRegistry;
-import org.neo4j.driver.Config;
+import org.neo4j.driver.AuthToken;
+import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
+import org.neo4j.driver.types.TypeSystem;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -32,6 +34,7 @@ public class ConnectorPortObject extends AbstractSimplePortObject {
             ConnectorPortObject.class, true);
 
     private final ConnectorSpec connector;
+    private Driver driver;
 
     public ConnectorPortObject() {
         this(new ConnectorSpec());
@@ -53,26 +56,17 @@ public class ConnectorPortObject extends AbstractSimplePortObject {
     }
     @Override
     public String getSummary() {
-        StringBuilder sb = new StringBuilder("NeoJ4 DB: ");
+        final StringBuilder sb = new StringBuilder("NeoJ4 DB: ");
         sb.append(connector.getConnector().getLocation());
         return sb.toString();
     }
     @Override
-    public PortObjectSpec getSpec() {
+    public ConnectorSpec getSpec() {
         return connector;
     }
-    public void testConnection() {
-        Session s = getSession(connector.getConnector());
-        //just tests the session is opened.
-        testIsOpen(s);
-    }
     public List<Record> run(final String query) {
-        URI location = connector.getConnector().getLocation();
-        Config config = connector.getConnector().getConfig();
-        AuthConfig auth = connector.getConnector().getAuth();
-
-        Driver driver = GraphDatabase.driver(location);
-        Session s = driver.session();
+        final Driver driver = getDriver();
+        final Session s = driver.session();
         try {
             return s.readTransaction( tx -> tx.run(query).list());
         } finally {
@@ -80,14 +74,25 @@ public class ConnectorPortObject extends AbstractSimplePortObject {
         }
     }
     /**
-     * @param s
+     * @return
      */
-    private void testIsOpen(final Session s) {
-        //TODO uncomment.
-        //s.isOpen();
+    private Driver getDriver() {
+        if (this.driver == null) {
+            final URI location = connector.getConnector().getLocation();
+            //final Config config = connector.getConnector().getConfig();
+            final AuthConfig auth = connector.getConnector().getAuth();
+
+            if (auth == null) {
+                this.driver = GraphDatabase.driver(location);
+            } else {
+                final AuthToken token = AuthTokens.basic(
+                        auth.getPrincipal(), auth.getCredentials());
+                this.driver = GraphDatabase.driver(location, token);
+            }
+        }
+        return driver;
     }
-    private Session getSession(final Neo4JConnector c) {
-        //TODO get sesson from session pool.
-        return null;
+    public TypeSystem getTypeSystem() {
+        return getDriver().defaultTypeSystem();
     }
 }

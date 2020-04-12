@@ -8,7 +8,8 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.core.runtime,
  org.knime.base;bundle-version="4.1.0",
  org.knime.workbench;bundle-version="4.1.0",
- org.knime.workbench.repository;bundle-version="4.1.0"
+ org.knime.workbench.repository;bundle-version="4.1.0",
+ org.knime.time;bundle-version="4.1.0"
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Automatic-Module-Name: com.redfield.ab.knime.neo4jconnector
 Bundle-ClassPath: lib/neo4j-java-driver-4.0.1.jar,
