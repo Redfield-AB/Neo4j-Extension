@@ -31,12 +31,15 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.neo4j.driver.Config.TrustStrategy.Strategy;
+import org.neo4j.driver.Driver;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
 public class Neo4JConnectorDialog extends NodeDialogPane {
+    private static final String USE_AUTH_PARENT_PANEL = "useAuthParentPanel";
+
     //settings tab
     private final JTextField url = new JTextField();
 
@@ -105,9 +108,10 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
         p.add(useAuthPane, BorderLayout.NORTH);
 
         this.useAuth.setSelected(true);
-        this.useAuth.addActionListener(e -> useAuthChanged(p, useAuth.isSelected()));
+        this.useAuth.putClientProperty(USE_AUTH_PARENT_PANEL, p);
+        this.useAuth.addActionListener(e -> useAuthChanged(useAuth.isSelected()));
 
-        useAuthChanged(p, true);
+        useAuthChanged(true);
         return p;
     }
 
@@ -188,31 +192,42 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
         getPanel().repaint();
     }
 
-    private void useAuthChanged(final JPanel parent, final boolean selected) {
+    private void useAuthChanged(final boolean selected) {
+        final JPanel parent = (JPanel) useAuth.getClientProperty(USE_AUTH_PARENT_PANEL);
         final String authFieldsContainer = "authFieldsContainer";
 
+        JPanel wrapper = (JPanel) useAuth.getClientProperty(authFieldsContainer);
         if (!selected) {
-            final JPanel container = (JPanel) useAuth.getClientProperty(authFieldsContainer);
-            if (container != null) {
-                parent.remove(container);
+            if (wrapper != null) {
+                parent.remove(wrapper);
             }
         } else {
-            final JPanel container = new JPanel(new GridBagLayout());
-            container.setBorder(new CompoundBorder(
-                    new BevelBorder(BevelBorder.RAISED),
-                    new EmptyBorder(5, 5, 5, 5)));
+            if (wrapper == null) {
+                final JPanel container = new JPanel(new GridBagLayout());
+                container.setBorder(new CompoundBorder(
+                        new BevelBorder(BevelBorder.RAISED),
+                        new EmptyBorder(5, 5, 5, 5)));
 
-            addLabeledComponent(container, "Scheme:", scheme, 0);
-            addLabeledComponent(container, "Login:", principal, 1);
-            addLabeledComponent(container, "Password:", credentials, 2);
-            addLabeledComponent(container, "Realm:", realm, 3);
-            addLabeledComponent(container, "Parameters:", parameters, 4);
+                //scheme
+                scheme.addItem("basic");
+                scheme.addItem("custom");
+                scheme.addItem("kerberos");
 
-            final JPanel wrapper = new JPanel(new BorderLayout());
-            wrapper.add(container, BorderLayout.NORTH);
+                scheme.setSelectedItem("basic");
+                addLabeledComponent(container, "Scheme:", scheme, 0);
+
+                addLabeledComponent(container, "Login:", principal, 1);
+                addLabeledComponent(container, "Password:", credentials, 2);
+                addLabeledComponent(container, "Realm:", realm, 3);
+                addLabeledComponent(container, "Parameters:", parameters, 4);
+
+                wrapper = new JPanel(new BorderLayout());
+                wrapper.add(container, BorderLayout.NORTH);
+
+                useAuth.putClientProperty(authFieldsContainer, wrapper);
+            }
 
             parent.add(wrapper, BorderLayout.CENTER);
-            useAuth.putClientProperty(authFieldsContainer, wrapper);
         }
 
         getPanel().repaint();
@@ -253,7 +268,7 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
-        final Neo4JConnector model = buildModel();
+        final Neo4JConnector model = buildConnector();
         if (model != null) {
             model.save(settings);
         }
@@ -280,27 +295,48 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
 
         final boolean shouldUseAuth = auth != null;
         useAuth.setSelected(shouldUseAuth);
+        useAuthChanged(shouldUseAuth);
+
         if (shouldUseAuth) {
             principal.setText(auth.getPrincipal());
             credentials.setText(auth.getCredentials());
+            scheme.setSelectedItem(auth.getScheme());
         }
     }
     /**
      * @return
      */
-    private Neo4JConnector buildModel() throws InvalidSettingsException {
-        final Neo4JConnector model = new Neo4JConnector();
-        model.setLocation(buildUri());
+    private Neo4JConnector buildConnector() throws InvalidSettingsException {
+        final Neo4JConnector connector = new Neo4JConnector();
+        connector.setLocation(buildUri());
 
         //authentication
         if (useAuth.isSelected()) {
             final AuthConfig auth = new AuthConfig();
+            auth.setScheme((String) scheme.getSelectedItem());
             auth.setPrincipal(getNotEmpty("user name", this.principal));
             auth.setCredentials(getNotEmpty("password", this.credentials));
-            model.setAuth(auth);
+            connector.setAuth(auth);
         }
 
-        return model;
+        testConnection(connector);
+        return connector;
+    }
+
+    /**
+     * @param c connector to test.
+     */
+    private void testConnection(final Neo4JConnector c) throws InvalidSettingsException {
+        try {
+            final Driver driver = ConnectorPortObject.createDriver(c);
+            try {
+                driver.verifyConnectivity();
+            } finally {
+                driver.close();
+            }
+        } catch (final Throwable e) {
+            throw new InvalidSettingsException(e.getMessage());
+        }
     }
 
     /**
@@ -323,7 +359,7 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
         try {
             return new URI(text);
         } catch (final URISyntaxException e) {
-            throw new InvalidSettingsException("Invalid URL: " + text);
+            throw new InvalidSettingsException("Invalid URI: " + text);
         }
     }
 }

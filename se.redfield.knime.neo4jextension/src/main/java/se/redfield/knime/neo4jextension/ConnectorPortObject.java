@@ -78,19 +78,28 @@ public class ConnectorPortObject extends AbstractSimplePortObject {
      */
     private Driver getDriver() {
         if (this.driver == null) {
-            final URI location = connector.getConnector().getLocation();
-            //final Config config = connector.getConnector().getConfig();
-            final AuthConfig auth = connector.getConnector().getAuth();
-
-            if (auth == null) {
-                this.driver = GraphDatabase.driver(location);
-            } else {
-                final AuthToken token = AuthTokens.basic(
-                        auth.getPrincipal(), auth.getCredentials());
-                this.driver = GraphDatabase.driver(location, token);
-            }
+            this.driver = createDriver(connector.getConnector());
         }
         return driver;
+    }
+    /**
+     * @param con
+     * @return
+     */
+    static Driver createDriver(final Neo4JConnector con) {
+        final URI location = con.getLocation();
+        //final Config config = connector.getConnector().getConfig();
+        final AuthConfig auth = con.getAuth();
+
+        Driver d;
+        if (auth == null) {
+            d = GraphDatabase.driver(location);
+        } else {
+            final AuthToken token = AuthTokens.basic(
+                    auth.getPrincipal(), auth.getCredentials(), null);
+            d = GraphDatabase.driver(location, token);
+        }
+        return d;
     }
     public TypeSystem getTypeSystem() {
         return getDriver().defaultTypeSystem();

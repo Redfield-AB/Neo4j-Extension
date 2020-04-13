@@ -55,7 +55,7 @@ public class Neo4JConnector {
     public void load(final ConfigRO settings) throws InvalidSettingsException {
         try {
             this.location = new URI(settings.getString(S_LOCATION));
-        } catch (URISyntaxException e) {
+        } catch (final URISyntaxException e) {
             throw new InvalidSettingsException(e);
         }
         if (settings.containsKey(S_AUTH)) {
@@ -70,7 +70,7 @@ public class Neo4JConnector {
         this.auth = null;
         try {
             this.location = new URI("bolt://localhost:7687");
-        } catch (URISyntaxException e) {
+        } catch (final URISyntaxException e) {
             throw new RuntimeException(e);
         }
     }
@@ -90,7 +90,7 @@ public class Neo4JConnector {
         settings.addLong("maxConnectionLifetimeMillis", cfg.maxConnectionLifetimeMillis());
         settings.addInt("maxConnectionPoolSize", cfg.maxConnectionPoolSize());
 
-        TrustStrategy trustStrategy = cfg.trustStrategy();
+        final TrustStrategy trustStrategy = cfg.trustStrategy();
         if (trustStrategy != null) {
             saveTrustStrategy(trustStrategy, settings.addConfig("trustStrategy"));
         }
@@ -124,7 +124,7 @@ public class Neo4JConnector {
      * @throws InvalidSettingsException
      */
     private static Config loadConfig(final ConfigRO settings) throws InvalidSettingsException {
-        Config.ConfigBuilder cfg = Config.builder();
+        final Config.ConfigBuilder cfg = Config.builder();
 
         cfg.withConnectionAcquisitionTimeout(settings.getLong(
                 "connectionAcquisitionTimeoutMillis"), TimeUnit.MILLISECONDS);
@@ -163,7 +163,7 @@ public class Neo4JConnector {
      * @throws InvalidSettingsException
      */
     private static TrustStrategy loadTrustStrategy(final ConfigRO settings) throws InvalidSettingsException {
-        TrustStrategy.Strategy strategy = TrustStrategy.Strategy.valueOf(
+        final TrustStrategy.Strategy strategy = TrustStrategy.Strategy.valueOf(
                 settings.getString("strategy"));
 
         TrustStrategy s;
@@ -175,7 +175,7 @@ public class Neo4JConnector {
                 s = TrustStrategy.trustSystemCertificates();
                 break;
             case TRUST_CUSTOM_CA_SIGNED_CERTIFICATES:
-                String certFile = settings.getString("certFile");
+                final String certFile = settings.getString("certFile");
 
                 s = TrustStrategy.trustCustomCertificateSignedBy(new File(certFile));
                 break;
@@ -193,7 +193,7 @@ public class Neo4JConnector {
      */
     private static AuthConfig loadAuth(final ConfigRO settings)
             throws InvalidSettingsException {
-        AuthConfig auth = new AuthConfig();
+        final AuthConfig auth = new AuthConfig();
         auth.setCredentials(settings.getString(S_CREDENTIALS));
         auth.setParameters(settings.getString(S_PARAMETERS));
         auth.setPrincipal(settings.getString(S_PRINCIPAL));
@@ -227,7 +227,7 @@ public class Neo4JConnector {
             return false;
         }
 
-        Neo4JConnector that = (Neo4JConnector) obj;
+        final Neo4JConnector that = (Neo4JConnector) obj;
         return Objects.equals(this.location, that.location)
             && Objects.equals(this.auth, that.auth)
             && configsEquals(this.config, that.config);
@@ -299,7 +299,7 @@ public class Neo4JConnector {
     }
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder("NeoJ4 DB: ");
+        final StringBuilder sb = new StringBuilder("NeoJ4 DB: ");
         sb.append(getLocation());
         return sb.toString();
     }
