@@ -17,9 +17,9 @@ public class ConnectorCell extends DataCell {
 
     public static final DataType TYPE = DataType.getType(ConnectorCell.class);
 
-    private final Neo4JConnector connector;
+    private final ConfigSerializer connector;
 
-    public ConnectorCell(final Neo4JConnector connector) {
+    public ConnectorCell(final ConfigSerializer connector) {
         super();
         this.connector = connector;
     }

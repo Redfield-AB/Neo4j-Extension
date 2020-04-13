@@ -9,6 +9,7 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.text.NumberFormat;
 
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -33,6 +34,10 @@ import org.knime.core.node.NotConfigurableException;
 import org.neo4j.driver.Config.TrustStrategy.Strategy;
 import org.neo4j.driver.Driver;
 
+import se.redfield.knime.neo4jextension.cfg.AdvancedSettings;
+import se.redfield.knime.neo4jextension.cfg.AuthConfig;
+import se.redfield.knime.neo4jextension.cfg.Neo4JConfig;
+
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
@@ -53,24 +58,24 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
 
     //config
     private final JCheckBox logLeakedSessions = new JCheckBox();
-    private final JFormattedTextField maxConnectionPoolSize = new JFormattedTextField();
+    private final JFormattedTextField maxConnectionPoolSize = createIntValueEditor();
 
-    private final JFormattedTextField idleTimeBeforeConnectionTest = new JFormattedTextField();
-    private final JFormattedTextField maxConnectionLifetimeMillis = new JFormattedTextField();
-    private final JFormattedTextField connectionAcquisitionTimeoutMillis = new JFormattedTextField();
+    private final JFormattedTextField idleTimeBeforeConnectionTest = createIntValueEditor();
+    private final JFormattedTextField maxConnectionLifetimeMillis = createIntValueEditor();
+    private final JFormattedTextField connectionAcquisitionTimeoutMillis = createIntValueEditor();
 
-    private final JFormattedTextField routingFailureLimit = new JFormattedTextField();
-    private final JFormattedTextField routingRetryDelayMillis = new JFormattedTextField();
-    private final JFormattedTextField fetchSize = new JFormattedTextField();
-    private final JFormattedTextField routingTablePurgeDelayMillis = new JFormattedTextField();
+    private final JFormattedTextField routingFailureLimit = createIntValueEditor();
+    private final JFormattedTextField routingRetryDelayMillis = createIntValueEditor();
+    private final JFormattedTextField fetchSize = createIntValueEditor();
+    private final JFormattedTextField routingTablePurgeDelayMillis = createIntValueEditor();
 
-    private final JFormattedTextField connectionTimeoutMillis = new JFormattedTextField();
+    private final JFormattedTextField connectionTimeoutMillis = createIntValueEditor();
 
     //max retry time in milliseconds
-    private final JFormattedTextField retrySettings = new JFormattedTextField();
+    private final JFormattedTextField retrySettings = createIntValueEditor();
 
     private final JCheckBox isMetricsEnabled = new JCheckBox();
-    private final JFormattedTextField eventLoopThreads = new JFormattedTextField();
+    private final JFormattedTextField eventLoopThreads = createIntValueEditor();
 
     //security settings
     private final JComboBox<Strategy> strategy = new JComboBox<>();
@@ -83,10 +88,16 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
      */
     public Neo4JConnectorDialog() {
         super();
-        addTab("Settings", createSettingsPage());
+        addTab("Advanced Settings", createSettingsPage());
         addTab("Encrypting", createEncriptingPage());
         addTab("Authentication", createAuthenticationPage());
 
+    }
+
+    private JFormattedTextField createIntValueEditor() {
+        final JFormattedTextField tf = new JFormattedTextField(NumberFormat.getIntegerInstance());
+        tf.setValue(0);
+        return tf;
     }
 
     @Override
@@ -268,16 +279,15 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
-        final Neo4JConnector model = buildConnector();
+        final Neo4JConfig model = buildConnector();
         if (model != null) {
-            model.save(settings);
+            new ConfigSerializer().save(model, settings);
         }
     }
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final DataTableSpec[] specs) throws NotConfigurableException {
-        final Neo4JConnector model = new Neo4JConnector();
         try {
-            model.load(settings);
+            final Neo4JConfig model = new ConfigSerializer().load(settings);
             init(model);
         } catch (final InvalidSettingsException e) {
             throw new NotConfigurableException("Failed to load configuration from settings", e);
@@ -287,7 +297,7 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
     /**
      * @param model
      */
-    private void init(final Neo4JConnector model) {
+    private void init(final Neo4JConfig model) {
         this.url.setText(model.getLocation() == null
                 ? "" : model.getLocation().toASCIIString());
         //authentication
@@ -302,13 +312,34 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
             credentials.setText(auth.getCredentials());
             scheme.setSelectedItem(auth.getScheme());
         }
+
+        //setting
+        final AdvancedSettings cfg = model.getAdvancedSettings();
+        logLeakedSessions.setSelected(cfg.isLogLeakedSessions());
+        maxConnectionPoolSize.setValue(cfg.getMaxConnectionPoolSize());
+
+        idleTimeBeforeConnectionTest.setValue(cfg.getIdleTimeBeforeConnectionTest());
+        maxConnectionLifetimeMillis.setValue(cfg.getMaxConnectionLifetimeMillis());
+        connectionAcquisitionTimeoutMillis.setValue(cfg.getConnectionAcquisitionTimeoutMillis());
+
+        routingFailureLimit.setValue(cfg.getRoutingFailureLimit());
+        routingRetryDelayMillis.setValue(cfg.getRoutingRetryDelayMillis());
+        fetchSize.setValue(cfg.getFetchSize());
+        routingTablePurgeDelayMillis.setValue(cfg.getRoutingTablePurgeDelayMillis());
+
+        connectionTimeoutMillis.setValue(cfg.getConnectionTimeoutMillis());
+
+        //max retry time in milliseconds
+        retrySettings.setValue(cfg.getRetrySettings());
+
+        eventLoopThreads.setValue(cfg.getEventLoopThreads());
     }
     /**
      * @return
      */
-    private Neo4JConnector buildConnector() throws InvalidSettingsException {
-        final Neo4JConnector connector = new Neo4JConnector();
-        connector.setLocation(buildUri());
+    private Neo4JConfig buildConnector() throws InvalidSettingsException {
+        final Neo4JConfig config = new Neo4JConfig();
+        config.setLocation(buildUri());
 
         //authentication
         if (useAuth.isSelected()) {
@@ -316,17 +347,57 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
             auth.setScheme((String) scheme.getSelectedItem());
             auth.setPrincipal(getNotEmpty("user name", this.principal));
             auth.setCredentials(getNotEmpty("password", this.credentials));
-            connector.setAuth(auth);
+            config.setAuth(auth);
         }
 
-        testConnection(connector);
-        return connector;
+        //settings
+        final AdvancedSettings cfg = new AdvancedSettings();
+
+        cfg.setLogLeakedSessions(logLeakedSessions.isSelected());
+        cfg.setMaxConnectionPoolSize(getInt(maxConnectionPoolSize.getValue()));
+
+        cfg.setIdleTimeBeforeConnectionTest(getLong(idleTimeBeforeConnectionTest.getValue()));
+        cfg.setMaxConnectionLifetimeMillis(getLong(maxConnectionLifetimeMillis.getValue()));
+        cfg.setConnectionAcquisitionTimeoutMillis(getLong(connectionAcquisitionTimeoutMillis.getValue()));
+
+        cfg.setRoutingFailureLimit(getInt(routingFailureLimit.getValue()));
+        cfg.setRoutingRetryDelayMillis(getLong(routingRetryDelayMillis.getValue()));
+        cfg.setFetchSize(getInt(fetchSize.getValue()));
+        cfg.setRoutingTablePurgeDelayMillis(getLong(routingTablePurgeDelayMillis.getValue()));
+
+        cfg.setConnectionTimeoutMillis(getLong(connectionTimeoutMillis.getValue()));
+
+        //max retry time in milliseconds
+        cfg.setRetrySettings(getLong(retrySettings.getValue()));
+        cfg.setEventLoopThreads(getInt(eventLoopThreads.getValue()));
+
+        config.setAdvancedSettings(cfg);
+
+        testConnection(config);
+        return config;
+    }
+
+    private long getLong(final Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        } else if (value != null) {
+            return Long.parseLong(value.toString());
+        }
+        return 0;
+    }
+    private static int getInt(final Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        } else if (value != null) {
+            return Integer.parseInt(value.toString());
+        }
+        return 0;
     }
 
     /**
      * @param c connector to test.
      */
-    private void testConnection(final Neo4JConnector c) throws InvalidSettingsException {
+    private void testConnection(final Neo4JConfig c) throws InvalidSettingsException {
         try {
             final Driver driver = ConnectorPortObject.createDriver(c);
             try {
