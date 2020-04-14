@@ -5,6 +5,7 @@ package se.redfield.knime.neo4jextension;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -12,6 +13,9 @@ import java.time.chrono.ChronoZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedList;
 import java.util.List;
+
+import javax.json.Json;
+import javax.json.stream.JsonGenerator;
 
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
@@ -51,16 +55,20 @@ import org.neo4j.driver.Value;
 import org.neo4j.driver.types.TypeSystem;
 import org.neo4j.driver.util.Pair;
 
+import se.redfield.knime.neo4jextension.cfg.ReaderConfig;
+import se.redfield.knime.neo4jextension.cfg.ReaderConfigSerializer;
+
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
 public class Neo4JReaderModel extends NodeModel {
-    private String script;
+    private ReaderConfig config;
 
     public Neo4JReaderModel() {
         super(new PortType[] {ConnectorPortObject.TYPE},
                 new PortType[] {BufferedDataTable.TYPE, ConnectorPortObject.TYPE_OPTIONAL});
+        this.config = new ReaderConfig();
     }
 
     @Override
@@ -73,31 +81,34 @@ public class Neo4JReaderModel extends NodeModel {
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
-        settings.addString("script", script);
+        new ReaderConfigSerializer().write(config, settings);
     }
     @Override
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        if (!settings.containsKey("script")) {
-            throw new InvalidSettingsException("Not script found");
-        }
+        new ReaderConfigSerializer().read(settings);
     }
     @Override
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        this.script = settings.getString("script");
+        config = new ReaderConfigSerializer().read(settings);
     }
     @Override
     protected PortObject[] execute(final PortObject[] input, final ExecutionContext exec) throws Exception {
         final ConnectorPortObject neo4j = (ConnectorPortObject) input[0];
 
-        final List<Record> records = neo4j.run(script);
-        final DataTable resultTable = records.isEmpty()
-                ? createEmptyTable() : createDataTable(exec,
-                        neo4j.getTypeSystem(), records);
-        final BufferedDataTable out = exec.createBufferedDataTable(resultTable,
-                exec.createSubExecutionContext(0.0));
+        final List<Record> records = neo4j.run(config.getScript());
+
+        DataTable table;
+        if (records.isEmpty()) {
+            table = createEmptyTable();
+        } else if (config.isUseJson()) {
+            table = createJsonTable(exec, neo4j.getTypeSystem(), records);
+        } else {
+            table = createDataTable(exec, neo4j.getTypeSystem(), records);
+        }
 
         return new PortObject[] {
-                out,
+                exec.createBufferedDataTable(table,
+                        exec.createSubExecutionContext(0.0)),
                 neo4j //forward connection
         };
     }
@@ -136,6 +147,41 @@ public class Neo4JReaderModel extends NodeModel {
         }
         return table.getTable();
     }
+    private DataTable createJsonTable(final ExecutionContext exec, final TypeSystem typeSystem,
+            final List<Record> records) throws IOException {
+        //one row, one string column
+        final DataColumnSpec stringColumn = new DataColumnSpecCreator("json", StringCell.TYPE).createSpec();
+        final DataTableSpec tableSpec = new DataTableSpec(stringColumn);
+
+        //convert output to JSON.
+        final String json = buildJson(records, typeSystem);
+        final DefaultRow row = new DefaultRow(new RowKey("json"),
+                new StringCell(json));
+
+        final BufferedDataContainer table = exec.createDataContainer(tableSpec);
+        try {
+            table.addRowToTable(row);
+        } finally {
+            table.close();
+        }
+
+        return table.getTable();
+    }
+    /**
+     * @param records
+     * @param typeSystem
+     * @return
+     */
+    private String buildJson(final List<Record> records, final TypeSystem typeSystem) {
+        final StringWriter wr = new StringWriter();
+
+        final JsonGenerator gen = Json.createGenerator(wr);
+        new JsonBuilder(typeSystem).writeJson(records, gen);
+        gen.flush();
+
+        return wr.toString();
+    }
+
     /**
      * @param record
      * @return
@@ -322,12 +368,5 @@ public class Neo4JReaderModel extends NodeModel {
     }
     @Override
     protected void reset() {
-    }
-
-    public void setScript(final String script) {
-        this.script = script;
-    }
-    public String getScript() {
-        return script;
     }
 }

@@ -11,12 +11,12 @@ import java.util.Objects;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class Neo4JConfig {
+public class ConnectorConfig {
     private URI location;
     private AuthConfig auth;
     private AdvancedSettings advancedSettings;
 
-    public Neo4JConfig() {
+    public ConnectorConfig() {
         super();
     }
 
@@ -51,11 +51,11 @@ public class Neo4JConfig {
     }
     @Override
     public boolean equals(final Object obj) {
-        if (!(obj instanceof Neo4JConfig)) {
+        if (!(obj instanceof ConnectorConfig)) {
             return false;
         }
 
-        final Neo4JConfig that = (Neo4JConfig) obj;
+        final ConnectorConfig that = (ConnectorConfig) obj;
         return Objects.equals(this.location, that.location)
             && Objects.equals(this.auth, that.auth)
             && Objects.equals(this.advancedSettings, that.advancedSettings);

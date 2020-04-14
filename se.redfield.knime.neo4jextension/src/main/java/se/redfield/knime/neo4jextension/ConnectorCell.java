@@ -8,6 +8,8 @@ import java.util.Objects;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataType;
 
+import se.redfield.knime.neo4jextension.cfg.ConnectorConfigSerializer;
+
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
@@ -17,9 +19,9 @@ public class ConnectorCell extends DataCell {
 
     public static final DataType TYPE = DataType.getType(ConnectorCell.class);
 
-    private final ConfigSerializer connector;
+    private final ConnectorConfigSerializer connector;
 
-    public ConnectorCell(final ConfigSerializer connector) {
+    public ConnectorCell(final ConnectorConfigSerializer connector) {
         super();
         this.connector = connector;
     }
@@ -36,7 +38,7 @@ public class ConnectorCell extends DataCell {
             return false;
         }
 
-        ConnectorCell that = (ConnectorCell) dc;
+        final ConnectorCell that = (ConnectorCell) dc;
         return Objects.equals(connector, that.connector);
     }
 

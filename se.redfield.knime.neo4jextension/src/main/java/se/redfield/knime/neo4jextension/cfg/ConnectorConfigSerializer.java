@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension;
+package se.redfield.knime.neo4jextension.cfg;
 
 import java.io.File;
 import java.net.URI;
@@ -12,16 +12,11 @@ import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
 import org.neo4j.driver.Config.TrustStrategy;
 
-import se.redfield.knime.neo4jextension.cfg.AdvancedSettings;
-import se.redfield.knime.neo4jextension.cfg.AuthConfig;
-import se.redfield.knime.neo4jextension.cfg.Neo4JConfig;
-import se.redfield.knime.neo4jextension.cfg.SslTrustStrategy;
-
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class ConfigSerializer {
+public class ConnectorConfigSerializer {
     private static final String S_LOCATION = "location";
     //auth
     private static final String S_AUTH = "auth";
@@ -38,19 +33,19 @@ public class ConfigSerializer {
     /**
      * Default constructor.
      */
-    public ConfigSerializer() {
+    public ConnectorConfigSerializer() {
         super();
     }
 
-    public void save(final Neo4JConfig config, final ConfigWO settings) {
+    public void save(final ConnectorConfig config, final ConfigWO settings) {
         settings.addString(S_LOCATION, config.getLocation().toASCIIString());
         if (config.getAuth() != null) {
             saveAuth(config.getAuth(), settings.addConfig(S_AUTH));
         }
         saveConfig(config.getAdvancedSettings(), settings.addConfig(S_CONFIG));
     }
-    public Neo4JConfig load(final ConfigRO settings) throws InvalidSettingsException {
-        final Neo4JConfig config = new Neo4JConfig();
+    public ConnectorConfig load(final ConfigRO settings) throws InvalidSettingsException {
+        final ConnectorConfig config = new ConnectorConfig();
         try {
             config.setLocation(new URI(settings.getString(S_LOCATION)));
         } catch (final URISyntaxException e) {

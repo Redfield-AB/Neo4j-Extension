@@ -36,7 +36,8 @@ import org.neo4j.driver.Driver;
 
 import se.redfield.knime.neo4jextension.cfg.AdvancedSettings;
 import se.redfield.knime.neo4jextension.cfg.AuthConfig;
-import se.redfield.knime.neo4jextension.cfg.Neo4JConfig;
+import se.redfield.knime.neo4jextension.cfg.ConnectorConfigSerializer;
+import se.redfield.knime.neo4jextension.cfg.ConnectorConfig;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -279,15 +280,15 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
-        final Neo4JConfig model = buildConnector();
+        final ConnectorConfig model = buildConnector();
         if (model != null) {
-            new ConfigSerializer().save(model, settings);
+            new ConnectorConfigSerializer().save(model, settings);
         }
     }
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final DataTableSpec[] specs) throws NotConfigurableException {
         try {
-            final Neo4JConfig model = new ConfigSerializer().load(settings);
+            final ConnectorConfig model = new ConnectorConfigSerializer().load(settings);
             init(model);
         } catch (final InvalidSettingsException e) {
             throw new NotConfigurableException("Failed to load configuration from settings", e);
@@ -297,7 +298,7 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
     /**
      * @param model
      */
-    private void init(final Neo4JConfig model) {
+    private void init(final ConnectorConfig model) {
         this.url.setText(model.getLocation() == null
                 ? "" : model.getLocation().toASCIIString());
         //authentication
@@ -337,8 +338,8 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
     /**
      * @return
      */
-    private Neo4JConfig buildConnector() throws InvalidSettingsException {
-        final Neo4JConfig config = new Neo4JConfig();
+    private ConnectorConfig buildConnector() throws InvalidSettingsException {
+        final ConnectorConfig config = new ConnectorConfig();
         config.setLocation(buildUri());
 
         //authentication
@@ -397,7 +398,7 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
     /**
      * @param c connector to test.
      */
-    private void testConnection(final Neo4JConfig c) throws InvalidSettingsException {
+    private void testConnection(final ConnectorConfig c) throws InvalidSettingsException {
         try {
             final Driver driver = ConnectorPortObject.createDriver(c);
             try {

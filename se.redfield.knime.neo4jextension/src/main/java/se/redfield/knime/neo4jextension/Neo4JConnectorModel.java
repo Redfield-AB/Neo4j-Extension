@@ -18,35 +18,36 @@ import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 
-import se.redfield.knime.neo4jextension.cfg.Neo4JConfig;
+import se.redfield.knime.neo4jextension.cfg.ConnectorConfigSerializer;
+import se.redfield.knime.neo4jextension.cfg.ConnectorConfig;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
 public class Neo4JConnectorModel extends NodeModel {
-    private Neo4JConfig connector;
+    private ConnectorConfig connector;
 
     /**
      * Default constructor.
      */
     public Neo4JConnectorModel() {
         super(new PortType[0], new PortType[] {ConnectorPortObject.TYPE});
-        this.connector = new Neo4JConfig();
+        this.connector = new ConnectorConfig();
     }
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
-        new ConfigSerializer().save(connector, settings);
+        new ConnectorConfigSerializer().save(connector, settings);
     }
     @Override
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        connector = new ConfigSerializer().load(settings);
+        connector = new ConnectorConfigSerializer().load(settings);
     }
     @Override
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         //attempt to load settings.
-        new ConfigSerializer().load(settings);
+        new ConnectorConfigSerializer().load(settings);
     }
     @Override
     protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)

@@ -29,7 +29,7 @@ import org.neo4j.driver.types.TypeSystem;
 
 import se.redfield.knime.neo4jextension.cfg.AdvancedSettings;
 import se.redfield.knime.neo4jextension.cfg.AuthConfig;
-import se.redfield.knime.neo4jextension.cfg.Neo4JConfig;
+import se.redfield.knime.neo4jextension.cfg.ConnectorConfig;
 import se.redfield.knime.neo4jextension.cfg.SslTrustStrategy;
 
 /**
@@ -95,7 +95,7 @@ public class ConnectorPortObject extends AbstractSimplePortObject {
      * @param con Neo4J configuration.
      * @return Neo4J driver.
      */
-    static Driver createDriver(final Neo4JConfig con) {
+    static Driver createDriver(final ConnectorConfig con) {
         final URI location = con.getLocation();
         //final Config config = connector.getConnector().getConfig();
         final AuthConfig auth = con.getAuth();
