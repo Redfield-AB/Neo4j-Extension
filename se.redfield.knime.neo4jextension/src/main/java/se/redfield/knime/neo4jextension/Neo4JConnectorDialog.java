@@ -136,7 +136,7 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
         final JPanel p = new JPanel(new GridBagLayout());
 
         this.encrypted.setSelected(true);
-        addLabeledComponent(p, "Use encription", this.encrypted, 0);
+        addLabeledComponent(p, "Use encryption", this.encrypted, 0);
         addLabeledComponent(p, "Host name verification enabled",
                 this.hostnameVerificationEnabled, 1);
 
@@ -144,7 +144,7 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
         for (final Strategy s : Strategy.values()) {
             strategy.addItem(s);
         }
-        addLabeledComponent(p, "Use encryption", this.strategy, 2);
+        addLabeledComponent(p, "Trust strategy", this.strategy, 2);
         addLabeledComponent(p, "Certificate file", this.certFile, 3);
 
         strategy.addActionListener(e -> strategyChanged());
