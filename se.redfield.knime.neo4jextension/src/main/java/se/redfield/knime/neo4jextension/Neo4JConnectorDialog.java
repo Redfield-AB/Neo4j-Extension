@@ -32,7 +32,6 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.neo4j.driver.Config.TrustStrategy.Strategy;
-import org.neo4j.driver.Driver;
 
 import se.redfield.knime.neo4jextension.cfg.AdvancedSettings;
 import se.redfield.knime.neo4jextension.cfg.AuthConfig;
@@ -368,8 +367,6 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
         cfg.setEventLoopThreads(getInt(eventLoopThreads.getValue()));
 
         config.setAdvancedSettings(cfg);
-
-        testConnection(config);
         return config;
     }
 
@@ -389,23 +386,6 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
         }
         return 0;
     }
-
-    /**
-     * @param c connector to test.
-     */
-    private void testConnection(final ConnectorConfig c) throws InvalidSettingsException {
-        try {
-            final Driver driver = ConnectorPortObject.createDriver(c);
-            try {
-                driver.verifyConnectivity();
-            } finally {
-                driver.close();
-            }
-        } catch (final Throwable e) {
-            throw new InvalidSettingsException(e.getMessage());
-        }
-    }
-
     /**
      * @param name
      * @param comp

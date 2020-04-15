@@ -77,6 +77,7 @@ public class Neo4JReaderDialog extends NodeDialogPane {
      */
     private void initFromModel(final ReaderConfig model) {
         scriptEditor.setText(model.getScript());
+        useJsonOutput.setSelected(model.isUseJson());
     }
     /**
      * @return model.

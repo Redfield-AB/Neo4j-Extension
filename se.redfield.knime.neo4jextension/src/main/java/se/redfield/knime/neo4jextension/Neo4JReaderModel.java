@@ -34,6 +34,8 @@ import org.knime.core.data.def.DefaultRowIterator;
 import org.knime.core.data.def.DoubleCell;
 import org.knime.core.data.def.IntCell;
 import org.knime.core.data.def.StringCell;
+import org.knime.core.data.json.JSONCell;
+import org.knime.core.data.json.JSONCellFactory;
 import org.knime.core.data.time.duration.DurationCellFactory;
 import org.knime.core.data.time.localdate.LocalDateCellFactory;
 import org.knime.core.data.time.localdatetime.LocalDateTimeCellFactory;
@@ -67,7 +69,7 @@ public class Neo4JReaderModel extends NodeModel {
 
     public Neo4JReaderModel() {
         super(new PortType[] {ConnectorPortObject.TYPE},
-                new PortType[] {BufferedDataTable.TYPE, ConnectorPortObject.TYPE_OPTIONAL});
+                new PortType[] {BufferedDataTable.TYPE, ConnectorPortObject.TYPE});
         this.config = new ReaderConfig();
     }
 
@@ -150,13 +152,13 @@ public class Neo4JReaderModel extends NodeModel {
     private DataTable createJsonTable(final ExecutionContext exec, final TypeSystem typeSystem,
             final List<Record> records) throws IOException {
         //one row, one string column
-        final DataColumnSpec stringColumn = new DataColumnSpecCreator("json", StringCell.TYPE).createSpec();
+        final DataColumnSpec stringColumn = new DataColumnSpecCreator("json", JSONCell.TYPE).createSpec();
         final DataTableSpec tableSpec = new DataTableSpec(stringColumn);
 
         //convert output to JSON.
         final String json = buildJson(records, typeSystem);
         final DefaultRow row = new DefaultRow(new RowKey("json"),
-                new StringCell(json));
+                JSONCellFactory.create(json, false));
 
         final BufferedDataContainer table = exec.createDataContainer(tableSpec);
         try {

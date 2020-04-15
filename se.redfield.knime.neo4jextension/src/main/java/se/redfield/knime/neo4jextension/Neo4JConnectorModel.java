@@ -17,9 +17,10 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
+import org.neo4j.driver.Driver;
 
-import se.redfield.knime.neo4jextension.cfg.ConnectorConfigSerializer;
 import se.redfield.knime.neo4jextension.cfg.ConnectorConfig;
+import se.redfield.knime.neo4jextension.cfg.ConnectorConfigSerializer;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -71,7 +72,23 @@ public class Neo4JConnectorModel extends NodeModel {
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
         final PortObjectSpec[] spec = configure();
-        return new PortObject[]{new ConnectorPortObject((ConnectorSpec) spec[0])};
+
+        final ConnectorSpec s = (ConnectorSpec) spec[0];
+        testConnection(s.getConnector());
+
+        return new PortObject[]{new ConnectorPortObject(s)};
+    }
+
+    /**
+     * @param c connector to test.
+     */
+    private void testConnection(final ConnectorConfig c) throws InvalidSettingsException {
+        final Driver driver = ConnectorPortObject.createDriver(c);
+        try {
+            driver.verifyConnectivity();
+        } finally {
+            driver.close();
+        }
     }
     private PortObjectSpec[] configure() {
         return new PortObjectSpec[] {new ConnectorSpec(connector)};
