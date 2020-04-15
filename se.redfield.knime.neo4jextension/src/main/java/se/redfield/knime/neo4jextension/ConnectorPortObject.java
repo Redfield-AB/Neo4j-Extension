@@ -25,6 +25,7 @@ import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
+import org.neo4j.driver.summary.ResultSummary;
 import org.neo4j.driver.types.TypeSystem;
 
 import se.redfield.knime.neo4jextension.cfg.AdvancedSettings;
@@ -73,11 +74,24 @@ public class ConnectorPortObject extends AbstractSimplePortObject {
     public ConnectorSpec getSpec() {
         return spec;
     }
-    public List<Record> run(final String query) {
+    public List<Record> runRead(final String query) {
         final Driver driver = getDriver();
         final Session s = driver.session();
         try {
-            return s.readTransaction( tx -> tx.run(query).list());
+            return s.readTransaction(tx -> {
+                final List<Record> list = tx.run(query).list();
+                tx.rollback();
+                return list;
+            });
+        } finally {
+            s.close();
+        }
+    }
+    public ResultSummary runUpdate(final String query) {
+        final Driver driver = getDriver();
+        final Session s = driver.session();
+        try {
+            return s.readTransaction(tx -> tx.run(query).consume());
         } finally {
             s.close();
         }

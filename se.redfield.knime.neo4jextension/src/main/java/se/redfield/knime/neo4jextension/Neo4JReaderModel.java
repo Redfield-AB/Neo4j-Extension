@@ -97,7 +97,7 @@ public class Neo4JReaderModel extends NodeModel {
     protected PortObject[] execute(final PortObject[] input, final ExecutionContext exec) throws Exception {
         final ConnectorPortObject neo4j = (ConnectorPortObject) input[0];
 
-        final List<Record> records = neo4j.run(config.getScript());
+        final List<Record> records = neo4j.runRead(config.getScript());
 
         DataTable table;
         if (records.isEmpty()) {
