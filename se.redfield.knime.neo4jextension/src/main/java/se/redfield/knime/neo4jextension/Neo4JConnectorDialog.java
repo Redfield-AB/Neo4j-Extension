@@ -36,8 +36,8 @@ import org.neo4j.driver.Driver;
 
 import se.redfield.knime.neo4jextension.cfg.AdvancedSettings;
 import se.redfield.knime.neo4jextension.cfg.AuthConfig;
-import se.redfield.knime.neo4jextension.cfg.ConnectorConfigSerializer;
 import se.redfield.knime.neo4jextension.cfg.ConnectorConfig;
+import se.redfield.knime.neo4jextension.cfg.ConnectorConfigSerializer;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -99,11 +99,6 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
         final JFormattedTextField tf = new JFormattedTextField(NumberFormat.getIntegerInstance());
         tf.setValue(0);
         return tf;
-    }
-
-    @Override
-    protected void addFlowVariablesTab() {
-        // ignore flow variables tab.
     }
     /**
      * @return

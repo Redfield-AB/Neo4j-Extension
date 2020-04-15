@@ -39,10 +39,6 @@ public class Neo4JReaderDialog extends NodeDialogPane {
         addTab("Script", createScriptPage());
     }
 
-    @Override
-    protected void addFlowVariablesTab() {
-        // ignore flow variables tab.
-    }
     /**
      * @return script editor page.
      */
