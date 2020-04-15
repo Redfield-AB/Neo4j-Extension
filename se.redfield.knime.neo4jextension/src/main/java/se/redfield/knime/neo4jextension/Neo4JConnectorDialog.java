@@ -17,12 +17,13 @@ import javax.swing.JComponent;
 import javax.swing.JFormattedTextField;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.border.BevelBorder;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.EtchedBorder;
+import javax.swing.border.TitledBorder;
 import javax.swing.text.JTextComponent;
 
 import org.knime.core.data.DataTableSpec;
@@ -88,9 +89,8 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
      */
     public Neo4JConnectorDialog() {
         super();
-        addTab("Advanced Settings", createSettingsPage());
-        addTab("Encrypting", createEncriptingPage());
-        addTab("Authentication", createAuthenticationPage());
+        addTab("Connection", createConnectionPage());
+        addTab("Advanced Settings", createAdvancedSettingsPage());
 
     }
 
@@ -102,31 +102,38 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
     /**
      * @return
      */
-    private Component createAuthenticationPage() {
-        final JPanel p = new JPanel(new BorderLayout(5, 5));
+    private Component createConnectionPage() {
+        final JPanel p = new JPanel(new BorderLayout(10, 5));
         p.setBorder(new EmptyBorder(5, 5, 5, 5));
+
+        //URL
+        final JPanel north = new JPanel(new GridBagLayout());
+        p.add(north, BorderLayout.NORTH);
+
+        addLabeledComponent(north, "Neo4J URL", url, 0);
+
+        //Authentication
+        final JPanel center = new JPanel(new BorderLayout(5, 5));
+        center.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Authentication:"));
+        p.add(center, BorderLayout.CENTER);
 
         //use auth checkbox
         final JPanel useAuthPane = new JPanel(new BorderLayout(5, 5));
         useAuthPane.add(new JLabel("Use authentication"), BorderLayout.WEST);
         useAuthPane.add(this.useAuth, BorderLayout.CENTER);
 
-        p.add(useAuthPane, BorderLayout.NORTH);
+        center.add(useAuthPane, BorderLayout.NORTH);
 
         this.useAuth.setSelected(true);
-        this.useAuth.putClientProperty(USE_AUTH_PARENT_PANEL, p);
+        this.useAuth.putClientProperty(USE_AUTH_PARENT_PANEL, center);
         this.useAuth.addActionListener(e -> useAuthChanged(useAuth.isSelected()));
 
         useAuthChanged(true);
         return p;
     }
 
-    /**
-     * @return
-     */
-    private Component createEncriptingPage() {
+    private JPanel createEncryptingPage() {
         final JPanel p = new JPanel(new GridBagLayout());
-        p.setBorder(new EmptyBorder(5, 5, 5, 5));
 
         this.encrypted.setSelected(true);
         addLabeledComponent(p, "Use encription", this.encrypted, 0);
@@ -137,7 +144,7 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
         for (final Strategy s : Strategy.values()) {
             strategy.addItem(s);
         }
-        addLabeledComponent(p, "Use encription", this.strategy, 2);
+        addLabeledComponent(p, "Use encryption", this.strategy, 2);
         addLabeledComponent(p, "Certificate file", this.certFile, 3);
 
         strategy.addActionListener(e -> strategyChanged());
@@ -150,19 +157,13 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
     /**
      * @return settings editor page.
      */
-    private JPanel createSettingsPage() {
+    private JPanel createAdvancedSettingsPage() {
         final JPanel root = new JPanel(new BorderLayout());
         root.setBorder(new EmptyBorder(5, 5, 5, 5));
 
         //settings tab
-        final JPanel north = new JPanel(new GridBagLayout());
-        root.add(north, BorderLayout.NORTH);
-
-        addLabeledComponent(north, "Neo4J URL", url, 0);
-
-        //other config
         final JPanel p = new JPanel(new GridBagLayout());
-        p.setBorder(new BevelBorder(BevelBorder.RAISED));
+        p.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Settings"));
 
         addLabeledComponent(p, "Log leaked sessions:", logLeakedSessions, 0);
         addLabeledComponent(p, "Max connection pool size:", maxConnectionPoolSize, 1);
@@ -183,10 +184,11 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
         final JPanel wrapper = new JPanel(new BorderLayout());
         wrapper.add(p, BorderLayout.NORTH);
 
-        final JScrollPane sp = new JScrollPane();
-        sp.getViewport().add(wrapper);
+        final JPanel encryption = createEncryptingPage();
+        encryption.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Encrypting"));
+        wrapper.add(encryption, BorderLayout.CENTER);
 
-        root.add(sp, BorderLayout.CENTER);
+        root.add(wrapper, BorderLayout.CENTER);
         return root;
     }
 
@@ -211,7 +213,7 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
             if (wrapper == null) {
                 final JPanel container = new JPanel(new GridBagLayout());
                 container.setBorder(new CompoundBorder(
-                        new BevelBorder(BevelBorder.RAISED),
+                        new EtchedBorder(BevelBorder.RAISED),
                         new EmptyBorder(5, 5, 5, 5)));
 
                 //scheme

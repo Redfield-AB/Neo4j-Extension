@@ -15,6 +15,7 @@
 	
 	<ports>
 		<inPort index="0"  name="Neo2J Connection">Connection to Neo4J</inPort>
+		<inPort index="1"  name="Input table">Optional input data table</inPort>
 	    <outPort index="0" name="Neo2J output">Table with one row the Neo4J output.</outPort>
 		<outPort index="1"  name="Neo2J Connection">Connection to Neo4J</outPort>
 	</ports>

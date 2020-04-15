@@ -66,9 +66,10 @@ import se.redfield.knime.neo4jextension.cfg.ReaderConfigSerializer;
  */
 public class Neo4JReaderModel extends NodeModel {
     private ReaderConfig config;
+    private DataTableSpec intpuTableSpec;
 
     public Neo4JReaderModel() {
-        super(new PortType[] {ConnectorPortObject.TYPE},
+        super(new PortType[] {ConnectorPortObject.TYPE, BufferedDataTable.TYPE_OPTIONAL},
                 new PortType[] {BufferedDataTable.TYPE, ConnectorPortObject.TYPE});
         this.config = new ReaderConfig();
     }
@@ -356,9 +357,13 @@ public class Neo4JReaderModel extends NodeModel {
     }
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        if (inSpecs.length < 1) {
+        if (inSpecs.length < 1 || !(inSpecs[0] instanceof ConnectorSpec)) {
             throw new InvalidSettingsException("Not input found");
         }
+        if (inSpecs.length > 1) {
+            this.intpuTableSpec = (DataTableSpec) inSpecs[1];
+        }
+
         return new PortObjectSpec[] {
                 null,
                 inSpecs[0] //forward connection
