@@ -14,16 +14,10 @@ import java.util.Objects;
 public class ConnectorConfig {
     private URI location;
     private AuthConfig auth;
-    private AdvancedSettings advancedSettings;
+    private AdvancedSettings advancedSettings = new AdvancedSettings();
 
     public ConnectorConfig() {
         super();
-    }
-
-    public void reset() {
-        this.advancedSettings = new AdvancedSettings();
-
-        this.auth = null;
         try {
             this.location = new URI("bolt://localhost:7687");
         } catch (final URISyntaxException e) {

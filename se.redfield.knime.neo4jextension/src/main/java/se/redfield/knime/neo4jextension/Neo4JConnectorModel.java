@@ -124,6 +124,12 @@ public class Neo4JConnectorModel extends NodeModel {
     }
 
     private PortObjectSpec[] configure() {
-        return new PortObjectSpec[] {new ConnectorSpec(connector.getConnector())};
+        return new PortObjectSpec[] {createSpec(connector)};
+    }
+    private ConnectorSpec createSpec(final ConnectorPortObject c) {
+        final ConnectorSpec s = new ConnectorSpec(c.getConnector());
+        s.setNodeLabels(c.getNodeLabels());
+        s.setRelationshipTypes(c.getRelationshipTypes());
+        return s;
     }
 }

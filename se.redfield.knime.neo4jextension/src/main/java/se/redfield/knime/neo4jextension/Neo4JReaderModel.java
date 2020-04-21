@@ -66,7 +66,6 @@ import se.redfield.knime.neo4jextension.cfg.ReaderConfigSerializer;
  */
 public class Neo4JReaderModel extends NodeModel {
     private ReaderConfig config;
-    private DataTableSpec intpuTableSpec;
 
     public Neo4JReaderModel() {
         super(new PortType[] {ConnectorPortObject.TYPE, BufferedDataTable.TYPE_OPTIONAL},
@@ -93,6 +92,17 @@ public class Neo4JReaderModel extends NodeModel {
     @Override
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         config = new ReaderConfigSerializer().read(settings);
+    }
+    @Override
+    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+        if (inSpecs.length < 1 || !(inSpecs[0] instanceof ConnectorSpec)) {
+            throw new InvalidSettingsException("Not input found");
+        }
+
+        return new PortObjectSpec[] {
+                null,
+                inSpecs[0] //forward connection
+        };
     }
     @Override
     protected PortObject[] execute(final PortObject[] input, final ExecutionContext exec) throws Exception {
@@ -354,20 +364,6 @@ public class Neo4JReaderModel extends NodeModel {
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec) throws Exception {
         return new BufferedDataTable[0]; // just disable
-    }
-    @Override
-    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        if (inSpecs.length < 1 || !(inSpecs[0] instanceof ConnectorSpec)) {
-            throw new InvalidSettingsException("Not input found");
-        }
-        if (inSpecs.length > 1) {
-            this.intpuTableSpec = (DataTableSpec) inSpecs[1];
-        }
-
-        return new PortObjectSpec[] {
-                null,
-                inSpecs[0] //forward connection
-        };
     }
     @Override
     protected DataTableSpec[] configure(final DataTableSpec[] input) {
