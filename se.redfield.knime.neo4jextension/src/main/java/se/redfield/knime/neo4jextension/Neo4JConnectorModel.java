@@ -5,6 +5,8 @@ package se.redfield.knime.neo4jextension;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.CanceledExecutionException;
@@ -17,9 +19,9 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
-import org.neo4j.driver.Driver;
+import org.neo4j.driver.Record;
+import org.neo4j.driver.Session;
 
-import se.redfield.knime.neo4jextension.cfg.ConnectorConfig;
 import se.redfield.knime.neo4jextension.cfg.ConnectorConfigSerializer;
 
 /**
@@ -27,23 +29,23 @@ import se.redfield.knime.neo4jextension.cfg.ConnectorConfigSerializer;
  *
  */
 public class Neo4JConnectorModel extends NodeModel {
-    private ConnectorConfig connector;
+    private ConnectorPortObject connector;
 
     /**
      * Default constructor.
      */
     public Neo4JConnectorModel() {
         super(new PortType[0], new PortType[] {ConnectorPortObject.TYPE});
-        this.connector = new ConnectorConfig();
+        this.connector = new ConnectorPortObject();
     }
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
-        new ConnectorConfigSerializer().save(connector, settings);
+        connector.save(settings);
     }
     @Override
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        connector = new ConnectorConfigSerializer().load(settings);
+        connector.load(settings);
     }
     @Override
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
@@ -55,7 +57,6 @@ public class Neo4JConnectorModel extends NodeModel {
             throws IOException, CanceledExecutionException {}
     @Override
     protected void reset() {
-        connector.reset();
     }
     @Override
     protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec)
@@ -71,26 +72,58 @@ public class Neo4JConnectorModel extends NodeModel {
     }
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
-        final PortObjectSpec[] spec = configure();
+        //load node classes
+        connector.<Void>runWithSession(s -> addNodeLabels(s));
+        connector.<Void>runWithSession(s -> addRelationshipLabels(s));
 
-        final ConnectorSpec s = (ConnectorSpec) spec[0];
-        testConnection(s.getConnector());
-
-        return new PortObject[]{new ConnectorPortObject(s)};
+        return new PortObject[]{connector};
     }
 
     /**
-     * @param c connector to test.
+     * @param s session.
+     * @return
      */
-    private void testConnection(final ConnectorConfig c) throws InvalidSettingsException {
-        final Driver driver = ConnectorPortObject.createDriver(c);
-        try {
-            driver.verifyConnectivity();
-        } finally {
-            driver.close();
+    private Void addRelationshipLabels(final Session s) {
+        final StringBuilder query = new StringBuilder("MATCH (n)\n");
+        query.append("WITH DISTINCT labels(n) AS labels\n");
+        query.append("UNWIND labels AS label\n");
+        query.append("RETURN DISTINCT label\n");
+        query.append("ORDER BY label\n");
+
+        final List<String> labels = new LinkedList<>();
+        final List<Record> result = s.readTransaction(tx -> tx.run(query.toString()).list());
+
+        for (final Record r : result) {
+            labels.add(r.get(0).asString());
         }
+
+        connector.setNodeLabels(labels);
+        return null;
     }
+
+    /**
+     * @param s session.
+     * @return
+     */
+    private Void addNodeLabels(final Session s) {
+        final StringBuilder query = new StringBuilder("MATCH ()-[r]-()\n");
+        query.append("WITH DISTINCT TYPE(r) AS labels\n");
+        query.append("UNWIND labels AS label\n");
+        query.append("RETURN DISTINCT label\n");
+        query.append("ORDER BY label\n");
+
+        final List<Record> result = s.readTransaction(tx -> tx.run(query.toString()).list());
+
+        final List<String> labels = new LinkedList<>();
+        for (final Record r : result) {
+            labels.add(r.get(0).asString());
+        }
+
+        connector.setRelationshipTypes(labels);
+        return null;
+    }
+
     private PortObjectSpec[] configure() {
-        return new PortObjectSpec[] {new ConnectorSpec(connector)};
+        return new PortObjectSpec[] {new ConnectorSpec(connector.getConnector())};
     }
 }
