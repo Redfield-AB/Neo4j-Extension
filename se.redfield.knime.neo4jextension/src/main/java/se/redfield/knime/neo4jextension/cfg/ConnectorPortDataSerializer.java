@@ -3,6 +3,7 @@
  */
 package se.redfield.knime.neo4jextension.cfg;
 
+import java.util.LinkedList;
 import java.util.List;
 
 import org.knime.core.node.InvalidSettingsException;
@@ -14,6 +15,7 @@ import org.knime.core.node.config.ConfigWO;
  *
  */
 public class ConnectorPortDataSerializer {
+    private static final String PROPERTY_KEYS_KEY = "propertyKeys";
     private static final String RELATIONSHIP_TYPES_KEY = "relationshipTypes";
     private static final String NODE_LABELS_KEY = "nodeLabels";
 
@@ -21,23 +23,29 @@ public class ConnectorPortDataSerializer {
         final ConnectorPortData data = new ConnectorPortData();
         data.setConnectorConfig(new ConnectorConfigSerializer().load(model));
 
-        //load node labels
-        if (model.containsKey(NODE_LABELS_KEY)) {//check contains key for backward compatibility
-            for (final String label : model.getStringArray(NODE_LABELS_KEY)) {
-                data.getNodeLabels().add(label);
-            }
-        }
-        //load relationship types
-        if (model.containsKey(RELATIONSHIP_TYPES_KEY)) {
-            for (final String type : model.getStringArray(RELATIONSHIP_TYPES_KEY)) {
-                data.getRelationshipTypes().add(type);
-            }
-        }
+        data.setNodeLabels(loadStringsSafely(model, NODE_LABELS_KEY));
+        data.setRelationshipTypes(loadStringsSafely(model, RELATIONSHIP_TYPES_KEY));
+        data.setPropertyKeys(loadStringsSafely(model, PROPERTY_KEYS_KEY));
 
         return data;
     }
+    private List<String> loadStringsSafely(final ConfigRO model, final String key)
+            throws InvalidSettingsException {
+        final List<String> list = new LinkedList<String>();
+        if (model.containsKey(key)) {//check contains key for backward compatibility
+            for (final String label : model.getStringArray(key)) {
+                list.add(label);
+            }
+        }
+        return list;
+    }
     public void save(final ConnectorPortData data, final ConfigWO model) {
         new ConnectorConfigSerializer().save(data.getConnectorConfig(), model);
+
+        //property keys
+        final List<String> propertyKeys = data.getPropertyKeys();
+        model.addStringArray(PROPERTY_KEYS_KEY,
+                propertyKeys.toArray(new String[propertyKeys.size()]));
 
         //save node labels
         final List<String> nodeLabels = data.getNodeLabels();

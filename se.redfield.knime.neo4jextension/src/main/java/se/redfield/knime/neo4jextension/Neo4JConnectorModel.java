@@ -77,6 +77,7 @@ public class Neo4JConnectorModel extends NodeModel {
 
         portObject.<Void>runWithSession(s -> addNodeLabels(s));
         portObject.<Void>runWithSession(s -> addRelationshipLabels(s));
+        portObject.<Void>runWithSession(s -> addPropertyKeys(s));
 
         return new PortObject[]{portObject};
     }
@@ -122,6 +123,23 @@ public class Neo4JConnectorModel extends NodeModel {
         }
 
         data.setRelationshipTypes(labels);
+        return null;
+    }
+    private Void addPropertyKeys(final Session s) {
+        final StringBuilder query = new StringBuilder("MATCH (n)\n");
+        query.append("WITH KEYS(n) AS keys\n");
+        query.append("UNWIND keys AS key\n");
+        query.append("RETURN DISTINCT key\n");
+        query.append("ORDER BY key\n");
+
+        final List<Record> result = s.readTransaction(tx -> tx.run(query.toString()).list());
+
+        final List<String> labels = new LinkedList<>();
+        for (final Record r : result) {
+            labels.add(r.get(0).asString());
+        }
+
+        data.setPropertyKeys(labels);
         return null;
     }
 

@@ -162,20 +162,29 @@ public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
         //add labels and nodes
         labelsTreeRoot.removeAllChildren();
 
+        //node labels
         final DefaultMutableTreeNode nodeLabels = new DefaultMutableTreeNode("Node labels:");
         addLiefs(nodeLabels, data.getNodeLabels(), ReaderLabel.Type.NodeLabel);
         labelsTreeRoot.add(nodeLabels);
 
+        //relationship types
         final DefaultMutableTreeNode relTypes = new DefaultMutableTreeNode("Relationship types:");
         addLiefs(relTypes, data.getRelationshipTypes(), ReaderLabel.Type.RelationshipType);
         labelsTreeRoot.add(relTypes);
 
+        //Property keys
+        final DefaultMutableTreeNode propKeys = new DefaultMutableTreeNode("Properthy keys:");
+        addLiefs(propKeys, data.getPropertyKeys(), ReaderLabel.Type.PropertyKey);
+        labelsTreeRoot.add(propKeys);
+
         final DefaultTreeModel treeModel = (DefaultTreeModel) labelsTree.getModel();
         treeModel.nodeChanged(nodeLabels);
         treeModel.nodeChanged(relTypes);
+        treeModel.nodeChanged(propKeys);
 
         labelsTree.expandPath(new TreePath(treeModel.getPathToRoot(nodeLabels)));
         labelsTree.expandPath(new TreePath(treeModel.getPathToRoot(relTypes)));
+        labelsTree.expandPath(new TreePath(treeModel.getPathToRoot(propKeys)));
     }
 
     /**

@@ -188,9 +188,6 @@ public class ConnectorPortObject extends AbstractSimplePortObject {
     public TypeSystem getTypeSystem() {
         return runWithDriver(d -> d.defaultTypeSystem());
     }
-    public ConnectorConfig getConnector() {
-        return data.getConnectorConfig();
-    }
     public ConnectorPortData getPortData() {
         return data;
     }
