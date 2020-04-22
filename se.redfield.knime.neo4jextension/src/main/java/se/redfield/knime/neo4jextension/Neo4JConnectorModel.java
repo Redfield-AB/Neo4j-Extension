@@ -81,7 +81,6 @@ public class Neo4JConnectorModel extends NodeModel {
 
         return new PortObject[]{portObject};
     }
-
     /**
      * @param s session.
      * @return
@@ -103,7 +102,6 @@ public class Neo4JConnectorModel extends NodeModel {
         data.setNodeLabels(labels);
         return null;
     }
-
     /**
      * @param s session.
      * @return
