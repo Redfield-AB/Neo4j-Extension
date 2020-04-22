@@ -4,25 +4,22 @@
 package se.redfield.knime.neo4jextension;
 
 import java.awt.BorderLayout;
-import java.awt.Component;
 import java.awt.FlowLayout;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.List;
-import java.util.Set;
 
-import javax.swing.DefaultListCellRenderer;
 import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
-import javax.swing.JComponent;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTabbedPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
+import javax.swing.JTree;
 import javax.swing.border.EmptyBorder;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreePath;
 
 import org.knime.core.node.DataAwareNodeDialogPane;
 import org.knime.core.node.InvalidSettingsException;
@@ -33,7 +30,6 @@ import org.knime.core.node.port.PortObject;
 
 import se.redfield.knime.neo4jextension.cfg.ReaderConfig;
 import se.redfield.knime.neo4jextension.cfg.ReaderConfigSerializer;
-import se.redfield.knime.neo4jextension.ui.StringSelectionPane;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -42,13 +38,11 @@ import se.redfield.knime.neo4jextension.ui.StringSelectionPane;
 public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
     private final JCheckBox useJsonOutput = new JCheckBox();
     private final JTextArea scriptEditor = new JTextArea();
-    private JComboBox<SourceType> selectInput = new JComboBox<>();
 
     private JScrollPane scriptEditorPane;
-    private JPanel sourcesContainer;
-    private JTabbedPane nodeOrRelationshipSelectionPane;
-    private StringSelectionPane nodeSelectPane;
-    private StringSelectionPane relationshiptSelectPane;
+    private JTree labelsTree = new JTree();
+    private JSplitPane sourcesContainer;
+    final DefaultMutableTreeNode labelsTreeRoot = new DefaultMutableTreeNode();
 
     /**
      * Default constructor.
@@ -71,65 +65,60 @@ public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
         useJsonOutputPane.add(new JLabel("Use JSON output"), BorderLayout.WEST);
         useJsonOutputPane.add(useJsonOutput, BorderLayout.CENTER);
 
-        //select source
-        selectInput.addItem(SourceType.Script);
-        selectInput.addItem(SourceType.Labels);
-        selectInput.setSelectedItem(SourceType.Script);
-        selectInput.setRenderer(new DefaultListCellRenderer() {
-            private static final long serialVersionUID = 1L;
-            @Override
-            public Component getListCellRendererComponent(final JList<?> list, final Object value,
-                    final int index, final boolean isSelected,
-                    final boolean cellHasFocus) {
-                final String text = value == SourceType.Script ? "Script" : "Item classes";
-                return super.getListCellRendererComponent(list, text, index, isSelected, cellHasFocus);
-            }
-        });
-
-        final JPanel selectInputPane = new JPanel(new BorderLayout(5, 5));
-        selectInputPane.add(new JLabel("Select data input:"), BorderLayout.WEST);
-        selectInputPane.add(selectInput, BorderLayout.CENTER);
-        selectInput.addActionListener(e -> showSource((SourceType) selectInput.getSelectedItem()));
-
         final JPanel north = new JPanel(new FlowLayout(FlowLayout.LEADING, 5, 5));
         north.add(useJsonOutputPane);
-        north.add(selectInputPane);
 
         p.add(north, BorderLayout.NORTH);
 
         //Script editor
         scriptEditorPane = new JScrollPane(scriptEditor);
 
+        //Labels tree
+        labelsTree.setModel(new DefaultTreeModel(labelsTreeRoot));
+        labelsTree.setRootVisible(false);
+        labelsTree.setEditable(false);
+        labelsTree.setSelectionModel(null);
+        labelsTree.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(final MouseEvent e) {
+                if (e.getClickCount() == 2 && !e.isConsumed()) {
+                    e.consume();
+                    mouseClickedOnLabelsTree(e.getX(), e.getY());
+                }
+            }
+        });
+
         //Node label selection
-        nodeOrRelationshipSelectionPane = new JTabbedPane(JTabbedPane.TOP);
-
-        nodeSelectPane = new StringSelectionPane();
-        relationshiptSelectPane = new StringSelectionPane();
-        nodeOrRelationshipSelectionPane.addTab("Nodes", nodeSelectPane);
-        nodeOrRelationshipSelectionPane.addTab("Relationships", relationshiptSelectPane);
-
-        sourcesContainer = new JPanel(new BorderLayout());
+        sourcesContainer = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        sourcesContainer.setLeftComponent(labelsTree);
+        sourcesContainer.setRightComponent(scriptEditorPane);
         p.add(sourcesContainer, BorderLayout.CENTER);
 
-        showSource(SourceType.Script);
         return p;
     }
 
     /**
-     * @param selection
+     * @param x mouse x.
+     * @param y mouse y.
      */
-    private void showSource(final SourceType selection) {
-        JComponent toAdd;
-        if (selection == SourceType.Script) {
-            toAdd = scriptEditorPane;
-        } else {
-            toAdd = nodeOrRelationshipSelectionPane;
+    protected void mouseClickedOnLabelsTree(final int x, final int y) {
+        final TreePath path = labelsTree.getPathForLocation(x, y);
+        if (path != null) {
+            final Object last = path.getLastPathComponent();
+            if (last instanceof DefaultMutableTreeNode) {
+                final DefaultMutableTreeNode node = (DefaultMutableTreeNode) last;
+                if (node.isLeaf() && node.getUserObject() instanceof String) {
+                    addStringToCurrentScriptEditorPosition((String) node.getUserObject());
+                }
+            }
         }
-
-        sourcesContainer.removeAll();
-        sourcesContainer.add(toAdd, BorderLayout.CENTER);
-        sourcesContainer.revalidate();
-        sourcesContainer.repaint();
+    }
+    /**
+     * @param str string to insert.
+     */
+    private void addStringToCurrentScriptEditorPosition(final String str) {
+        final int pos = Math.max(0, scriptEditor.getCaretPosition());
+        scriptEditor.insert(str, pos);
     }
 
     @Override
@@ -155,33 +144,34 @@ public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
         scriptEditor.setText(model.getScript());
         useJsonOutput.setSelected(model.isUseJson());
 
-        initStringSelectionPane(nodeSelectPane,
-                connector.getNodeLabels(), model.getNodeLabels());
-        initStringSelectionPane(relationshiptSelectPane,
-                connector.getRelationshipTypes(), model.getRelationshipTypes());
-        showSource(model.getSource());
+        //add labels and nodes
+        labelsTreeRoot.removeAllChildren();
+
+        final DefaultMutableTreeNode nodeLabels = new DefaultMutableTreeNode("Node labels:");
+        addLiefs(nodeLabels, connector.getNodeLabels());
+        labelsTreeRoot.add(nodeLabels);
+
+        final DefaultMutableTreeNode relTypes = new DefaultMutableTreeNode("Relationship types:");
+        addLiefs(relTypes, connector.getRelationshipTypes());
+        labelsTreeRoot.add(relTypes);
+
+        final DefaultTreeModel treeModel = (DefaultTreeModel) labelsTree.getModel();
+        treeModel.nodeChanged(nodeLabels);
+        treeModel.nodeChanged(relTypes);
+
+        labelsTree.expandPath(new TreePath(treeModel.getPathToRoot(nodeLabels)));
+        labelsTree.expandPath(new TreePath(treeModel.getPathToRoot(relTypes)));
     }
+
     /**
-     * @param panel
-     * @param allOrigin
-     * @param selectedOrigin
+     * @param parent
+     * @param liefs
      */
-    private void initStringSelectionPane(final StringSelectionPane panel, final List<String> allOrigin,
-            final List<String> selectedOrigin) {
-        final Set<String> allSet = new HashSet<>(allOrigin);
-        final Set<String> selectedSet = new HashSet<>(selectedOrigin);
-
-        final Iterator<String> iter = selectedSet.iterator();
-        while (iter.hasNext()) {
-            final String next = iter.next();
-            if (!allSet.contains(next)) {
-                iter.remove();
-            } else {
-                allSet.remove(next);
-            }
+    private void addLiefs(final DefaultMutableTreeNode parent, final List<String> liefs) {
+        for (final String str : liefs) {
+            final DefaultMutableTreeNode n = new DefaultMutableTreeNode(str);
+            parent.add(n);
         }
-
-        panel.init(new LinkedList<String>(allSet), new LinkedList<String>(selectedSet));
     }
 
     /**
@@ -196,10 +186,6 @@ public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
         final ReaderConfig model = new ReaderConfig();
         model.setScript(script);
         model.setUseJson(this.useJsonOutput.isSelected());
-
-        model.setNodeLabels(this.nodeSelectPane.getSelection());
-        model.setRelationshipTypes(relationshiptSelectPane.getSelection());
-        model.setSource((SourceType) this.selectInput.getSelectedItem());
         return model;
     }
 }
