@@ -22,35 +22,36 @@ import org.knime.core.node.port.PortType;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
 
-import se.redfield.knime.neo4jextension.cfg.ConnectorConfigSerializer;
+import se.redfield.knime.neo4jextension.cfg.ConnectorPortData;
+import se.redfield.knime.neo4jextension.cfg.ConnectorPortDataSerializer;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
 public class Neo4JConnectorModel extends NodeModel {
-    private ConnectorPortObject connector;
+    private ConnectorPortData data;
 
     /**
      * Default constructor.
      */
     public Neo4JConnectorModel() {
         super(new PortType[0], new PortType[] {ConnectorPortObject.TYPE});
-        this.connector = new ConnectorPortObject();
+        this.data = new ConnectorPortData();
     }
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
-        connector.save(settings);
+        new ConnectorPortDataSerializer().save(data, settings);
     }
     @Override
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        connector.load(settings);
+        data = new ConnectorPortDataSerializer().load(settings);
     }
     @Override
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         //attempt to load settings.
-        new ConnectorConfigSerializer().load(settings);
+        new ConnectorPortDataSerializer().load(settings);
     }
     @Override
     protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
@@ -72,11 +73,12 @@ public class Neo4JConnectorModel extends NodeModel {
     }
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
-        //load node classes
-        connector.<Void>runWithSession(s -> addNodeLabels(s));
-        connector.<Void>runWithSession(s -> addRelationshipLabels(s));
+        final ConnectorPortObject portObject = new ConnectorPortObject(data);
 
-        return new PortObject[]{connector};
+        portObject.<Void>runWithSession(s -> addNodeLabels(s));
+        portObject.<Void>runWithSession(s -> addRelationshipLabels(s));
+
+        return new PortObject[]{portObject};
     }
 
     /**
@@ -97,7 +99,7 @@ public class Neo4JConnectorModel extends NodeModel {
             labels.add(r.get(0).asString());
         }
 
-        connector.setNodeLabels(labels);
+        data.setNodeLabels(labels);
         return null;
     }
 
@@ -119,17 +121,11 @@ public class Neo4JConnectorModel extends NodeModel {
             labels.add(r.get(0).asString());
         }
 
-        connector.setRelationshipTypes(labels);
+        data.setRelationshipTypes(labels);
         return null;
     }
 
     private PortObjectSpec[] configure() {
-        return new PortObjectSpec[] {createSpec(connector)};
-    }
-    private ConnectorSpec createSpec(final ConnectorPortObject c) {
-        final ConnectorSpec s = new ConnectorSpec(c.getConnector());
-        s.setNodeLabels(c.getNodeLabels());
-        s.setRelationshipTypes(c.getRelationshipTypes());
-        return s;
+        return new PortObjectSpec[] {new ConnectorSpec(data)};
     }
 }

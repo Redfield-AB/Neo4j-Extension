@@ -28,6 +28,7 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObject;
 
+import se.redfield.knime.neo4jextension.cfg.ConnectorPortData;
 import se.redfield.knime.neo4jextension.cfg.ReaderConfig;
 import se.redfield.knime.neo4jextension.cfg.ReaderConfigSerializer;
 
@@ -107,18 +108,32 @@ public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
             final Object last = path.getLastPathComponent();
             if (last instanceof DefaultMutableTreeNode) {
                 final DefaultMutableTreeNode node = (DefaultMutableTreeNode) last;
-                if (node.isLeaf() && node.getUserObject() instanceof String) {
-                    addStringToCurrentScriptEditorPosition((String) node.getUserObject());
+                if (node.isLeaf() && node.getUserObject() instanceof ReaderLabel) {
+                    addStringToCurrentScriptEditorPosition((ReaderLabel) node.getUserObject());
                 }
             }
         }
     }
     /**
-     * @param str string to insert.
+     * @param label label to insert.
      */
-    private void addStringToCurrentScriptEditorPosition(final String str) {
+    private void addStringToCurrentScriptEditorPosition(final ReaderLabel label) {
+        String text;
+        switch (label.getType()) {
+            case NodeLabel:
+                text = "-[:" + label.getText() + "]-";
+                break;
+            case PropertyKey:
+                text = label.getText();
+                break;
+            case RelationshipType:
+            default:
+                text = ":" + label.getText();
+                break;
+        }
+
         final int pos = Math.max(0, scriptEditor.getCaretPosition());
-        scriptEditor.insert(str, pos);
+        scriptEditor.insert(text, pos);
     }
 
     @Override
@@ -131,7 +146,7 @@ public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
     protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObject[] input) throws NotConfigurableException {
         try {
             final ReaderConfig model = new ReaderConfigSerializer().read(settings);
-            initFromModel(model, (ConnectorPortObject) input[0]);
+            initFromModel(model, ((ConnectorPortObject) input[0]).getPortData());
         } catch (final InvalidSettingsException e) {
             throw new NotConfigurableException("Failed to load configuration from settings", e);
         }
@@ -140,7 +155,7 @@ public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
     /**
      * @param model model.
      */
-    private void initFromModel(final ReaderConfig model, final ConnectorPortObject connector) {
+    private void initFromModel(final ReaderConfig model, final ConnectorPortData data) {
         scriptEditor.setText(model.getScript());
         useJsonOutput.setSelected(model.isUseJson());
 
@@ -148,11 +163,11 @@ public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
         labelsTreeRoot.removeAllChildren();
 
         final DefaultMutableTreeNode nodeLabels = new DefaultMutableTreeNode("Node labels:");
-        addLiefs(nodeLabels, connector.getNodeLabels());
+        addLiefs(nodeLabels, data.getNodeLabels(), ReaderLabel.Type.NodeLabel);
         labelsTreeRoot.add(nodeLabels);
 
         final DefaultMutableTreeNode relTypes = new DefaultMutableTreeNode("Relationship types:");
-        addLiefs(relTypes, connector.getRelationshipTypes());
+        addLiefs(relTypes, data.getRelationshipTypes(), ReaderLabel.Type.RelationshipType);
         labelsTreeRoot.add(relTypes);
 
         final DefaultTreeModel treeModel = (DefaultTreeModel) labelsTree.getModel();
@@ -167,9 +182,13 @@ public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
      * @param parent
      * @param liefs
      */
-    private void addLiefs(final DefaultMutableTreeNode parent, final List<String> liefs) {
+    private void addLiefs(final DefaultMutableTreeNode parent,
+            final List<String> liefs, final ReaderLabel.Type type) {
         for (final String str : liefs) {
-            final DefaultMutableTreeNode n = new DefaultMutableTreeNode(str);
+            final ReaderLabel label = new ReaderLabel(type);
+            label.setText(str);
+
+            final DefaultMutableTreeNode n = new DefaultMutableTreeNode(label);
             parent.add(n);
         }
     }

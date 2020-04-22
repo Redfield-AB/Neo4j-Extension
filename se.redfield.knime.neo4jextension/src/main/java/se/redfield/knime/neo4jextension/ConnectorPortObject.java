@@ -4,7 +4,6 @@
 package se.redfield.knime.neo4jextension;
 
 import java.net.URI;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -13,8 +12,6 @@ import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.ModelContentRO;
 import org.knime.core.node.ModelContentWO;
-import org.knime.core.node.config.ConfigRO;
-import org.knime.core.node.config.ConfigWO;
 import org.knime.core.node.port.AbstractSimplePortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
@@ -34,7 +31,8 @@ import org.neo4j.driver.types.TypeSystem;
 import se.redfield.knime.neo4jextension.cfg.AdvancedSettings;
 import se.redfield.knime.neo4jextension.cfg.AuthConfig;
 import se.redfield.knime.neo4jextension.cfg.ConnectorConfig;
-import se.redfield.knime.neo4jextension.cfg.ConnectorConfigSerializer;
+import se.redfield.knime.neo4jextension.cfg.ConnectorPortData;
+import se.redfield.knime.neo4jextension.cfg.ConnectorPortDataSerializer;
 import se.redfield.knime.neo4jextension.cfg.SslTrustStrategy;
 
 /**
@@ -42,66 +40,35 @@ import se.redfield.knime.neo4jextension.cfg.SslTrustStrategy;
  *
  */
 public class ConnectorPortObject extends AbstractSimplePortObject {
-    private static final String RELATIONSHIP_TYPES_KEY = "relationshipTypes";
-    private static final String NODE_LABELS_KEY = "nodeLabels";
-
     public static final PortType TYPE = PortTypeRegistry.getInstance().getPortType(
             ConnectorPortObject.class);
     public static final PortType TYPE_OPTIONAL = PortTypeRegistry.getInstance().getPortType(
             ConnectorPortObject.class, true);
 
-    private ConnectorConfig config;
-
-    private List<String> nodeLabels = new LinkedList<>();
-    private List<String> relationshipTypes = new LinkedList<>();
+    private ConnectorPortData data;
 
     public ConnectorPortObject() {
-        this(new ConnectorConfig());
+        this(new ConnectorPortData());
     }
-    public ConnectorPortObject(final ConnectorConfig connector) {
+    public ConnectorPortObject(final ConnectorPortData data) {
         super();
-        this.config = connector;
+        this.data = data;
     }
 
     @Override
     protected void load(final ModelContentRO model, final PortObjectSpec spec, final ExecutionMonitor exec)
             throws InvalidSettingsException, CanceledExecutionException {
-        load(model);
-    }
-    public void load(final ConfigRO model) throws InvalidSettingsException {
-        config = new ConnectorConfigSerializer().load(model);
-
-        //load node labels
-        if (model.containsKey(NODE_LABELS_KEY)) {//check contains key for backward compatibility
-            for (final String label : model.getStringArray(NODE_LABELS_KEY)) {
-                this.nodeLabels.add(label);
-            }
-        }
-        //load relationship types
-        if (model.containsKey(RELATIONSHIP_TYPES_KEY)) {
-            for (final String type : model.getStringArray(RELATIONSHIP_TYPES_KEY)) {
-                this.relationshipTypes.add(type);
-            }
-        }
+        data = new ConnectorPortDataSerializer().load(model);
     }
     @Override
     protected void save(final ModelContentWO model, final ExecutionMonitor exec)
             throws CanceledExecutionException {
-        save(model);
-    }
-    public void save(final ConfigWO model) {
-        new ConnectorConfigSerializer().save(config, model);
-
-        //save node labels
-        model.addStringArray(NODE_LABELS_KEY,
-                nodeLabels.toArray(new String[nodeLabels.size()]));
-        model.addStringArray(RELATIONSHIP_TYPES_KEY,
-                relationshipTypes.toArray(new String[relationshipTypes.size()]));
+        new ConnectorPortDataSerializer().save(data, model);
     }
     @Override
     public String getSummary() {
         final StringBuilder sb = new StringBuilder("NeoJ4 DB: ");
-        sb.append(config.getLocation());
+        sb.append(data.getConnectorConfig().getLocation());
         return sb.toString();
     }
     @Override
@@ -142,7 +109,7 @@ public class ConnectorPortObject extends AbstractSimplePortObject {
         }
     }
     private Driver createDriver() {
-        return createDriver(config);
+        return createDriver(data.getConnectorConfig());
     }
     /**
      * @param con Neo4J configuration.
@@ -221,31 +188,10 @@ public class ConnectorPortObject extends AbstractSimplePortObject {
     public TypeSystem getTypeSystem() {
         return runWithDriver(d -> d.defaultTypeSystem());
     }
-    /**
-     * @param labels node labels.
-     */
-    public void setNodeLabels(final List<String> labels) {
-        this.nodeLabels = labels;
-    }
-    /**
-     * @return node labels.
-     */
-    public List<String> getNodeLabels() {
-        return nodeLabels;
-    }
-    /**
-     * @param labels relationship labels.
-     */
-    public void setRelationshipTypes(final List<String> labels) {
-        this.relationshipTypes = labels;
-    }
-    /**
-     * @return relationship labels.
-     */
-    public List<String> getRelationshipTypes() {
-        return relationshipTypes;
-    }
     public ConnectorConfig getConnector() {
-        return this.config;
+        return data.getConnectorConfig();
+    }
+    public ConnectorPortData getPortData() {
+        return data;
     }
 }
