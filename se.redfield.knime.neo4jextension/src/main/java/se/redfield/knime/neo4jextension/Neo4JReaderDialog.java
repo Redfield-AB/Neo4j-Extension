@@ -31,6 +31,7 @@ import org.knime.core.node.port.PortObject;
 import se.redfield.knime.neo4jextension.cfg.ConnectorPortData;
 import se.redfield.knime.neo4jextension.cfg.ReaderConfig;
 import se.redfield.knime.neo4jextension.cfg.ReaderConfigSerializer;
+import se.redfield.knime.neo4jextension.ui.ReaderLabel;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

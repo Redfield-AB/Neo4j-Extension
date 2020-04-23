@@ -5,6 +5,7 @@ package se.redfield.knime.neo4jextension;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -22,6 +23,8 @@ import org.knime.core.node.port.PortType;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
 
+import se.redfield.knime.neo4j.Neo4JSupport;
+import se.redfield.knime.neo4j.WithSessionRunnable;
 import se.redfield.knime.neo4jextension.cfg.ConnectorPortData;
 import se.redfield.knime.neo4jextension.cfg.ConnectorPortDataSerializer;
 
@@ -73,13 +76,15 @@ public class Neo4JConnectorModel extends NodeModel {
     }
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
-        final ConnectorPortObject portObject = new ConnectorPortObject(data);
+        final List<WithSessionRunnable<Void>> runs = new ArrayList<>(3);
+        runs.add(s -> addNodeLabels(s));
+        runs.add(s -> addRelationshipLabels(s));
+        runs.add(s -> addPropertyKeys(s));
 
-        portObject.<Void>runWithSession(s -> addNodeLabels(s));
-        portObject.<Void>runWithSession(s -> addRelationshipLabels(s));
-        portObject.<Void>runWithSession(s -> addPropertyKeys(s));
+        final Neo4JSupport support = new Neo4JSupport(data.getConnectorConfig());
+        support.runAndWait(runs);
 
-        return new PortObject[]{portObject};
+        return new PortObject[]{new ConnectorPortObject(data)};
     }
     /**
      * @param s session.

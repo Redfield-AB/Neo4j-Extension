@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension;
+package se.redfield.knime.neo4j;
 
 import org.neo4j.driver.Session;
 

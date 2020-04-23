@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension;
+package se.redfield.knime.json;
 
 import java.math.BigInteger;
 import java.time.LocalDate;
@@ -20,17 +20,18 @@ import org.neo4j.driver.types.Path;
 import org.neo4j.driver.types.Path.Segment;
 import org.neo4j.driver.types.Point;
 import org.neo4j.driver.types.Relationship;
-import org.neo4j.driver.types.TypeSystem;
+
+import se.redfield.knime.neo4j.DataAdapter;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
 public class JsonBuilder {
-    private final TypeSystem types;
-    public JsonBuilder(final TypeSystem types) {
+    private final DataAdapter adapter;
+    public JsonBuilder(final DataAdapter types) {
         super();
-        this.types = types;
+        this.adapter = types;
     }
 
     public void writeJson(final List<Record> records, final JsonGenerator gen) {
@@ -49,43 +50,43 @@ public class JsonBuilder {
         gen.writeEnd();
     }
     private void writeValue(final Value value, final JsonGenerator gen) {
-        if (types.BOOLEAN().isTypeOf(value)) {
+        if (adapter.isBoolean(value)) {
             writeBoolean(value.asBoolean(), gen);
-        } else if (types.BYTES().isTypeOf(value)) {
+        } else if (adapter.isBytes(value)) {
             writeString("[byte array]", gen);
-        } else if (types.STRING().isTypeOf(value)) {
+        } else if (adapter.isString(value)) {
             writeString(value.asString(), gen);
-        } else if (types.NUMBER().isTypeOf(value)) {
-            writeDouble(value.asDouble(), gen);
-        } else if (types.INTEGER().isTypeOf(value)) {
+        } else if (adapter.isInteger(value)) {
             writeInt(value.asInt(), gen);
-        } else if (types.FLOAT().isTypeOf(value)) {
+        } else if (adapter.isFloat(value)) {
             writeFloat(value.asFloat(), gen);
-        } else if (types.LIST().isTypeOf(value)) {
+        } else if (adapter.isNumber(value)) {
+            writeDouble(value.asDouble(), gen);
+        } else if (adapter.isList(value)) {
             writeList(value.asList(), gen);
-        } else if (types.MAP().isTypeOf(value)) {
+        } else if (adapter.isMap(value)) {
             writeMap(value.asMap(), gen);
-        } else if (types.NODE().isTypeOf(value)) {
+        } else if (adapter.isNode(value)) {
             writeNode(value.asNode(), gen);
-        } else if (types.RELATIONSHIP().isTypeOf(value)) {
+        } else if (adapter.isRelationship(value)) {
             writeRelationship(value.asRelationship(), gen);
-        } else if (types.PATH().isTypeOf(value)) {
+        } else if (adapter.isPath(value)) {
             writePath(value.asPath(), gen);
-        } else if (types.POINT().isTypeOf(value)) {
+        } else if (adapter.isPoint(value)) {
             writePoint(value.asPoint(), gen);
-        } else if (types.DATE().isTypeOf(value)) {
+        } else if (adapter.isDate(value)) {
             writeDate(value.asLocalDate(), gen);
-        } else if (types.TIME().isTypeOf(value)) {
+        } else if (adapter.isTime(value)) {
             writeTime(value.asLocalTime(), gen);
-        } else if (types.LOCAL_TIME().isTypeOf(value)) {
+        } else if (adapter.islocalTime(value)) {
             writeTime(value.asLocalTime(), gen);
-        } else if (types.LOCAL_DATE_TIME().isTypeOf(value)) {
+        } else if (adapter.isLocalDateTime(value)) {
             writeDate(value.asLocalDate(), gen);
-        } else if (types.DATE_TIME().isTypeOf(value)) {
+        } else if (adapter.isDateTime(value)) {
             writeDateTime(value.asLocalDateTime(), gen);
-        } else if (types.DURATION().isTypeOf(value)) {
+        } else if (adapter.isDuration(value)) {
             writeString(value.asString(), gen);
-        } else if (types.NULL().isTypeOf(value)) {
+        } else if (adapter.isNull(value)) {
             writeNull(gen);
         }
     }
