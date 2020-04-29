@@ -1,10 +1,12 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension.cfg;
+package se.redfield.knime.neo4j.connector;
 
 import java.util.LinkedList;
 import java.util.List;
+
+import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

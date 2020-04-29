@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension.cfg;
+package se.redfield.knime.neo4j.reader.cfg;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;

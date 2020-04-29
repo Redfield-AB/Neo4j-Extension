@@ -8,7 +8,7 @@ import java.awt.BorderLayout;
 import javax.swing.JDialog;
 import javax.swing.JPanel;
 
-import se.redfield.knime.neo4jextension.Neo4JReaderDialog;
+import se.redfield.knime.neo4j.reader.ReaderDialog;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -20,7 +20,7 @@ public class Neo4JReaderDialogLauncher {
     }
 
     public static void launch() throws Throwable {
-        final Neo4JReaderDialog dialog = new Neo4JReaderDialog();
+        final ReaderDialog dialog = new ReaderDialog();
 
         final JDialog d = new JDialog();
         d.setTitle("Noo4J Reader");

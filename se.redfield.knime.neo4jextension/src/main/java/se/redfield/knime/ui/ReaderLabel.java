@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension.ui;
+package se.redfield.knime.ui;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

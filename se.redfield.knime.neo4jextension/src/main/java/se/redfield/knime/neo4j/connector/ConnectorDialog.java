@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension;
+package se.redfield.knime.neo4j.connector;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -34,16 +34,16 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.neo4j.driver.Config.TrustStrategy.Strategy;
 
-import se.redfield.knime.neo4jextension.cfg.AdvancedSettings;
-import se.redfield.knime.neo4jextension.cfg.AuthConfig;
-import se.redfield.knime.neo4jextension.cfg.ConnectorConfig;
-import se.redfield.knime.neo4jextension.cfg.ConnectorConfigSerializer;
+import se.redfield.knime.neo4j.connector.cfg.AdvancedSettings;
+import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
+import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
+import se.redfield.knime.neo4j.connector.cfg.ConnectorConfigSerializer;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class Neo4JConnectorDialog extends NodeDialogPane {
+public class ConnectorDialog extends NodeDialogPane {
     private static final String USE_AUTH_PARENT_PANEL = "useAuthParentPanel";
 
     //settings tab
@@ -87,7 +87,7 @@ public class Neo4JConnectorDialog extends NodeDialogPane {
     /**
      * Default constructor.
      */
-    public Neo4JConnectorDialog() {
+    public ConnectorDialog() {
         super();
         addTab("Connection", createConnectionPage());
         addTab("Advanced Settings", createAdvancedSettingsPage());

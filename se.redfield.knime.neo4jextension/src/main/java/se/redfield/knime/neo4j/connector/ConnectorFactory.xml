@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE knimeNode PUBLIC "-//UNIKN//DTD KNIME Node 2.0//EN" "http://www.knime.org/Node.dtd">
 <knimeNode icon="./favicon-16x16.png" type="Source">
-	<name>Connector</name>
+	<name>Neo4J Connector</name>
 	
 	<shortDescription>
-	    Neo4J connection.
+	    Neo4J connector.
 	</shortDescription>
 	
 	<fullDescription>
 		<intro>
-		Connector to Neo4J data base.
+		Configured connection to Neo4J data base
 		</intro>
 	</fullDescription>
 	
 	<ports>
-	    <outPort index="0" name="Neo2J Connection">Connection to Neo4J data base</outPort>
+	    <outPort index="0" name="Neo2J Connector">Connector with configured connection to Neo4J data base</outPort>
 	</ports>	
 </knimeNode>

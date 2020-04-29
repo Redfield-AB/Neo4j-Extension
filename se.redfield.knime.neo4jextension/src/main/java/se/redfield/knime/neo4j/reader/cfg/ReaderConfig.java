@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension.cfg;
+package se.redfield.knime.neo4j.reader.cfg;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

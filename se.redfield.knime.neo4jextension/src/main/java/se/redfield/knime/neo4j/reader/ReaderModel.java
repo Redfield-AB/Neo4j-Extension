@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension;
+package se.redfield.knime.neo4j.reader;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,20 +41,22 @@ import org.neo4j.driver.Value;
 import org.neo4j.driver.util.Pair;
 
 import se.redfield.knime.json.JsonBuilder;
-import se.redfield.knime.neo4j.DataAdapter;
-import se.redfield.knime.neo4j.Neo4JSupport;
-import se.redfield.knime.neo4jextension.cfg.ReaderConfig;
-import se.redfield.knime.neo4jextension.cfg.ReaderConfigSerializer;
+import se.redfield.knime.neo4j.connector.ConnectorPortObject;
+import se.redfield.knime.neo4j.connector.ConnectorSpec;
+import se.redfield.knime.neo4j.db.DataAdapter;
+import se.redfield.knime.neo4j.db.Neo4JSupport;
+import se.redfield.knime.neo4j.reader.cfg.ReaderConfig;
+import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class Neo4JReaderModel extends NodeModel {
+public class ReaderModel extends NodeModel {
     private ReaderConfig config;
 
-    public Neo4JReaderModel() {
-        super(new PortType[] {ConnectorPortObject.TYPE, BufferedDataTable.TYPE_OPTIONAL},
+    public ReaderModel() {
+        super(new PortType[] {BufferedDataTable.TYPE_OPTIONAL, ConnectorPortObject.TYPE},
                 new PortType[] {BufferedDataTable.TYPE, ConnectorPortObject.TYPE});
         this.config = new ReaderConfig();
     }
@@ -81,13 +83,13 @@ public class Neo4JReaderModel extends NodeModel {
     }
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        if (inSpecs.length < 1 || !(inSpecs[0] instanceof ConnectorSpec)) {
-            throw new InvalidSettingsException("Not input found");
+        if (inSpecs.length < 2 || !(inSpecs[1] instanceof ConnectorSpec)) {
+            throw new InvalidSettingsException("Not Neo4J input found");
         }
 
         return new PortObjectSpec[] {
                 null,
-                inSpecs[0] //forward connection
+                inSpecs[1] //forward connection
         };
     }
     @Override

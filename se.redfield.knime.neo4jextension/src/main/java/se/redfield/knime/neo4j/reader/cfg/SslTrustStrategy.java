@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension.cfg;
+package se.redfield.knime.neo4j.reader.cfg;
 
 import java.io.File;
 import java.util.Objects;

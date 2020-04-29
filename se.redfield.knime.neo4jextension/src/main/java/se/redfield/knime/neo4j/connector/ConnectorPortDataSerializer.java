@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension.cfg;
+package se.redfield.knime.neo4j.connector;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -9,6 +9,8 @@ import java.util.List;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
+
+import se.redfield.knime.neo4j.connector.cfg.ConnectorConfigSerializer;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

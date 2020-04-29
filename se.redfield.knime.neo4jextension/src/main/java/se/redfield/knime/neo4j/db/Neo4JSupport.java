@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4j;
+package se.redfield.knime.neo4j.db;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -23,10 +23,10 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.summary.ResultSummary;
 import org.neo4j.driver.types.TypeSystem;
 
-import se.redfield.knime.neo4jextension.cfg.AdvancedSettings;
-import se.redfield.knime.neo4jextension.cfg.AuthConfig;
-import se.redfield.knime.neo4jextension.cfg.ConnectorConfig;
-import se.redfield.knime.neo4jextension.cfg.SslTrustStrategy;
+import se.redfield.knime.neo4j.connector.cfg.AdvancedSettings;
+import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
+import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
+import se.redfield.knime.neo4j.reader.cfg.SslTrustStrategy;
 import se.redfield.knime.utils.ThreadPool;
 
 /**

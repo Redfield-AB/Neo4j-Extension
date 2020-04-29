@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE knimeNode PUBLIC "-//UNIKN//DTD KNIME Node 2.0//EN" "http://www.knime.org/Node.dtd">
+<knimeNode icon="./favicon-16x16.png" type="Source">
+	<name>Neo4J Reader</name>
+	
+	<shortDescription>
+	    Neo4J data reader.
+	</shortDescription>
+	
+	<fullDescription>
+		<intro>
+	    Neo4J data reader.
+		</intro>
+	</fullDescription>
+	
+	<ports>
+		<inPort index="0"  name="Input Table">One column table with Cypher script rows</inPort>
+		<inPort index="1"  name="Neo2J Connector">Neo4J Connector</inPort>
+	    <outPort index="0" name="Neo2J Output">Neo4J output as one row JSON table or as KNIME table</outPort>
+		<outPort index="1"  name="Neo2J Connector">Forwarded Neo4J Connector</outPort>
+	</ports>
+</knimeNode>

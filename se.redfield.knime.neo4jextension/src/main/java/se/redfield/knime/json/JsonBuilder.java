@@ -18,10 +18,11 @@ import org.neo4j.driver.Value;
 import org.neo4j.driver.types.Node;
 import org.neo4j.driver.types.Path;
 import org.neo4j.driver.types.Path.Segment;
+
+import se.redfield.knime.neo4j.db.DataAdapter;
+
 import org.neo4j.driver.types.Point;
 import org.neo4j.driver.types.Relationship;
-
-import se.redfield.knime.neo4j.DataAdapter;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

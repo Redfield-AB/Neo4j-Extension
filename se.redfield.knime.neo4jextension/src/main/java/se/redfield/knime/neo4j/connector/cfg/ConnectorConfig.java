@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension.cfg;
+package se.redfield.knime.neo4j.connector.cfg;
 
 import java.net.URI;
 import java.net.URISyntaxException;

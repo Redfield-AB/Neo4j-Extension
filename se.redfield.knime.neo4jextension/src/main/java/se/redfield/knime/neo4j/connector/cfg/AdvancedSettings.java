@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension.cfg;
+package se.redfield.knime.neo4j.connector.cfg;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -10,6 +10,8 @@ import org.neo4j.driver.internal.async.pool.PoolSettings;
 import org.neo4j.driver.internal.cluster.RoutingSettings;
 import org.neo4j.driver.internal.handlers.pulln.FetchSizeUtil;
 import org.neo4j.driver.internal.retry.RetrySettings;
+
+import se.redfield.knime.neo4j.reader.cfg.SslTrustStrategy;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

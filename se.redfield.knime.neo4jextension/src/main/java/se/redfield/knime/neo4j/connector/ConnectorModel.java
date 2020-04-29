@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension;
+package se.redfield.knime.neo4j.connector;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,22 +23,20 @@ import org.knime.core.node.port.PortType;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
 
-import se.redfield.knime.neo4j.Neo4JSupport;
-import se.redfield.knime.neo4j.WithSessionRunnable;
-import se.redfield.knime.neo4jextension.cfg.ConnectorPortData;
-import se.redfield.knime.neo4jextension.cfg.ConnectorPortDataSerializer;
+import se.redfield.knime.neo4j.db.Neo4JSupport;
+import se.redfield.knime.neo4j.db.WithSessionRunnable;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class Neo4JConnectorModel extends NodeModel {
+public class ConnectorModel extends NodeModel {
     private ConnectorPortData data;
 
     /**
      * Default constructor.
      */
-    public Neo4JConnectorModel() {
+    public ConnectorModel() {
         super(new PortType[0], new PortType[] {ConnectorPortObject.TYPE});
         this.data = new ConnectorPortData();
     }

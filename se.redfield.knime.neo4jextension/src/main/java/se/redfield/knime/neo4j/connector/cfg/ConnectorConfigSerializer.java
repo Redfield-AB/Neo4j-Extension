@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension.cfg;
+package se.redfield.knime.neo4j.connector.cfg;
 
 import java.io.File;
 import java.net.URI;
@@ -11,6 +11,8 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
 import org.neo4j.driver.Config.TrustStrategy;
+
+import se.redfield.knime.neo4j.reader.cfg.SslTrustStrategy;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

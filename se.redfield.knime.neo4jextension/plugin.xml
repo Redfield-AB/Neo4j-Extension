@@ -6,12 +6,12 @@
       <node
             category-path="/neo4j"
             deprecated="false"
-            factory-class="se.redfield.knime.neo4jextension.Neo4JReaderFactory">
+            factory-class="se.redfield.knime.neo4j.reader.ReaderFactory">
       </node>
       <node
             category-path="/neo4j"
             deprecated="false"
-            factory-class="se.redfield.knime.neo4jextension.Neo4JConnectorFactory">
+            factory-class="se.redfield.knime.neo4j.connector.ConnectorFactory">
       </node>
    </extension>
    <extension
@@ -30,10 +30,10 @@
             color="red"
             hidden="false"
             name="se.redfield.knime.neo4jextension.neo4jconnector"
-            objectClass="se.redfield.knime.neo4jextension.ConnectorPortObject"
-            objectSerializer="se.redfield.knime.neo4jextension.ConnectorPortObjectSer"
-            specClass="se.redfield.knime.neo4jextension.ConnectorSpec"
-            specSerializer="se.redfield.knime.neo4jextension.ConnectorSpecSer">
+            objectClass="se.redfield.knime.neo4j.connector.ConnectorPortObject"
+            objectSerializer="se.redfield.knime.neo4j.connector.ConnectorPortObjectSer"
+            specClass="se.redfield.knime.neo4j.connector.ConnectorSpec"
+            specSerializer="se.redfield.knime.neo4j.connector.ConnectorSpecSer">
       </portType>
    </extension>
 </plugin>

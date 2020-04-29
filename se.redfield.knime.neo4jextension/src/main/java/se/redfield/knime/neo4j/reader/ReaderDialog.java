@@ -1,9 +1,10 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension;
+package se.redfield.knime.neo4j.reader;
 
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -17,6 +18,7 @@ import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.JTree;
 import javax.swing.border.EmptyBorder;
+import javax.swing.text.BadLocationException;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
@@ -28,20 +30,21 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObject;
 
-import se.redfield.knime.neo4jextension.cfg.ConnectorPortData;
-import se.redfield.knime.neo4jextension.cfg.ReaderConfig;
-import se.redfield.knime.neo4jextension.cfg.ReaderConfigSerializer;
-import se.redfield.knime.neo4jextension.ui.ReaderLabel;
+import se.redfield.knime.neo4j.connector.ConnectorPortData;
+import se.redfield.knime.neo4j.connector.ConnectorPortObject;
+import se.redfield.knime.neo4j.reader.cfg.ReaderConfig;
+import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
+import se.redfield.knime.ui.AlwaysVisibleCaret;
+import se.redfield.knime.ui.ReaderLabel;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
+public class ReaderDialog extends DataAwareNodeDialogPane {
     private final JCheckBox useJsonOutput = new JCheckBox();
-    private final JTextArea scriptEditor = new JTextArea();
+    private JTextArea scriptEditor;
 
-    private JScrollPane scriptEditorPane;
     private JTree labelsTree = new JTree();
     private JSplitPane sourcesContainer;
     final DefaultMutableTreeNode labelsTreeRoot = new DefaultMutableTreeNode();
@@ -49,10 +52,14 @@ public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
     /**
      * Default constructor.
      */
-    public Neo4JReaderDialog() {
+    public ReaderDialog() {
         super();
 
-        addTab("Script", createScriptPage());
+        final JPanel scriptPanel = createScriptPage();
+        final JScrollPane sp = new JScrollPane(scriptPanel,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        addTab("Script", sp, false);
     }
 
     /**
@@ -73,13 +80,27 @@ public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
         p.add(north, BorderLayout.NORTH);
 
         //Script editor
-        scriptEditorPane = new JScrollPane(scriptEditor);
+        scriptEditor = new JTextArea() {
+            private static final long serialVersionUID = -6583141839191451218L;
+            @Override
+            public Dimension getMinimumSize() {
+                //allways return minimum width as zero
+                final Dimension min = super.getMinimumSize();
+                return min == null ? new Dimension() : new Dimension(0, min.height);
+            }
+        };
+
+        final AlwaysVisibleCaret caret = new AlwaysVisibleCaret();
+        caret.setBlinkRate(500);
+        scriptEditor.setCaret(caret);
+        scriptEditor.setLineWrap(true);
 
         //Labels tree
         labelsTree.setModel(new DefaultTreeModel(labelsTreeRoot));
         labelsTree.setRootVisible(false);
         labelsTree.setEditable(false);
         labelsTree.setSelectionModel(null);
+        labelsTree.setFocusable(false);
         labelsTree.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(final MouseEvent e) {
@@ -93,7 +114,7 @@ public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
         //Node label selection
         sourcesContainer = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         sourcesContainer.setLeftComponent(labelsTree);
-        sourcesContainer.setRightComponent(scriptEditorPane);
+        sourcesContainer.setRightComponent(scriptEditor);
         p.add(sourcesContainer, BorderLayout.CENTER);
 
         return p;
@@ -122,17 +143,30 @@ public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
         String text;
         switch (label.getType()) {
             case NodeLabel:
+                text = "(:" + label.getText() + ")";
+                break;
+            case RelationshipType:
                 text = "-[:" + label.getText() + "]-";
                 break;
+            default:
             case PropertyKey:
                 text = label.getText();
                 break;
-            case RelationshipType:
-            default:
-                text = ":" + label.getText();
-                break;
         }
 
+        //possible remove selection
+        final int selStart = scriptEditor.getSelectionStart();
+        final int selEnd = scriptEditor.getSelectionEnd();
+        if (selEnd != selStart) {
+            try {
+                scriptEditor.getDocument().remove(
+                        Math.min(selStart, selEnd),
+                        Math.abs(selStart - selEnd));
+            } catch (final BadLocationException e) {
+            }
+        }
+
+        //insert text
         final int pos = Math.max(0, scriptEditor.getCaretPosition());
         scriptEditor.insert(text, pos);
     }
@@ -147,7 +181,7 @@ public class Neo4JReaderDialog extends DataAwareNodeDialogPane {
     protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObject[] input) throws NotConfigurableException {
         try {
             final ReaderConfig model = new ReaderConfigSerializer().read(settings);
-            initFromModel(model, ((ConnectorPortObject) input[0]).getPortData());
+            initFromModel(model, ((ConnectorPortObject) input[1]).getPortData());
         } catch (final InvalidSettingsException e) {
             throw new NotConfigurableException("Failed to load configuration from settings", e);
         }

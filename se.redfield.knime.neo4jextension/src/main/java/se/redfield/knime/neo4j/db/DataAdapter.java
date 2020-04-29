@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4j;
+package se.redfield.knime.neo4j.db;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
