@@ -77,7 +77,6 @@ public class ConnectorModel extends NodeModel {
         final List<WithSessionRunnable<Void>> runs = new ArrayList<>(3);
         runs.add(s -> addNodeLabels(s));
         runs.add(s -> addRelationshipLabels(s));
-        runs.add(s -> addPropertyKeys(s));
 
         final Neo4JSupport support = new Neo4JSupport(data.getConnectorConfig());
         support.runAndWait(runs);
@@ -126,24 +125,6 @@ public class ConnectorModel extends NodeModel {
         data.setRelationshipTypes(labels);
         return null;
     }
-    private Void addPropertyKeys(final Session s) {
-        final StringBuilder query = new StringBuilder("MATCH (n)\n");
-        query.append("WITH KEYS(n) AS keys\n");
-        query.append("UNWIND keys AS key\n");
-        query.append("RETURN DISTINCT key\n");
-        query.append("ORDER BY key\n");
-
-        final List<Record> result = s.readTransaction(tx -> tx.run(query.toString()).list());
-
-        final List<String> labels = new LinkedList<>();
-        for (final Record r : result) {
-            labels.add(r.get(0).asString());
-        }
-
-        data.setPropertyKeys(labels);
-        return null;
-    }
-
     private PortObjectSpec[] configure() {
         return new PortObjectSpec[] {new ConnectorSpec(data)};
     }

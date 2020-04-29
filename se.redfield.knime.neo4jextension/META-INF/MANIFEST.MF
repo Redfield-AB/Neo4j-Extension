@@ -18,3 +18,4 @@ Bundle-ClassPath: lib/neo4j-java-driver-4.0.1.jar,
  target/classes/
 Bundle-Activator: se.redfield.knime.neo4jextension.Activator
 Bundle-ActivationPolicy: lazy
+Import-Package: org.apache.commons.lang3.concurrent;version="3.9.0"

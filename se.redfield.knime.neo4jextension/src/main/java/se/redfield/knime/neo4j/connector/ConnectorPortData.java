@@ -17,7 +17,6 @@ public class ConnectorPortData {
 
     private List<String> nodeLabels = new LinkedList<>();
     private List<String> relationshipTypes = new LinkedList<>();
-    private List<String> propertyKeys = new LinkedList<String>();
 
     public ConnectorPortData() {
         config = new ConnectorConfig();
@@ -40,11 +39,5 @@ public class ConnectorPortData {
     }
     public void setRelationshipTypes(final List<String> relationshipTypes) {
         this.relationshipTypes = relationshipTypes;
-    }
-    public void setPropertyKeys(final List<String> keys) {
-        this.propertyKeys = keys;
-    }
-    public List<String> getPropertyKeys() {
-        return propertyKeys;
     }
 }

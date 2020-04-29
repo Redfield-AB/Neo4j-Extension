@@ -17,7 +17,6 @@ import se.redfield.knime.neo4j.connector.cfg.ConnectorConfigSerializer;
  *
  */
 public class ConnectorPortDataSerializer {
-    private static final String PROPERTY_KEYS_KEY = "propertyKeys";
     private static final String RELATIONSHIP_TYPES_KEY = "relationshipTypes";
     private static final String NODE_LABELS_KEY = "nodeLabels";
 
@@ -27,7 +26,6 @@ public class ConnectorPortDataSerializer {
 
         data.setNodeLabels(loadStringsSafely(model, NODE_LABELS_KEY));
         data.setRelationshipTypes(loadStringsSafely(model, RELATIONSHIP_TYPES_KEY));
-        data.setPropertyKeys(loadStringsSafely(model, PROPERTY_KEYS_KEY));
 
         return data;
     }
@@ -43,11 +41,6 @@ public class ConnectorPortDataSerializer {
     }
     public void save(final ConnectorPortData data, final ConfigWO model) {
         new ConnectorConfigSerializer().save(data.getConnectorConfig(), model);
-
-        //property keys
-        final List<String> propertyKeys = data.getPropertyKeys();
-        model.addStringArray(PROPERTY_KEYS_KEY,
-                propertyKeys.toArray(new String[propertyKeys.size()]));
 
         //save node labels
         final List<String> nodeLabels = data.getNodeLabels();

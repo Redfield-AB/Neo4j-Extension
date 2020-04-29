@@ -103,7 +103,25 @@ public class Neo4JSupport {
             driver.close();
         }
     }
-    private Driver createDriver() {
+    public void runAsync(final WithSessionRunnable<Void> run) {
+        final AbstractExecutorService executor = ThreadPool.getExecutor();
+        final Driver driver = createDriver();
+
+        //create callables
+        final Callable<Void> c = () -> {
+            final Session s = driver.session();
+            try {
+                run.run(s);
+            } finally {
+                s.close();
+                driver.close();
+            }
+            return null;
+        };
+
+        executor.submit(c);
+    }
+    public Driver createDriver() {
         return createDriver(config);
     }
     /**

@@ -4,24 +4,32 @@
 package se.redfield.knime.neo4j.reader;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
+import javax.swing.DefaultListModel;
 import javax.swing.JCheckBox;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
-import javax.swing.JTree;
+import javax.swing.ListSelectionModel;
+import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.EtchedBorder;
+import javax.swing.border.TitledBorder;
 import javax.swing.text.BadLocationException;
-import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.DefaultTreeModel;
-import javax.swing.tree.TreePath;
 
 import org.knime.core.node.DataAwareNodeDialogPane;
 import org.knime.core.node.InvalidSettingsException;
@@ -29,13 +37,17 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObject;
+import org.knime.core.node.workflow.FlowVariable;
+import org.knime.core.node.workflow.VariableType;
+import org.neo4j.driver.Record;
+import org.neo4j.driver.Session;
 
 import se.redfield.knime.neo4j.connector.ConnectorPortData;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
+import se.redfield.knime.neo4j.db.Neo4JSupport;
 import se.redfield.knime.neo4j.reader.cfg.ReaderConfig;
 import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
 import se.redfield.knime.ui.AlwaysVisibleCaret;
-import se.redfield.knime.ui.ReaderLabel;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -45,9 +57,14 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
     private final JCheckBox useJsonOutput = new JCheckBox();
     private JTextArea scriptEditor;
 
-    private JTree labelsTree = new JTree();
     private JSplitPane sourcesContainer;
-    final DefaultMutableTreeNode labelsTreeRoot = new DefaultMutableTreeNode();
+
+    private DefaultListModel<String> flowVariables = new DefaultListModel<>();
+    private DefaultListModel<String> nodes = new DefaultListModel<>();
+    private DefaultListModel<String> nodeProperties = new DefaultListModel<>();
+    private DefaultListModel<String> relationships = new DefaultListModel<>();
+    private DefaultListModel<String> functions = new DefaultListModel<>();
+    private Neo4JSupport support;
 
     /**
      * Default constructor.
@@ -77,10 +94,102 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
         final JPanel north = new JPanel(new FlowLayout(FlowLayout.LEADING, 5, 5));
         north.add(useJsonOutputPane);
 
-        p.add(north, BorderLayout.NORTH);
-
         //Script editor
-        scriptEditor = new JTextArea() {
+        final JPanel scriptPanel = new JPanel(new BorderLayout());
+        scriptPanel.add(north, BorderLayout.NORTH);
+        this.scriptEditor = createScriptEditor();
+        scriptPanel.add(scriptEditor, BorderLayout.CENTER);
+
+        //Labels tree
+        final JSplitPane leftSide = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        leftSide.setTopComponent(createFlowVariablesAndLabels());
+        leftSide.setBottomComponent(createRelationshipsAndFunctions());
+
+        //Node label selection
+        sourcesContainer = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        sourcesContainer.setLeftComponent(leftSide);
+        sourcesContainer.setRightComponent(scriptPanel);
+        p.add(sourcesContainer, BorderLayout.CENTER);
+
+        return p;
+    }
+
+    private JSplitPane createFlowVariablesAndLabels() {
+        final JSplitPane sp = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        sp.setTopComponent(createFlowVariables());
+        sp.setBottomComponent(createNodes());
+        return sp;
+    }
+    private JSplitPane createNodes() {
+        final JSplitPane p = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        p.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Node labels"));
+
+        final JList<String> nodesList = createListWithHandler(nodes, v -> insertToScript("(:" + v + ")"));
+        nodesList.addListSelectionListener(e -> loadNodeProperties(
+                nodesList.getModel().getElementAt(nodesList.getSelectedIndex())));
+
+        p.setLeftComponent(nodesList);
+        p.setRightComponent(createListWithHandler(this.nodeProperties, v -> insertToScript(v)));
+        return p;
+    }
+
+    private JComponent createFlowVariables() {
+        return createTitledList("Flow variables", flowVariables, v -> insertToScript(v));
+    }
+    private JPanel createTitledList(final String title,
+            final DefaultListModel<String> listModel, final ValueInsertHandler h) {
+        final JPanel p = new JPanel(new BorderLayout());
+        p.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), title));
+
+        final JList<String> list = createListWithHandler(listModel, h);
+        p.add(list, BorderLayout.CENTER);
+        return p;
+    }
+
+    private JList<String> createListWithHandler(final DefaultListModel<String> listModel,
+            final ValueInsertHandler h) {
+        final JList<String> list = new JList<String>(listModel);
+        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        list.addListSelectionListener(e -> listSelectionChanged(list, h));
+        return list;
+    }
+    private void listSelectionChanged(final JList<String> list, final ValueInsertHandler h) {
+        final int index = list.getSelectedIndex();
+        if (index > -1) {
+            //remove old mouse listener
+            final MouseListener[] listeners = list.getMouseListeners();
+            for (final MouseListener l : listeners) {
+                if (l instanceof ListClickListener) {
+                    list.removeMouseListener(l);
+                }
+            }
+
+            //invoke later for avoid of immediately triggering.
+            SwingUtilities.invokeLater(
+                    () -> list.addMouseListener(new ListClickListener(list, h, index)));
+        }
+    }
+
+    private Component createRelationshipsAndFunctions() {
+        final JSplitPane sp = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        sp.setTopComponent(createRelationships());
+        sp.setBottomComponent(createFunctions());
+        return sp;
+    }
+    private JPanel createRelationships() {
+        return createTitledList("Relationship types", relationships,
+                v -> insertToScript("-[:" + v + "]-"));
+    }
+    private JPanel createFunctions() {
+        return createTitledList("Functions", functions,
+                v -> insertToScript(v));
+    }
+
+    /**
+     * @return script editor.
+     */
+    private JTextArea createScriptEditor() {
+        final JTextArea scriptEditor = new JTextArea() {
             private static final long serialVersionUID = -6583141839191451218L;
             @Override
             public Dimension getMinimumSize() {
@@ -94,66 +203,9 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
         caret.setBlinkRate(500);
         scriptEditor.setCaret(caret);
         scriptEditor.setLineWrap(true);
-
-        //Labels tree
-        labelsTree.setModel(new DefaultTreeModel(labelsTreeRoot));
-        labelsTree.setRootVisible(false);
-        labelsTree.setEditable(false);
-        labelsTree.setSelectionModel(null);
-        labelsTree.setFocusable(false);
-        labelsTree.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(final MouseEvent e) {
-                if (e.getClickCount() == 2 && !e.isConsumed()) {
-                    e.consume();
-                    mouseClickedOnLabelsTree(e.getX(), e.getY());
-                }
-            }
-        });
-
-        //Node label selection
-        sourcesContainer = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-        sourcesContainer.setLeftComponent(labelsTree);
-        sourcesContainer.setRightComponent(scriptEditor);
-        p.add(sourcesContainer, BorderLayout.CENTER);
-
-        return p;
+        return scriptEditor;
     }
-
-    /**
-     * @param x mouse x.
-     * @param y mouse y.
-     */
-    protected void mouseClickedOnLabelsTree(final int x, final int y) {
-        final TreePath path = labelsTree.getPathForLocation(x, y);
-        if (path != null) {
-            final Object last = path.getLastPathComponent();
-            if (last instanceof DefaultMutableTreeNode) {
-                final DefaultMutableTreeNode node = (DefaultMutableTreeNode) last;
-                if (node.isLeaf() && node.getUserObject() instanceof ReaderLabel) {
-                    addStringToCurrentScriptEditorPosition((ReaderLabel) node.getUserObject());
-                }
-            }
-        }
-    }
-    /**
-     * @param label label to insert.
-     */
-    private void addStringToCurrentScriptEditorPosition(final ReaderLabel label) {
-        String text;
-        switch (label.getType()) {
-            case NodeLabel:
-                text = "(:" + label.getText() + ")";
-                break;
-            case RelationshipType:
-                text = "-[:" + label.getText() + "]-";
-                break;
-            default:
-            case PropertyKey:
-                text = label.getText();
-                break;
-        }
-
+    private void insertToScript(final String text) {
         //possible remove selection
         final int selStart = scriptEditor.getSelectionStart();
         final int selEnd = scriptEditor.getSelectionEnd();
@@ -191,49 +243,79 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
      * @param model model.
      */
     private void initFromModel(final ReaderConfig model, final ConnectorPortData data) {
+        this.support = new Neo4JSupport(data.getConnectorConfig());
+
         scriptEditor.setText(model.getScript());
         useJsonOutput.setSelected(model.isUseJson());
 
-        //add labels and nodes
-        labelsTreeRoot.removeAllChildren();
+        //clear all lists
+        flowVariables.clear();
+        nodes.clear();
+        nodeProperties.clear();
+        relationships.clear();
+        functions.clear();
 
-        //node labels
-        final DefaultMutableTreeNode nodeLabels = new DefaultMutableTreeNode("Node labels:");
-        addLiefs(nodeLabels, data.getNodeLabels(), ReaderLabel.Type.NodeLabel);
-        labelsTreeRoot.add(nodeLabels);
+        final Set<VariableType<?>> types = new HashSet<>();
+        types.add(VariableType.BooleanArrayType.INSTANCE);
+        types.add(VariableType.BooleanType.INSTANCE);
+        types.add(VariableType.CredentialsType.INSTANCE);
+        types.add(VariableType.DoubleArrayType.INSTANCE);
+        types.add(VariableType.BooleanArrayType.INSTANCE);
+        types.add(VariableType.DoubleArrayType.INSTANCE);
+        types.add(VariableType.DoubleType.INSTANCE);
+        types.add(VariableType.IntArrayType.INSTANCE);
+        types.add(VariableType.IntType.INSTANCE);
+        types.add(VariableType.LongArrayType.INSTANCE);
+        types.add(VariableType.LongType.INSTANCE);
+        types.add(VariableType.StringArrayType.INSTANCE);
+        types.add(VariableType.StringType.INSTANCE);
 
-        //relationship types
-        final DefaultMutableTreeNode relTypes = new DefaultMutableTreeNode("Relationship types:");
-        addLiefs(relTypes, data.getRelationshipTypes(), ReaderLabel.Type.RelationshipType);
-        labelsTreeRoot.add(relTypes);
+        final Map<String, FlowVariable> vars = getAvailableFlowVariables(
+                types.toArray(new VariableType[types.size()]));
+        for (final String varName : vars.keySet()) {
+            flowVariables.addElement(varName);
+        }
 
-        //Property keys
-        final DefaultMutableTreeNode propKeys = new DefaultMutableTreeNode("Properthy keys:");
-        addLiefs(propKeys, data.getPropertyKeys(), ReaderLabel.Type.PropertyKey);
-        labelsTreeRoot.add(propKeys);
-
-        final DefaultTreeModel treeModel = (DefaultTreeModel) labelsTree.getModel();
-        treeModel.nodeChanged(nodeLabels);
-        treeModel.nodeChanged(relTypes);
-        treeModel.nodeChanged(propKeys);
-
-        labelsTree.expandPath(new TreePath(treeModel.getPathToRoot(nodeLabels)));
-        labelsTree.expandPath(new TreePath(treeModel.getPathToRoot(relTypes)));
-        labelsTree.expandPath(new TreePath(treeModel.getPathToRoot(propKeys)));
+        values(nodes, data.getNodeLabels());
+        values(relationships, data.getRelationshipTypes());
     }
 
-    /**
-     * @param parent
-     * @param liefs
-     */
-    private void addLiefs(final DefaultMutableTreeNode parent,
-            final List<String> liefs, final ReaderLabel.Type type) {
-        for (final String str : liefs) {
-            final ReaderLabel label = new ReaderLabel(type);
-            label.setText(str);
+    private void loadNodeProperties(final String label) {
+        support.runAsync(s -> addPropertyKeys(s, label));
+    }
+    private Void addPropertyKeys(final Session s, final String label) {
+        nodeProperties.clear();
 
-            final DefaultMutableTreeNode n = new DefaultMutableTreeNode(label);
-            parent.add(n);
+        final StringBuilder query = new StringBuilder("MATCH (n:"
+                + label
+                + ")\n");
+        query.append("WITH KEYS(n) AS keys\n");
+        query.append("UNWIND keys AS key\n");
+        query.append("RETURN DISTINCT key\n");
+        query.append("ORDER BY key\n");
+
+        final Map<String, Object> params = new HashMap<>();
+        params.put("label", label);
+        final List<Record> result = s.readTransaction(tx -> tx.run(query.toString(), params).list());
+
+        final List<String> props = new LinkedList<>();
+        for (final Record r : result) {
+            props.add(r.get(0).asString());
+        }
+
+        //add properties in event dispatch thread
+        SwingUtilities.invokeLater(() -> {
+            nodeProperties.clear();
+            for (final String p : props) {
+                this.nodeProperties.addElement(p);
+            }
+        });
+        return null;
+    }
+
+    private void values(final DefaultListModel<String> model, final List<String> values) {
+        for (final String v : values) {
+            model.addElement(v);
         }
     }
 

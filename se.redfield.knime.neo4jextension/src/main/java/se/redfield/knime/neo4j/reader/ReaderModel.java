@@ -94,7 +94,7 @@ public class ReaderModel extends NodeModel {
     }
     @Override
     protected PortObject[] execute(final PortObject[] input, final ExecutionContext exec) throws Exception {
-        final ConnectorPortObject portObject = (ConnectorPortObject) input[0];
+        final ConnectorPortObject portObject = (ConnectorPortObject) input[1];
         final Neo4JSupport neo4j = new Neo4JSupport(portObject.getPortData().getConnectorConfig());
 
         final List<Record> records = neo4j.runRead(config.getScript());
