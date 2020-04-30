@@ -18,11 +18,10 @@ import org.neo4j.driver.Value;
 import org.neo4j.driver.types.Node;
 import org.neo4j.driver.types.Path;
 import org.neo4j.driver.types.Path.Segment;
-
-import se.redfield.knime.neo4j.db.DataAdapter;
-
 import org.neo4j.driver.types.Point;
 import org.neo4j.driver.types.Relationship;
+
+import se.redfield.knime.neo4j.db.DataAdapter;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -43,10 +42,10 @@ public class JsonBuilder {
         gen.writeEnd();
     }
     private void writeRecord(final Record r, final JsonGenerator gen) {
-        final int size = r.size();
-        gen.writeStartArray();
-        for (int i = 0; i < size; i++) {
-            writeValue(r.get(i), gen);
+        gen.writeStartObject();
+        for (final String key: r.keys()) {
+            gen.writeKey(key);
+            writeValue(r.get(key), gen);
         }
         gen.writeEnd();
     }
