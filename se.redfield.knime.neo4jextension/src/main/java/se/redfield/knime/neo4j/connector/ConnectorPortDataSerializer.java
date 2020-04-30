@@ -56,7 +56,7 @@ public class ConnectorPortDataSerializer {
                 final FunctionDesc f = new FunctionDesc(name);
                 functions.add(f);
 
-                final Config cfg = model.getConfig(name);
+                final Config cfg = root.getConfig(name);
                 f.setSignature(cfg.getString("signature"));
                 f.setDescription(cfg.getString("description"));
             }

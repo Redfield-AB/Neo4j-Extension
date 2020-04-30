@@ -3,19 +3,27 @@
  */
 package se.redfield.knime.neo4j.db;
 
+import java.math.BigInteger;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.chrono.ChronoZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataType;
+import org.knime.core.data.MissingCell;
 import org.knime.core.data.blob.BinaryObjectCellFactory;
 import org.knime.core.data.blob.BinaryObjectDataCell;
+import org.knime.core.data.collection.CollectionCellFactory;
+import org.knime.core.data.collection.ListCell;
 import org.knime.core.data.def.BooleanCell;
 import org.knime.core.data.def.DoubleCell;
 import org.knime.core.data.def.IntCell;
+import org.knime.core.data.def.LongCell;
 import org.knime.core.data.def.StringCell;
 import org.knime.core.data.time.duration.DurationCellFactory;
 import org.knime.core.data.time.localdate.LocalDateCellFactory;
@@ -46,22 +54,20 @@ public class DataAdapter {
             return null;
         }
 
-        if (typeSystem.ANY().isTypeOf(value)) {
-            return new StringCell(value.toString());
-        } else if (isBoolean(value)) {
+        if (isBoolean(value)) {
             return value.asBoolean() ? BooleanCell.TRUE : BooleanCell.FALSE;
         } else if (isBytes(value)) {
             return new BinaryObjectCellFactory().create(value.asByteArray());
         } else if (isString(value)) {
             return new StringCell(value.asString());
-        } else if (isNumber(value)) {
-            return new DoubleCell(value.asDouble());
         } else if (isInteger(value)) {
             return new IntCell(value.asInt());
         } else if (isFloat(value)) {
             return new DoubleCell(value.asDouble());
+        } else if (isNumber(value)) {
+            return new DoubleCell(value.asDouble());
         } else if (isList(value)) {
-            return new StringCell(value.toString());
+            return CollectionCellFactory.createListCell(createLiceCell(value.asList()));
         } else if (isMap(value)) {
             return new StringCell(value.toString());
         } else if (isNode(value)) {
@@ -86,10 +92,17 @@ public class DataAdapter {
             return DurationCellFactory.create(
                     Duration.ofNanos(value.asIsoDuration().nanoseconds()));
         } else if (isNull(value)) {
-            return null;
+            return new MissingCell("is null");
         }
 
         return new StringCell(value.toString());
+    }
+    private List<DataCell> createLiceCell(final List<Object> neo4JList) {
+        final List<DataCell> list = new LinkedList<>();
+        for (final Object obj : neo4JList) {
+            list.add(createCellForObject(obj));
+        }
+        return list;
     }
     public DataType getCompatibleType(final Value value) {
         if (isBoolean(value)) {
@@ -103,7 +116,7 @@ public class DataAdapter {
         } else if (isFloat(value)) {
             return DoubleCell.TYPE;
         } else if (isList(value)) {
-            return StringCell.TYPE;
+            return ListCell.getCollectionType(getFirstListElementType(value.asList()));
         } else if (isNumber(value)) {
             return DoubleCell.TYPE;
         } else if (isMap(value)) {
@@ -134,7 +147,6 @@ public class DataAdapter {
 
         return StringCell.TYPE;
     }
-
     public boolean isNull(final Value value) {
         return typeSystem.NULL().isTypeOf(value);
     }
@@ -204,5 +216,52 @@ public class DataAdapter {
     }
     public static String formatDate(final ChronoZonedDateTime<?> dateTime) {
         return dateTime.format(DateTimeFormatter.ISO_DATE);
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private DataCell createCellForObject(final Object obj) {
+        if (obj == null) {
+            return new MissingCell("Is null");
+        }
+
+        if (obj instanceof String) {
+            return new StringCell(obj.toString());
+        }
+        if (obj instanceof BigInteger || obj instanceof Long) {
+            return new LongCell(((Number) obj).longValue());
+        }
+        if (obj instanceof Byte || obj instanceof Integer || obj instanceof Short) {
+            return new IntCell(((Byte) obj).byteValue());
+        }
+        if (obj instanceof Float || obj instanceof Double) {
+            return new DoubleCell(((Number) obj).doubleValue());
+        }
+        if (obj instanceof Collection) {
+            final List list = new LinkedList((Collection) obj);
+            return CollectionCellFactory.createListCell(createLiceCell(list));
+        }
+
+        return new StringCell(obj.toString());
+    }
+    private DataType getFirstListElementType(final List<Object> list) {
+        if (list.isEmpty()) {
+            return StringCell.TYPE;
+        }
+
+        final Object obj = list.get(0);
+        if (obj instanceof String) {
+            return StringCell.TYPE;
+        }
+        if (obj instanceof BigInteger || obj instanceof Long) {
+            return LongCell.TYPE;
+        }
+        if (obj instanceof Byte || obj instanceof Integer || obj instanceof Short) {
+            return IntCell.TYPE;
+        }
+        if (obj instanceof Float || obj instanceof Double) {
+            return DoubleCell.TYPE;
+        }
+
+        return StringCell.TYPE;
     }
 }
