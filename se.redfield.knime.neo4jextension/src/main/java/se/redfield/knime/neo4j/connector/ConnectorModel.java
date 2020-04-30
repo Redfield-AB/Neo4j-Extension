@@ -6,8 +6,10 @@ package se.redfield.knime.neo4j.connector;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.CanceledExecutionException;
@@ -24,7 +26,7 @@ import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
 
 import se.redfield.knime.neo4j.db.Neo4JSupport;
-import se.redfield.knime.neo4j.db.WithSessionRunnable;
+import se.redfield.knime.neo4j.db.WithSessionAsyncRunnable;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -74,80 +76,98 @@ public class ConnectorModel extends NodeModel {
     }
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
-        final List<Exception> errors = new LinkedList<Exception>();
+        final List<WithSessionAsyncRunnable<Void>> runs = new ArrayList<>(4);
 
-        final List<WithSessionRunnable<Void>> runs = new ArrayList<>(3);
-        runs.add(s -> {
-            try {
-                addNodeLabels(s);
-            } catch (final Exception e) {
-                errors.add(e);
-            }
-            return null;
-        });
-        runs.add(s -> {
-            try {
-                addRelationshipLabels(s);
-            } catch (final Exception e) {
-                errors.add(e);
-            }
-            return null;
-        });
+        final Map<String, NamedWithProperties> nodes = new HashMap<>();
+        final Map<String, NamedWithProperties> relationships = new HashMap<>();
+        final List<FunctionDesc> functions = new LinkedList<>();
+
+        runs.add(s -> loadNamedWithProperties(s, "call db.labels()", nodes));
+        runs.add(s -> loadNodeLabelPropertiess(s, nodes));
+        runs.add(s -> loadNamedWithProperties(s, "call db.relationshipTypes()", relationships));
+        runs.add(s -> loadRelationshipProperties(s, relationships));
+        runs.add(s -> loadFunctions(s, functions));
 
         final Neo4JSupport support = new Neo4JSupport(data.getConnectorConfig());
         support.runAndWait(runs);
 
-        if (!errors.isEmpty()) {
-            final Exception exc = errors.remove(0);
-            for (final Exception e : errors) {
-                exc.addSuppressed(e);
-            }
-
-            throw exc;
-        }
+        data.setNodeLabels(new LinkedList<NamedWithProperties>(nodes.values()));
+        data.setRelationshipTypes(new LinkedList<NamedWithProperties>(relationships.values()));
+        data.setFunctions(functions);
 
         return new PortObject[]{new ConnectorPortObject(data)};
     }
-    /**
-     * @param s session.
-     * @return
-     */
-    private void addRelationshipLabels(final Session s) {
-        final StringBuilder query = new StringBuilder("MATCH (n)\n");
-        query.append("WITH DISTINCT labels(n) AS labels\n");
-        query.append("UNWIND labels AS label\n");
-        query.append("RETURN DISTINCT label\n");
-        query.append("ORDER BY label\n");
 
-        final List<String> labels = new LinkedList<>();
-        final List<Record> result = s.readTransaction(tx -> tx.run(query.toString()).list());
-
+    private void loadNamedWithProperties(final Session s, final String query,
+            final Map<String, NamedWithProperties> map) {
+        final List<Record> result = s.readTransaction(tx -> tx.run(query).list());
         for (final Record r : result) {
-            labels.add(r.get(0).asString());
+            final String type = r.get(0).asString();
+            synchronized (map) {
+                if (!map.containsKey(type)) {
+                    map.put(type, new NamedWithProperties(type));
+                }
+            }
         }
-
-        data.setNodeLabels(labels);
     }
-    /**
-     * @param s session.
-     * @return
-     */
-    private void addNodeLabels(final Session s) {
-        final StringBuilder query = new StringBuilder("MATCH ()-[r]-()\n");
-        query.append("WITH DISTINCT TYPE(r) AS labels\n");
-        query.append("UNWIND labels AS label\n");
-        query.append("RETURN DISTINCT label\n");
-        query.append("ORDER BY label\n");
-
-        final List<Record> result = s.readTransaction(tx -> tx.run(query.toString()).list());
-
-        final List<String> labels = new LinkedList<>();
+    private void loadNodeLabelPropertiess(final Session s, final Map<String, NamedWithProperties> map) {
+        final List<Record> result = s.readTransaction(tx -> tx.run(
+                "call db.schema.nodeTypeProperties()").list());
         for (final Record r : result) {
-            labels.add(r.get(0).asString());
-        }
+            final String property = r.get("propertyName").asString();
+            final List<Object> nodeLabels = r.get("nodeLabels").asList();
 
-        data.setRelationshipTypes(labels);
+            for (final Object obj : nodeLabels) {
+                final String type = (String) obj;
+
+                NamedWithProperties n;
+                synchronized (map) {
+                    n = map.get(type);
+                    if (n == null) {
+                        n = new NamedWithProperties(type);
+                        map.put(type, n);
+                    }
+                }
+
+                n.getProperties().add(property);
+            }
+        }
     }
+
+    private void loadRelationshipProperties(final Session s, final Map<String, NamedWithProperties> map) {
+        final List<Record> result = s.readTransaction(tx -> tx.run(
+                "call db.schema.relTypeProperties()").list());
+        for (final Record r : result) {
+            final String property = r.get("propertyName").asString();
+            String type = r.get("relType").asString();
+            if (type.startsWith(":")) {
+                type = type.substring(2, type.length() - 1);
+            }
+
+            NamedWithProperties n;
+            synchronized (map) {
+                n = map.get(type);
+                if (n == null) {
+                    n = new NamedWithProperties(type);
+                    map.put(type, n);
+                }
+            }
+
+            n.getProperties().add(property);
+        }
+    }
+    private void loadFunctions(final Session s, final List<FunctionDesc> functions) {
+        final List<Record> result = s.readTransaction(tx -> tx.run(
+                "call dbms.functions()").list());
+        for (final Record r : result) {
+            final FunctionDesc f = new FunctionDesc();
+            f.setName(r.get("name").asString());
+            f.setSignature(r.get("signature").asString());
+            f.setDescription(r.get("description").asString());
+            functions.add(f);
+        }
+    }
+
     private PortObjectSpec[] configure() {
         return new PortObjectSpec[] {new ConnectorSpec(data)};
     }

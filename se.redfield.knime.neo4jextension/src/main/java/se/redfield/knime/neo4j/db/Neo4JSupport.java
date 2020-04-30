@@ -5,6 +5,7 @@ package se.redfield.knime.neo4j.db;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
@@ -73,17 +74,20 @@ public class Neo4JSupport {
             driver.close();
         }
     }
-    public void runAndWait(final List<WithSessionRunnable<Void>> runs) {
+    public void runAndWait(final List<WithSessionAsyncRunnable<Void>> runs) throws Exception {
         final AbstractExecutorService executor = ThreadPool.getExecutor();
         final Driver driver = createDriver();
 
+        final List<Exception> errors = new LinkedList<>();
         final List<Callable<Void>> tasks = new ArrayList<Callable<Void>>(runs.size());
-        for (final WithSessionRunnable<Void> r : runs) {
+        for (final WithSessionAsyncRunnable<Void> r : runs) {
             //create callables
             final Callable<Void> c = () -> {
                 final Session s = driver.session();
                 try {
                     r.run(s);
+                } catch (final Exception e) {
+                    errors.add(e);
                 } finally {
                     s.close();
                 }
@@ -101,6 +105,15 @@ public class Neo4JSupport {
             }
         } finally {
             driver.close();
+        }
+
+        if (!errors.isEmpty()) {
+            final Exception exc = errors.remove(0);
+            for (final Exception e : errors) {
+                exc.addSuppressed(e);
+            }
+
+            throw exc;
         }
     }
     public void runAsync(final WithSessionRunnable<Void> run) {

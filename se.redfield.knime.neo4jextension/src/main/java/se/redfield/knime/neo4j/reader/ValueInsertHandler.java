@@ -8,6 +8,6 @@ package se.redfield.knime.neo4j.reader;
  *
  */
 @FunctionalInterface
-public interface ValueInsertHandler {
-    void insert(String value);
+public interface ValueInsertHandler<T> {
+    void insert(T value);
 }

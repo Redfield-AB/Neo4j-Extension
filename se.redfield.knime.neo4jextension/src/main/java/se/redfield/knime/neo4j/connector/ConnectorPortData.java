@@ -15,8 +15,9 @@ import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
 public class ConnectorPortData {
     private ConnectorConfig config;
 
-    private List<String> nodeLabels = new LinkedList<>();
-    private List<String> relationshipTypes = new LinkedList<>();
+    private List<NamedWithProperties> nodeLabels = new LinkedList<>();
+    private List<NamedWithProperties> relationshipTypes = new LinkedList<>();
+    private List<FunctionDesc> functions = new LinkedList<>();
 
     public ConnectorPortData() {
         config = new ConnectorConfig();
@@ -28,16 +29,22 @@ public class ConnectorPortData {
     public ConnectorConfig getConnectorConfig() {
         return config;
     }
-    public List<String> getNodeLabels() {
+    public List<NamedWithProperties> getNodeLabels() {
         return nodeLabels;
     }
-    public List<String> getRelationshipTypes() {
+    public List<NamedWithProperties> getRelationshipTypes() {
         return relationshipTypes;
     }
-    public void setNodeLabels(final List<String> nodeLabels) {
+    public void setNodeLabels(final List<NamedWithProperties> nodeLabels) {
         this.nodeLabels = nodeLabels;
     }
-    public void setRelationshipTypes(final List<String> relationshipTypes) {
+    public void setRelationshipTypes(final List<NamedWithProperties> relationshipTypes) {
         this.relationshipTypes = relationshipTypes;
+    }
+    public List<FunctionDesc> getFunctions() {
+        return functions;
+    }
+    public void setFunctions(final List<FunctionDesc> functions) {
+        this.functions = functions;
     }
 }

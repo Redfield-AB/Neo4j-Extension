@@ -7,10 +7,7 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.event.MouseListener;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,7 +22,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.ListSelectionModel;
-import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
@@ -39,12 +35,11 @@ import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.core.node.workflow.VariableType;
-import org.neo4j.driver.Record;
-import org.neo4j.driver.Session;
 
 import se.redfield.knime.neo4j.connector.ConnectorPortData;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
-import se.redfield.knime.neo4j.db.Neo4JSupport;
+import se.redfield.knime.neo4j.connector.FunctionDesc;
+import se.redfield.knime.neo4j.connector.NamedWithProperties;
 import se.redfield.knime.neo4j.reader.cfg.ReaderConfig;
 import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
 import se.redfield.knime.ui.AlwaysVisibleCaret;
@@ -60,11 +55,11 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
     private JSplitPane sourcesContainer;
 
     private DefaultListModel<String> flowVariables = new DefaultListModel<>();
-    private DefaultListModel<String> nodes = new DefaultListModel<>();
+    private DefaultListModel<NamedWithProperties> nodes = new DefaultListModel<>();
     private DefaultListModel<String> nodeProperties = new DefaultListModel<>();
-    private DefaultListModel<String> relationships = new DefaultListModel<>();
-    private DefaultListModel<String> functions = new DefaultListModel<>();
-    private Neo4JSupport support;
+    private DefaultListModel<NamedWithProperties> relationships = new DefaultListModel<>();
+    private DefaultListModel<String> relationshipsProperties = new DefaultListModel<>();
+    private DefaultListModel<FunctionDesc> functions = new DefaultListModel<>();
 
     /**
      * Default constructor.
@@ -121,15 +116,37 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
         return sp;
     }
     private JSplitPane createNodes() {
+        return createNamedWithPropertiesComponent(nodes, nodeProperties, "Node labels",
+                v -> insertToScript("(:" + v.getName() + ")"));
+    }
+    private JSplitPane createRelationships() {
+        return createNamedWithPropertiesComponent(relationships, relationshipsProperties,
+                "Relationship types", v -> insertToScript("-[:" + v.getName() + "]-"));
+    }
+
+    private JSplitPane createNamedWithPropertiesComponent(final DefaultListModel<NamedWithProperties> named,
+            final DefaultListModel<String> propsOfNamed, final String title,
+            final ValueInsertHandler<NamedWithProperties> handler) {
         final JSplitPane p = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-        p.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Node labels"));
+        p.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), title));
 
-        final JList<String> nodesList = createListWithHandler(nodes, v -> insertToScript("(:" + v + ")"));
-        nodesList.addListSelectionListener(e -> loadNodeProperties(
-                nodesList.getModel().getElementAt(nodesList.getSelectedIndex())));
+        final JList<NamedWithProperties> nodesList = createListWithHandler(named, handler);
+        nodesList.setCellRenderer(new NamedWithPropertiesRenderer());
+        nodesList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                final int index = nodesList.getSelectedIndex();
+                if (index > -1) {
+                    final NamedWithProperties selected = nodesList.getModel().getElementAt(index);
+                    propsOfNamed.clear();
+                    for (final String prop : selected.getProperties()) {
+                        propsOfNamed.addElement(prop);
+                    }
+                }
+            }
+        });
 
-        p.setLeftComponent(nodesList);
-        p.setRightComponent(createListWithHandler(this.nodeProperties, v -> insertToScript(v)));
+        p.setLeftComponent(new JScrollPane(nodesList));
+        p.setRightComponent(createListWithHandler(propsOfNamed, v -> insertToScript(v)));
         return p;
     }
 
@@ -137,52 +154,36 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
         return createTitledList("Flow variables", flowVariables, v -> insertToScript(v));
     }
     private JPanel createTitledList(final String title,
-            final DefaultListModel<String> listModel, final ValueInsertHandler h) {
+            final DefaultListModel<String> listModel, final ValueInsertHandler<String> h) {
         final JPanel p = new JPanel(new BorderLayout());
         p.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), title));
 
         final JList<String> list = createListWithHandler(listModel, h);
-        p.add(list, BorderLayout.CENTER);
+        p.add(new JScrollPane(list), BorderLayout.CENTER);
         return p;
     }
 
-    private JList<String> createListWithHandler(final DefaultListModel<String> listModel,
-            final ValueInsertHandler h) {
-        final JList<String> list = new JList<String>(listModel);
+    private <T> JList<T> createListWithHandler(final DefaultListModel<T> listModel,
+            final ValueInsertHandler<T> h) {
+        final JList<T> list = new JList<T>(listModel);
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        list.addListSelectionListener(e -> listSelectionChanged(list, h));
+        list.addMouseListener(new ListClickListener<T>(list, h));
         return list;
     }
-    private void listSelectionChanged(final JList<String> list, final ValueInsertHandler h) {
-        final int index = list.getSelectedIndex();
-        if (index > -1) {
-            //remove old mouse listener
-            final MouseListener[] listeners = list.getMouseListeners();
-            for (final MouseListener l : listeners) {
-                if (l instanceof ListClickListener) {
-                    list.removeMouseListener(l);
-                }
-            }
-
-            //invoke later for avoid of immediately triggering.
-            SwingUtilities.invokeLater(
-                    () -> list.addMouseListener(new ListClickListener(list, h, index)));
-        }
-    }
-
     private Component createRelationshipsAndFunctions() {
         final JSplitPane sp = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         sp.setTopComponent(createRelationships());
         sp.setBottomComponent(createFunctions());
         return sp;
     }
-    private JPanel createRelationships() {
-        return createTitledList("Relationship types", relationships,
-                v -> insertToScript("-[:" + v + "]-"));
-    }
     private JPanel createFunctions() {
-        return createTitledList("Functions", functions,
-                v -> insertToScript(v));
+        final JPanel p = new JPanel(new BorderLayout());
+        p.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Functions"));
+
+        final JList<FunctionDesc> list = createListWithHandler(functions, v -> insertToScript(v.getName()));
+        list.setCellRenderer(new FunctionDescRenderer());
+        p.add(new JScrollPane(list), BorderLayout.CENTER);
+        return p;
     }
 
     /**
@@ -243,8 +244,6 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
      * @param model model.
      */
     private void initFromModel(final ReaderConfig model, final ConnectorPortData data) {
-        this.support = new Neo4JSupport(data.getConnectorConfig());
-
         scriptEditor.setText(model.getScript());
         useJsonOutput.setSelected(model.isUseJson());
 
@@ -253,6 +252,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
         nodes.clear();
         nodeProperties.clear();
         relationships.clear();
+        relationshipsProperties.clear();
         functions.clear();
 
         final Set<VariableType<?>> types = new HashSet<>();
@@ -278,43 +278,11 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
 
         values(nodes, data.getNodeLabels());
         values(relationships, data.getRelationshipTypes());
+        values(functions, data.getFunctions());
     }
 
-    private void loadNodeProperties(final String label) {
-        support.runAsync(s -> addPropertyKeys(s, label));
-    }
-    private Void addPropertyKeys(final Session s, final String label) {
-        nodeProperties.clear();
-
-        final StringBuilder query = new StringBuilder("MATCH (n:"
-                + label
-                + ")\n");
-        query.append("WITH KEYS(n) AS keys\n");
-        query.append("UNWIND keys AS key\n");
-        query.append("RETURN DISTINCT key\n");
-        query.append("ORDER BY key\n");
-
-        final Map<String, Object> params = new HashMap<>();
-        params.put("label", label);
-        final List<Record> result = s.readTransaction(tx -> tx.run(query.toString(), params).list());
-
-        final List<String> props = new LinkedList<>();
-        for (final Record r : result) {
-            props.add(r.get(0).asString());
-        }
-
-        //add properties in event dispatch thread
-        SwingUtilities.invokeLater(() -> {
-            nodeProperties.clear();
-            for (final String p : props) {
-                this.nodeProperties.addElement(p);
-            }
-        });
-        return null;
-    }
-
-    private void values(final DefaultListModel<String> model, final List<String> values) {
-        for (final String v : values) {
+    private <T> void values(final DefaultListModel<T> model, final List<T> values) {
+        for (final T v : values) {
             model.addElement(v);
         }
     }
