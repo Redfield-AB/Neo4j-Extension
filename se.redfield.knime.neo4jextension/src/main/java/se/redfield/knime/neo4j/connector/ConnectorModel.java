@@ -74,12 +74,37 @@ public class ConnectorModel extends NodeModel {
     }
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
+        final List<Exception> errors = new LinkedList<Exception>();
+
         final List<WithSessionRunnable<Void>> runs = new ArrayList<>(3);
-        runs.add(s -> addNodeLabels(s));
-        runs.add(s -> addRelationshipLabels(s));
+        runs.add(s -> {
+            try {
+                addNodeLabels(s);
+            } catch (final Exception e) {
+                errors.add(e);
+            }
+            return null;
+        });
+        runs.add(s -> {
+            try {
+                addRelationshipLabels(s);
+            } catch (final Exception e) {
+                errors.add(e);
+            }
+            return null;
+        });
 
         final Neo4JSupport support = new Neo4JSupport(data.getConnectorConfig());
         support.runAndWait(runs);
+
+        if (!errors.isEmpty()) {
+            final Exception exc = errors.remove(0);
+            for (final Exception e : errors) {
+                exc.addSuppressed(e);
+            }
+
+            throw exc;
+        }
 
         return new PortObject[]{new ConnectorPortObject(data)};
     }
@@ -87,7 +112,7 @@ public class ConnectorModel extends NodeModel {
      * @param s session.
      * @return
      */
-    private Void addRelationshipLabels(final Session s) {
+    private void addRelationshipLabels(final Session s) {
         final StringBuilder query = new StringBuilder("MATCH (n)\n");
         query.append("WITH DISTINCT labels(n) AS labels\n");
         query.append("UNWIND labels AS label\n");
@@ -102,13 +127,12 @@ public class ConnectorModel extends NodeModel {
         }
 
         data.setNodeLabels(labels);
-        return null;
     }
     /**
      * @param s session.
      * @return
      */
-    private Void addNodeLabels(final Session s) {
+    private void addNodeLabels(final Session s) {
         final StringBuilder query = new StringBuilder("MATCH ()-[r]-()\n");
         query.append("WITH DISTINCT TYPE(r) AS labels\n");
         query.append("UNWIND labels AS label\n");
@@ -123,7 +147,6 @@ public class ConnectorModel extends NodeModel {
         }
 
         data.setRelationshipTypes(labels);
-        return null;
     }
     private PortObjectSpec[] configure() {
         return new PortObjectSpec[] {new ConnectorSpec(data)};
