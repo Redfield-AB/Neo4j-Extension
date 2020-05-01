@@ -116,20 +116,26 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
     }
     private JSplitPane createNodes() {
         return createNamedWithPropertiesComponent(nodes, nodeProperties, "Node labels",
+                "Node type properties",
                 v -> insertToScript("(:" + v.getName() + ")"));
     }
     private JSplitPane createRelationships() {
         return createNamedWithPropertiesComponent(relationships, relationshipsProperties,
-                "Relationship types", v -> insertToScript("-[:" + v.getName() + "]-"));
+                "Relationship types", "Relationship type properties",
+                v -> insertToScript("-[:" + v.getName() + "]-"));
     }
 
     private JSplitPane createNamedWithPropertiesComponent(final DefaultListModel<NamedWithProperties> named,
             final DefaultListModel<String> propsOfNamed, final String title,
-            final ValueInsertHandler<NamedWithProperties> handler) {
+            final String propertiesTitle, final ValueInsertHandler<NamedWithProperties> handler) {
         final JSplitPane p = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-        p.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), title));
+
+        final JPanel nodesContainer = new JPanel(new BorderLayout());
+        nodesContainer.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), title));
 
         final JList<NamedWithProperties> nodesList = createListWithHandler(named, handler);
+        nodesContainer.add(nodesList, BorderLayout.CENTER);
+
         nodesList.setCellRenderer(new NamedWithPropertiesRenderer());
         nodesList.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
@@ -144,8 +150,11 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
             }
         });
 
-        p.setLeftComponent(new JScrollPane(nodesList));
-        p.setRightComponent(createListWithHandler(propsOfNamed, v -> insertToScript(v)));
+        nodesContainer.add(new JScrollPane(nodesList));
+        p.setLeftComponent(nodesContainer);
+
+        final JPanel props = createTitledList(propertiesTitle, propsOfNamed, v -> insertToScript(v));
+        p.setRightComponent(props);
         return p;
     }
 
