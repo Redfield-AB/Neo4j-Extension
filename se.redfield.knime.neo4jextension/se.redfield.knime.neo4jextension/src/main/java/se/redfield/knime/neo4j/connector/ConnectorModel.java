@@ -129,7 +129,9 @@ public class ConnectorModel extends NodeModel {
                     }
                 }
 
-                n.getProperties().add(property);
+                if (property != null && !property.equals("null")) {
+                    n.getProperties().add(property);
+                }
             }
         }
     }
@@ -153,7 +155,9 @@ public class ConnectorModel extends NodeModel {
                 }
             }
 
-            n.getProperties().add(property);
+            if (property != null && !property.equals("null")) {
+                n.getProperties().add(property);
+            }
         }
     }
     private void loadFunctions(final Session s, final List<FunctionDesc> functions) {
