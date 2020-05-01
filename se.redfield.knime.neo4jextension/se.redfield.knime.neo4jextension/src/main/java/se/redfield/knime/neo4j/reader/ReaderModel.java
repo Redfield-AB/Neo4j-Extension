@@ -6,8 +6,11 @@ package se.redfield.knime.neo4j.reader;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import javax.json.Json;
 import javax.json.stream.JsonGenerator;
@@ -36,6 +39,8 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
+import org.knime.core.node.workflow.FlowVariable;
+import org.knime.core.node.workflow.VariableType;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.util.Pair;
@@ -97,7 +102,7 @@ public class ReaderModel extends NodeModel {
         final ConnectorPortObject portObject = (ConnectorPortObject) input[1];
         final Neo4jSupport neo4j = new Neo4jSupport(portObject.getPortData().getConnectorConfig());
 
-        final List<Record> records = neo4j.runRead(config.getScript());
+        final List<Record> records = neo4j.runRead(insertFlowVariables(config.getScript()));
 
         DataTable table;
         if (records.isEmpty()) {
@@ -113,6 +118,60 @@ public class ReaderModel extends NodeModel {
                         exec.createSubExecutionContext(0.0)),
                 portObject //forward connection
         };
+    }
+
+    /**
+     * @param script
+     * @return
+     */
+    private String insertFlowVariables(final String script) {
+        final Map<String, FlowVariable> vars = getAvailableFlowVariables(getFlowVariableTypes());
+
+        final int[] indexes = getSortedVarOccurences(script, vars);
+
+        final StringBuilder sb = new StringBuilder(script);
+        for (int i = indexes.length - 1; i >= 0; i--) {
+            final int offset = indexes[i];
+            final int end = sb.indexOf("}}", offset + 2) + 2;
+
+            final String var = sb.substring(offset + 3, end - 2);
+            sb.replace(offset, end, vars.get(var).getValueAsString());
+        }
+
+        return sb.toString();
+    }
+
+    /**
+     * @param script
+     * @param vars
+     * @return
+     */
+    private int[] getSortedVarOccurences(final String script, final Map<String, FlowVariable> vars) {
+        int pos = 0;
+        final List<Integer> offsets = new LinkedList<Integer>();
+        while (true) {
+            final int offset = script.indexOf("${{", pos);
+            if (offset < 0) {
+                break;
+            }
+
+            final int end = script.indexOf("}}", offset);
+            if (end < 0) {
+                break;
+            }
+
+            offsets.add(offset);
+            pos = end;
+        }
+
+        //convert to int array
+        final int[] result = new int[offsets.size()];
+        int i = 0;
+        for (final Integer o : offsets) {
+            result[i] = o.intValue();
+            i++;
+        }
+        return result;
     }
 
     /**
@@ -241,5 +300,27 @@ public class ReaderModel extends NodeModel {
     }
     @Override
     protected void reset() {
+    }
+    /**
+     * @return all flow variable types.
+     */
+    @SuppressWarnings("rawtypes")
+    public static VariableType[] getFlowVariableTypes() {
+        final Set<VariableType<?>> types = new HashSet<>();
+        types.add(VariableType.BooleanArrayType.INSTANCE);
+        types.add(VariableType.BooleanType.INSTANCE);
+        types.add(VariableType.CredentialsType.INSTANCE);
+        types.add(VariableType.DoubleArrayType.INSTANCE);
+        types.add(VariableType.BooleanArrayType.INSTANCE);
+        types.add(VariableType.DoubleArrayType.INSTANCE);
+        types.add(VariableType.DoubleType.INSTANCE);
+        types.add(VariableType.IntArrayType.INSTANCE);
+        types.add(VariableType.IntType.INSTANCE);
+        types.add(VariableType.LongArrayType.INSTANCE);
+        types.add(VariableType.LongType.INSTANCE);
+        types.add(VariableType.StringArrayType.INSTANCE);
+        types.add(VariableType.StringType.INSTANCE);
+
+        return types.toArray(new VariableType[types.size()]);
     }
 }

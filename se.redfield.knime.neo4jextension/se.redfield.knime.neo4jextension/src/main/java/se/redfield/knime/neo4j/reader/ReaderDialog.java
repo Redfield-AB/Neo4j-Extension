@@ -7,10 +7,8 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.swing.DefaultListModel;
 import javax.swing.JCheckBox;
@@ -33,8 +31,8 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObject;
+import org.knime.core.node.util.FlowVariableListCellRenderer;
 import org.knime.core.node.workflow.FlowVariable;
-import org.knime.core.node.workflow.VariableType;
 
 import se.redfield.knime.neo4j.connector.ConnectorPortData;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
@@ -53,7 +51,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
 
     private JSplitPane sourcesContainer;
 
-    private DefaultListModel<String> flowVariables = new DefaultListModel<>();
+    private DefaultListModel<FlowVariable> flowVariables = new DefaultListModel<>();
     private DefaultListModel<NamedWithProperties> nodes = new DefaultListModel<>();
     private DefaultListModel<String> nodeProperties = new DefaultListModel<>();
     private DefaultListModel<NamedWithProperties> relationships = new DefaultListModel<>();
@@ -66,11 +64,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
     public ReaderDialog() {
         super();
 
-        final JPanel scriptPanel = createScriptPage();
-        final JScrollPane sp = new JScrollPane(scriptPanel,
-                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        addTab("Script", sp, false);
+        addTab("Script", createScriptPage(), false);
     }
 
     /**
@@ -92,7 +86,11 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
         final JPanel scriptPanel = new JPanel(new BorderLayout());
         scriptPanel.add(north, BorderLayout.NORTH);
         this.scriptEditor = createScriptEditor();
-        scriptPanel.add(scriptEditor, BorderLayout.CENTER);
+
+        final JScrollPane sp = new JScrollPane(scriptEditor,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scriptPanel.add(sp, BorderLayout.CENTER);
 
         //Labels tree
         final JSplitPane leftSide = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
@@ -159,7 +157,14 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
     }
 
     private JComponent createFlowVariables() {
-        return createTitledList("Flow variables", flowVariables, v -> insertToScript(v));
+        final JPanel p = new JPanel(new BorderLayout());
+        p.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Flow variables"));
+
+        final JList<FlowVariable> list = createListWithHandler(flowVariables,
+                v -> insertToScript("${{" + v.getName() + "}}"));
+        list.setCellRenderer(new FlowVariableListCellRenderer());
+        p.add(new JScrollPane(list), BorderLayout.CENTER);
+        return p;
     }
     private JPanel createTitledList(final String title,
             final DefaultListModel<String> listModel, final ValueInsertHandler<String> h) {
@@ -260,25 +265,10 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
         relationshipsProperties.clear();
         functions.clear();
 
-        final Set<VariableType<?>> types = new HashSet<>();
-        types.add(VariableType.BooleanArrayType.INSTANCE);
-        types.add(VariableType.BooleanType.INSTANCE);
-        types.add(VariableType.CredentialsType.INSTANCE);
-        types.add(VariableType.DoubleArrayType.INSTANCE);
-        types.add(VariableType.BooleanArrayType.INSTANCE);
-        types.add(VariableType.DoubleArrayType.INSTANCE);
-        types.add(VariableType.DoubleType.INSTANCE);
-        types.add(VariableType.IntArrayType.INSTANCE);
-        types.add(VariableType.IntType.INSTANCE);
-        types.add(VariableType.LongArrayType.INSTANCE);
-        types.add(VariableType.LongType.INSTANCE);
-        types.add(VariableType.StringArrayType.INSTANCE);
-        types.add(VariableType.StringType.INSTANCE);
-
         final Map<String, FlowVariable> vars = getAvailableFlowVariables(
-                types.toArray(new VariableType[types.size()]));
-        for (final String varName : vars.keySet()) {
-            flowVariables.addElement(varName);
+                ReaderModel.getFlowVariableTypes());
+        for (final FlowVariable var : vars.values()) {
+            flowVariables.addElement(var);
         }
 
         values(nodes, data.getNodeLabels());
