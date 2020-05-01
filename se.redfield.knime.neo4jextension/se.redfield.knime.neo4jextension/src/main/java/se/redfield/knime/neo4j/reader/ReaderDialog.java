@@ -42,7 +42,6 @@ import se.redfield.knime.neo4j.connector.FunctionDesc;
 import se.redfield.knime.neo4j.connector.NamedWithProperties;
 import se.redfield.knime.neo4j.reader.cfg.ReaderConfig;
 import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
-import se.redfield.knime.ui.AlwaysVisibleCaret;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -200,9 +199,6 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
             }
         };
 
-        final AlwaysVisibleCaret caret = new AlwaysVisibleCaret();
-        caret.setBlinkRate(500);
-        scriptEditor.setCaret(caret);
         scriptEditor.setLineWrap(true);
         return scriptEditor;
     }
