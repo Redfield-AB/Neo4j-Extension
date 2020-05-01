@@ -21,7 +21,6 @@ import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
-import org.neo4j.driver.summary.ResultSummary;
 import org.neo4j.driver.types.TypeSystem;
 
 import se.redfield.knime.neo4j.connector.cfg.AdvancedSettings;
@@ -44,14 +43,9 @@ public class Neo4JSupport {
     public List<Record> runRead(final String query) {
         return runWithSession(s ->  {
             return s.readTransaction(tx -> {
-                final List<Record> list = tx.run(query).list();
-                tx.rollback();
-                return list;
+                return tx.run(query).list();
             });
         });
-    }
-    public ResultSummary runUpdate(final String query) {
-        return runWithSession(s -> s.readTransaction(tx -> tx.run(query).consume()));
     }
     public <R> R runWithDriver(final WithDriverRunnable<R> r) {
         final Driver driver = createDriver();
