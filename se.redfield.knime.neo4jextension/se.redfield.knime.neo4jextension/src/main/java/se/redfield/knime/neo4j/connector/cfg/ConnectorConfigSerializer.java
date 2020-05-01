@@ -62,7 +62,7 @@ public class ConnectorConfigSerializer {
         return config;
     }
     /**
-     * @param cfg Neo4J configuration.
+     * @param cfg Neo4j configuration.
      * @param settings target settings to save.
      */
     private void saveConfig(final AdvancedSettings cfg, final ConfigWO settings) {

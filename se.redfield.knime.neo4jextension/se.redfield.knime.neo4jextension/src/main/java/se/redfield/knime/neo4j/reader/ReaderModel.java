@@ -44,7 +44,7 @@ import se.redfield.knime.json.JsonBuilder;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.db.DataAdapter;
-import se.redfield.knime.neo4j.db.Neo4JSupport;
+import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.reader.cfg.ReaderConfig;
 import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
 
@@ -84,7 +84,7 @@ public class ReaderModel extends NodeModel {
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
         if (inSpecs.length < 2 || !(inSpecs[1] instanceof ConnectorSpec)) {
-            throw new InvalidSettingsException("Not Neo4J input found");
+            throw new InvalidSettingsException("Not Neo4j input found");
         }
 
         return new PortObjectSpec[] {
@@ -95,7 +95,7 @@ public class ReaderModel extends NodeModel {
     @Override
     protected PortObject[] execute(final PortObject[] input, final ExecutionContext exec) throws Exception {
         final ConnectorPortObject portObject = (ConnectorPortObject) input[1];
-        final Neo4JSupport neo4j = new Neo4JSupport(portObject.getPortData().getConnectorConfig());
+        final Neo4jSupport neo4j = new Neo4jSupport(portObject.getPortData().getConnectorConfig());
 
         final List<Record> records = neo4j.runRead(config.getScript());
 

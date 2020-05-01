@@ -47,7 +47,7 @@ public class ConnectorSpec extends AbstractSimplePortObjectSpec {
         data = new ConnectorPortDataSerializer().load(model);
     }
     /**
-     * @return Neo4J connector.
+     * @return Neo4j connector.
      */
     public ConnectorPortData getPortData() {
         return data;

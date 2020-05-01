@@ -10,7 +10,7 @@ import java.util.concurrent.AbstractExecutorService;
  *
  */
 public class ThreadPool {
-    private static final AbstractExecutorService EXECUTOR = new ExecutorServiceImpl("Neo4J Thread Pool");
+    private static final AbstractExecutorService EXECUTOR = new ExecutorServiceImpl("Neo4j Thread Pool");
 
     public static AbstractExecutorService getExecutor() {
         return EXECUTOR;

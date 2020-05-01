@@ -25,7 +25,7 @@ import org.knime.core.node.port.PortType;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
 
-import se.redfield.knime.neo4j.db.Neo4JSupport;
+import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.db.WithSessionAsyncRunnable;
 
 /**
@@ -88,7 +88,7 @@ public class ConnectorModel extends NodeModel {
         runs.add(s -> loadRelationshipProperties(s, relationships));
         runs.add(s -> loadFunctions(s, functions));
 
-        final Neo4JSupport support = new Neo4JSupport(data.getConnectorConfig());
+        final Neo4jSupport support = new Neo4jSupport(data.getConnectorConfig());
         support.runAndWait(runs);
 
         data.setNodeLabels(new LinkedList<NamedWithProperties>(nodes.values()));

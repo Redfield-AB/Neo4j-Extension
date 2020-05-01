@@ -33,10 +33,10 @@ import se.redfield.knime.utils.ThreadPool;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class Neo4JSupport {
+public class Neo4jSupport {
     private final ConnectorConfig config;
 
-    public Neo4JSupport(final ConnectorConfig config) {
+    public Neo4jSupport(final ConnectorConfig config) {
         super();
         this.config = config;
     }

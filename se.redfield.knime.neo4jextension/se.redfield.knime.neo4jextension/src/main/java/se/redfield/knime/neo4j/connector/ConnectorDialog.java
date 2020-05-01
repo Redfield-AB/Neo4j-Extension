@@ -110,7 +110,7 @@ public class ConnectorDialog extends NodeDialogPane {
         final JPanel north = new JPanel(new GridBagLayout());
         p.add(north, BorderLayout.NORTH);
 
-        addLabeledComponent(north, "Neo4J URL", url, 0);
+        addLabeledComponent(north, "Neo4j URL", url, 0);
 
         //Authentication
         final JPanel center = new JPanel(new BorderLayout(5, 5));

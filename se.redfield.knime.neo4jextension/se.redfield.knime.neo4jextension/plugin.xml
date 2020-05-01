@@ -20,7 +20,7 @@
             icon="icons/neo4j-16x16.png"
             level-id="neo4j"
             locked="true"
-            name="Neo4J"
+            name="Neo4j"
             path="/">
       </category>
    </extension>
