@@ -23,6 +23,9 @@ public class ConnectorConfig {
         } catch (final URISyntaxException e) {
             throw new RuntimeException(e);
         }
+        auth = new AuthConfig();
+        auth.setScheme("basic");
+        auth.setPrincipal("neo4j");
     }
 
     public URI getLocation() {

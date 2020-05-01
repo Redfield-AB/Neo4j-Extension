@@ -17,6 +17,7 @@ import javax.swing.JComponent;
 import javax.swing.JFormattedTextField;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.border.BevelBorder;
@@ -53,7 +54,7 @@ public class ConnectorDialog extends NodeDialogPane {
     private final JCheckBox useAuth = new JCheckBox();
     private final JComboBox<String> scheme = new JComboBox<String>();
     private final JTextField principal = new JTextField();
-    private final JTextField credentials = new JTextField();
+    private final JPasswordField credentials = new JPasswordField();
     private final JTextField realm = new JTextField();
     private final JTextField parameters = new JTextField();
 
