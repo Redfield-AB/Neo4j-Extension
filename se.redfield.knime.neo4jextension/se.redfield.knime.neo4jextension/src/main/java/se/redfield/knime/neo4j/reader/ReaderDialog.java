@@ -6,10 +6,14 @@ package se.redfield.knime.neo4j.reader;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Event;
 import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.AbstractAction;
 import javax.swing.DefaultListModel;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
@@ -19,11 +23,17 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
+import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
+import javax.swing.event.UndoableEditEvent;
+import javax.swing.event.UndoableEditListener;
 import javax.swing.text.BadLocationException;
+import javax.swing.undo.CannotRedoException;
+import javax.swing.undo.CannotUndoException;
+import javax.swing.undo.UndoManager;
 
 import org.knime.core.node.DataAwareNodeDialogPane;
 import org.knime.core.node.InvalidSettingsException;
@@ -213,6 +223,44 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
             }
         };
 
+        final UndoManager undoRedo = new UndoManager();
+        scriptEditor.getDocument().addUndoableEditListener(
+            new UndoableEditListener() {
+                @Override
+                public void undoableEditHappened(final UndoableEditEvent e) {
+                    undoRedo.addEdit(e.getEdit());
+                }
+            });
+
+        final KeyStroke undoKeyStroke = KeyStroke.getKeyStroke(
+                KeyEvent.VK_Z, Event.CTRL_MASK);
+        final KeyStroke redoKeyStroke = KeyStroke.getKeyStroke(
+                KeyEvent.VK_Z, Event.CTRL_MASK | Event.SHIFT_MASK);
+
+        scriptEditor.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(undoKeyStroke, "undoKeyStroke");
+        scriptEditor.getActionMap().put("undoKeyStroke", new AbstractAction() {
+            private static final long serialVersionUID = 1L;
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                try {
+                    undoRedo.undo();
+                } catch (final CannotUndoException cue) {
+                }
+            }
+        });
+
+        // Map redo action
+        scriptEditor.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(redoKeyStroke, "redoKeyStroke");
+        scriptEditor.getActionMap().put("redoKeyStroke", new AbstractAction() {
+            private static final long serialVersionUID = 1L;
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                try {
+                    undoRedo.redo();
+                } catch (final CannotRedoException cre) {
+                }
+            }
+        });
         scriptEditor.setLineWrap(true);
         return scriptEditor;
     }
