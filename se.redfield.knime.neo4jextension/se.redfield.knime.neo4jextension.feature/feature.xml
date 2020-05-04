@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature
+      id="se.redfield.knime.neo4jextension.feature"
+      label="Neo4j extension"
+      version="1.0.0"
+      provider-name="Redfield AB">
+
+   <description url="http://www.example.com/description">
+      [Enter Feature Description here.]
+   </description>
+
+   <copyright url="http://www.example.com/copyright">
+      [Enter Copyright Description here.]
+   </copyright>
+
+   <license url="http://www.example.com/license">
+      [Enter License Description here.]
+   </license>
+
+   <requires>
+      <import plugin="org.eclipse.ui"/>
+      <import plugin="org.eclipse.core.runtime"/>
+      <import plugin="org.knime.base" version="4.1.0" match="greaterOrEqual"/>
+      <import plugin="org.knime.workbench" version="4.1.0" match="greaterOrEqual"/>
+      <import plugin="org.knime.workbench.repository" version="4.1.0" match="greaterOrEqual"/>
+      <import plugin="org.knime.time" version="4.1.0" match="greaterOrEqual"/>
+      <import plugin="org.knime.json" version="4.1.0" match="greaterOrEqual"/>
+      <import plugin="org.apache.commons.lang3"/>
+   </requires>
+
+   <plugin
+         id="se.redfield.knime.neo4jextension"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"/>
+
+</feature>
