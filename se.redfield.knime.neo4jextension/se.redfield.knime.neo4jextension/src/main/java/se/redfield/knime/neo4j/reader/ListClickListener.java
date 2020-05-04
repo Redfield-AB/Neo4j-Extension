@@ -26,7 +26,7 @@ class ListClickListener<T> extends MouseAdapter {
     public void mouseClicked(final MouseEvent e) {
         if (e.getClickCount() == 2) {
             final int index = list.getSelectedIndex();
-            if (index > -1 && index == getUnderlyingElement(e.getX(), e.getY())) {
+            if (index > -1 && index == indexOfUnderlyingElement(list, e.getX(), e.getY())) {
                 final T value = list.getModel().getElementAt(index);
                 if (handler != null) {
                     handler.insert(value);
@@ -34,7 +34,7 @@ class ListClickListener<T> extends MouseAdapter {
             }
         }
     }
-    private int getUnderlyingElement(final int x, final int y) {
+    public static int indexOfUnderlyingElement(final JList<?> list, final int x, final int y) {
         final int size = list.getModel().getSize();
         for (int i = 0; i < size; i++) {
             final Rectangle b = list.getCellBounds(i, i);

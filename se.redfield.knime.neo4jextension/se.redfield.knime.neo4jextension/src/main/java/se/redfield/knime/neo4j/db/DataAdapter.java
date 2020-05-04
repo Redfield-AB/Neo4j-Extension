@@ -61,7 +61,7 @@ public class DataAdapter {
         } else if (isString(value)) {
             return new StringCell(value.asString());
         } else if (isInteger(value)) {
-            return new IntCell(value.asInt());
+            return new LongCell(value.asLong());
         } else if (isFloat(value)) {
             return new DoubleCell(value.asDouble());
         } else if (isNumber(value)) {
@@ -112,7 +112,7 @@ public class DataAdapter {
         } else if (isString(value)) {
             return StringCell.TYPE;
         } else if (isInteger(value)) {
-            return IntCell.TYPE;
+            return LongCell.TYPE;
         } else if (isFloat(value)) {
             return DoubleCell.TYPE;
         } else if (isList(value)) {

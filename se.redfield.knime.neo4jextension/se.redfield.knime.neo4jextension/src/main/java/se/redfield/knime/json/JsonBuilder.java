@@ -57,9 +57,9 @@ public class JsonBuilder {
         } else if (adapter.isString(value)) {
             writeString(value.asString(), gen);
         } else if (adapter.isInteger(value)) {
-            writeInt(value.asInt(), gen);
+            writeLong(value.asLong(), gen);
         } else if (adapter.isFloat(value)) {
-            writeFloat(value.asFloat(), gen);
+            writeDouble(value.asDouble(), gen);
         } else if (adapter.isNumber(value)) {
             writeDouble(value.asDouble(), gen);
         } else if (adapter.isList(value)) {
@@ -164,10 +164,7 @@ public class JsonBuilder {
         }
         gen.writeEnd();
     }
-    private void writeFloat(final float f, final JsonGenerator gen) {
-        gen.write(f);
-    }
-    private void writeInt(final int i, final JsonGenerator gen) {
+    private void writeLong(final long i, final JsonGenerator gen) {
         gen.write(i);
     }
     private void writeDouble(final double d, final JsonGenerator gen) {

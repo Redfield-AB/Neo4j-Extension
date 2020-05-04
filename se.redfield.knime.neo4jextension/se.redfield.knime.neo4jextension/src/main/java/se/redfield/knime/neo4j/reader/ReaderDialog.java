@@ -4,7 +4,6 @@
 package se.redfield.knime.neo4j.reader;
 
 import java.awt.BorderLayout;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Event;
 import java.awt.FlowLayout;
@@ -25,7 +24,6 @@ import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
-import javax.swing.border.EmptyBorder;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.UndoableEditEvent;
@@ -57,9 +55,9 @@ import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
  */
 public class ReaderDialog extends DataAwareNodeDialogPane {
     private final JCheckBox useJsonOutput = new JCheckBox();
-    private JTextArea scriptEditor;
 
-    private JSplitPane sourcesContainer;
+    private JTextArea scriptEditor;
+    private JTextArea funcDescription;
 
     private DefaultListModel<FlowVariable> flowVariables = new DefaultListModel<>();
     private DefaultListModel<NamedWithProperties> nodes = new DefaultListModel<>();
@@ -74,17 +72,24 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
     public ReaderDialog() {
         super();
 
-        addTab("Script", createScriptPage(), false);
+        addTab("Script", createScriptTab(), false);
     }
 
     /**
      * @return script editor page.
      */
-    private JPanel createScriptPage() {
-        final JPanel p = new JPanel(new BorderLayout(5, 5));
-        p.setBorder(new EmptyBorder(5, 5, 5, 5));
+    private JComponent createScriptTab() {
+        final JSplitPane topPanel = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        topPanel.setLeftComponent(createFlowVariablesNodesAndRels());
+        topPanel.setRightComponent(createScriptPanel());
 
-        //use JSON
+        final JSplitPane tab = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        tab.setTopComponent(topPanel);
+        tab.setBottomComponent(createFunctions());
+
+        return tab;
+    }
+    private JPanel createScriptPanel() {
         final JPanel useJsonOutputPane = new JPanel(new BorderLayout(5, 5));
         useJsonOutputPane.add(new JLabel("Use JSON output"), BorderLayout.WEST);
         useJsonOutputPane.add(useJsonOutput, BorderLayout.CENTER);
@@ -101,25 +106,19 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
                 JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
                 JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scriptPanel.add(sp, BorderLayout.CENTER);
-
-        //Labels tree
-        final JSplitPane leftSide = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-        leftSide.setTopComponent(createFlowVariablesAndLabels());
-        leftSide.setBottomComponent(createRelationshipsAndFunctions());
-
-        //Node label selection
-        sourcesContainer = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-        sourcesContainer.setLeftComponent(leftSide);
-        sourcesContainer.setRightComponent(scriptPanel);
-        p.add(sourcesContainer, BorderLayout.CENTER);
-
-        return p;
+        return scriptPanel;
     }
 
-    private JSplitPane createFlowVariablesAndLabels() {
+    private JSplitPane createFlowVariablesNodesAndRels() {
         final JSplitPane sp = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         sp.setTopComponent(createFlowVariables());
-        sp.setBottomComponent(createNodes());
+
+        //nodes and relationships
+        final JSplitPane nodesAndRel = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        nodesAndRel.setTopComponent(createNodes());
+        nodesAndRel.setBottomComponent(createRelationships());
+
+        sp.setBottomComponent(nodesAndRel);
         return sp;
     }
     private JSplitPane createNodes() {
@@ -193,35 +192,43 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
         list.addMouseListener(new ListClickListener<T>(list, h));
         return list;
     }
-    private Component createRelationshipsAndFunctions() {
-        final JSplitPane sp = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-        sp.setTopComponent(createRelationships());
-        sp.setBottomComponent(createFunctions());
-        return sp;
-    }
     private JPanel createFunctions() {
         final JPanel p = new JPanel(new BorderLayout());
         p.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Functions"));
 
+        this.funcDescription = createTextAreaWithoutMinSize();
+        funcDescription.setBackground(p.getBackground());
+        funcDescription.setEditable(false);
+        funcDescription.setLineWrap(true);
+        p.add(funcDescription, BorderLayout.CENTER);
+
         final JList<FunctionDesc> list = createListWithHandler(functions, v -> insertToScript(v.getName()));
+        list.getSelectionModel().addListSelectionListener(e -> {
+            final int index = list.getSelectedIndex();
+            if (index > -1) {
+                final FunctionDesc el = list.getModel().getElementAt(index);
+                funcDescription.setText(buildFunctionDescription(el));
+            }
+        });
+
         list.setCellRenderer(new FunctionDescRenderer());
-        p.add(new JScrollPane(list), BorderLayout.CENTER);
+        p.add(new JScrollPane(list), BorderLayout.WEST);
+
         return p;
+    }
+    private String buildFunctionDescription(final FunctionDesc v) {
+        final StringBuilder sb = new StringBuilder("Signature:\n");
+        sb.append(v.getSignature()).append("\n\n");
+        sb.append("Description:\n");
+        sb.append(v.getDescription());
+        return sb.toString();
     }
 
     /**
      * @return script editor.
      */
     private JTextArea createScriptEditor() {
-        final JTextArea scriptEditor = new JTextArea() {
-            private static final long serialVersionUID = -6583141839191451218L;
-            @Override
-            public Dimension getMinimumSize() {
-                //allways return minimum width as zero
-                final Dimension min = super.getMinimumSize();
-                return min == null ? new Dimension() : new Dimension(0, min.height);
-            }
-        };
+        final JTextArea scriptEditor = createTextAreaWithoutMinSize();
 
         final UndoManager undoRedo = new UndoManager();
         scriptEditor.getDocument().addUndoableEditListener(
@@ -264,6 +271,17 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
         scriptEditor.setLineWrap(true);
         return scriptEditor;
     }
+    private JTextArea createTextAreaWithoutMinSize() {
+        return new JTextArea() {
+            private static final long serialVersionUID = -6583141839191451218L;
+            @Override
+            public Dimension getMinimumSize() {
+                //allways return minimum width as zero
+                final Dimension min = super.getMinimumSize();
+                return min == null ? new Dimension() : new Dimension(0, min.height);
+            }
+        };
+    }
     private void insertToScript(final String text) {
         //possible remove selection
         final int selStart = scriptEditor.getSelectionStart();
@@ -303,6 +321,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
      */
     private void initFromModel(final ReaderConfig model, final ConnectorPortData data) {
         scriptEditor.setText(model.getScript());
+        funcDescription.setText("");
         useJsonOutput.setSelected(model.isUseJson());
 
         //clear all lists
