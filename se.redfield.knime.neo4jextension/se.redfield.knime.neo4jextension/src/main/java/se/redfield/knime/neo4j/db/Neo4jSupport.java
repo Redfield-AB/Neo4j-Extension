@@ -20,7 +20,10 @@ import org.neo4j.driver.Config.TrustStrategy;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Record;
+import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
+import org.neo4j.driver.summary.QueryType;
+import org.neo4j.driver.summary.ResultSummary;
 import org.neo4j.driver.types.TypeSystem;
 
 import se.redfield.knime.neo4j.connector.cfg.AdvancedSettings;
@@ -43,8 +46,13 @@ public class Neo4jSupport {
     public List<Record> runRead(final String query) {
         return runWithSession(s ->  {
             return s.readTransaction(tx -> {
-                final List<Record> list = tx.run(query).list();
-                tx.rollback();
+                final Result run = tx.run(query);
+                final List<Record> list = run.list();
+
+                final ResultSummary summary = run.consume();
+                if (summary.queryType() != QueryType.READ_ONLY) {
+                    tx.rollback();
+                }
                 return list;
             });
         });

@@ -51,7 +51,7 @@ public class DataAdapter {
     public DataCell createCell(final Value value)
             throws Exception {
         if (value == null) {
-            return null;
+            return new MissingCell("is null");
         }
 
         if (isBoolean(value)) {
@@ -252,10 +252,10 @@ public class DataAdapter {
         if (obj instanceof String) {
             return StringCell.TYPE;
         }
-        if (obj instanceof BigInteger || obj instanceof Long) {
+        if (obj instanceof BigInteger || obj instanceof Long || obj instanceof Integer) {
             return LongCell.TYPE;
         }
-        if (obj instanceof Byte || obj instanceof Integer || obj instanceof Short) {
+        if (obj instanceof Byte || obj instanceof Short) {
             return IntCell.TYPE;
         }
         if (obj instanceof Float || obj instanceof Double) {
