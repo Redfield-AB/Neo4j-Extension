@@ -39,12 +39,14 @@ import se.redfield.knime.neo4j.connector.cfg.AdvancedSettings;
 import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
 import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
 import se.redfield.knime.neo4j.connector.cfg.ConnectorConfigSerializer;
+import se.redfield.knime.utils.HashGenerator;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
 public class ConnectorDialog extends NodeDialogPane {
+    private static final String OLD_PASSWORD = "OLD_PASSWORD";
     private static final String USE_AUTH_PARENT_PANEL = "useAuthParentPanel";
 
     //settings tab
@@ -307,7 +309,11 @@ public class ConnectorDialog extends NodeDialogPane {
 
         if (shouldUseAuth) {
             principal.setText(auth.getPrincipal());
-            credentials.setText(auth.getCredentials());
+
+            final String password = auth.getCredentials();
+            credentials.putClientProperty(OLD_PASSWORD, password);
+            credentials.setText(createPasswordHash(password));
+
             scheme.setSelectedItem(auth.getScheme());
         }
 
@@ -344,7 +350,15 @@ public class ConnectorDialog extends NodeDialogPane {
             final AuthConfig auth = new AuthConfig();
             auth.setScheme((String) scheme.getSelectedItem());
             auth.setPrincipal(getNotEmpty("user name", this.principal));
-            auth.setCredentials(getNotEmpty("password", this.credentials));
+
+            String password = getNotEmpty("password", this.credentials);
+            final String oldPassword = (String) credentials.getClientProperty(OLD_PASSWORD);
+            //if password not changed save old password
+            if (oldPassword != null && createPasswordHash(oldPassword).equals(password)) {
+                password = oldPassword;
+            }
+            auth.setCredentials(password);
+
             config.setAuth(auth);
         }
 
@@ -411,5 +425,14 @@ public class ConnectorDialog extends NodeDialogPane {
         } catch (final URISyntaxException e) {
             throw new InvalidSettingsException("Invalid URI: " + text);
         }
+    }
+    private String createPasswordHash(final String password) {
+        if (password == null) {
+            return null;
+        }
+
+        // first 10 symbols of password hash
+        final String hash = HashGenerator.generateHash(password);
+        return hash.substring(0, 10);
     }
 }

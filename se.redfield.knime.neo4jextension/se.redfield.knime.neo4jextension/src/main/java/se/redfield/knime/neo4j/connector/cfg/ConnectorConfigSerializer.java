@@ -31,6 +31,7 @@ public class ConnectorConfigSerializer {
 
     //config
     private static final String S_CONFIG = "config";
+    private static final String ENC_KEY = "0=d#!s.1b";
 
     /**
      * Default constructor.
@@ -99,7 +100,7 @@ public class ConnectorConfigSerializer {
      * @param settings settings.
      */
     private void saveAuth(final AuthConfig auth, final ConfigWO settings) {
-        settings.addString(S_CREDENTIALS, auth.getCredentials());
+        settings.addPassword(S_CREDENTIALS, ENC_KEY, auth.getCredentials());
         settings.addString(S_PARAMETERS, auth.getParameters());
         settings.addString(S_PRINCIPAL, auth.getPrincipal());
         settings.addString(S_REALM, auth.getRealm());
@@ -152,7 +153,12 @@ public class ConnectorConfigSerializer {
     private static AuthConfig loadAuth(final ConfigRO settings)
             throws InvalidSettingsException {
         final AuthConfig auth = new AuthConfig();
-        auth.setCredentials(settings.getString(S_CREDENTIALS));
+        try {
+            auth.setCredentials(settings.getPassword(S_CREDENTIALS, ENC_KEY));
+        } catch (final Exception e) {
+            //for backward compatibility
+            auth.setCredentials(settings.getString(S_CREDENTIALS));
+        }
         auth.setParameters(settings.getString(S_PARAMETERS));
         auth.setPrincipal(settings.getString(S_PRINCIPAL));
         auth.setRealm(settings.getString(S_REALM));
