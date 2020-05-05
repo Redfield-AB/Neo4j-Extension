@@ -44,6 +44,7 @@ import org.knime.core.node.workflow.ICredentials;
 import org.knime.core.node.workflow.VariableType;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
+import org.neo4j.driver.summary.Notification;
 import org.neo4j.driver.util.Pair;
 
 import se.redfield.knime.json.JsonBuilder;
@@ -107,7 +108,12 @@ public class ReaderModel extends NodeModel {
         final ConnectorPortObject portObject = (ConnectorPortObject) input[1];
         final Neo4jSupport neo4j = new Neo4jSupport(createResolvedConfig(portObject.getPortData()));
 
-        final List<Record> records = neo4j.runRead(insertFlowVariables(config.getScript()));
+        final String[] warning = {null};
+        final List<Record> records = neo4j.runRead(insertFlowVariables(config.getScript()),
+                n -> warning[0] = buildWarning(n));
+        if (warning[0] != null) {
+            setWarningMessage(warning[0]);
+        }
 
         DataTable table;
         if (records.isEmpty()) {
@@ -123,6 +129,26 @@ public class ReaderModel extends NodeModel {
                         exec.createSubExecutionContext(0.0)),
                 portObject //forward connection
         };
+    }
+
+    private String buildWarning(final List<Notification> notifs) {
+        final StringBuilder sb = new StringBuilder();
+        if (notifs != null && !notifs.isEmpty()) {
+            for (final Notification n : notifs) {
+                final String desc = n.description();
+                if (desc != null) {
+                    if (sb.length() > 0) {
+                        sb.append(", ");
+                    }
+                    sb.append(desc);
+                }
+            }
+        }
+
+        if (sb.length() == 0){
+            sb.append("Query has not only read actions therefore transaction is rolled back");
+        }
+        return sb.toString();
     }
 
     private ConnectorConfig createResolvedConfig(final ConnectorPortData data) {
@@ -213,7 +239,7 @@ public class ReaderModel extends NodeModel {
 
     private DataTable createDataTable(final ExecutionContext exec,
             final DataAdapter adapter, final List<Record> records) throws Exception {
-        final DataTableSpec tableSpec = createTableSpec(adapter,  records.get(0));
+        final DataTableSpec tableSpec = createTableSpec(adapter,  records);
         final List<DataRow> rows = createDateRows(adapter, records);
 
         final BufferedDataContainer table = exec.createDataContainer(tableSpec);
@@ -260,18 +286,54 @@ public class ReaderModel extends NodeModel {
      * @param record
      * @return
      */
-    private DataTableSpec createTableSpec(final DataAdapter adapter, final Record record) {
-        final List<Pair<String, Value>> fields = record.fields();
-        final DataColumnSpec[] columns = new DataColumnSpec[fields.size()];
+    private DataTableSpec createTableSpec(final DataAdapter adapter, final List<Record> records) {
+        DataColumnSpec[] columns = null;
+        boolean hasNull = false;
 
-        int i = 0;
-        for (final Pair<String,Value> pair : fields) {
-            final String name = pair.key();
-            final Value v = pair.value();
-            final DataColumnSpecCreator creator = new DataColumnSpecCreator(name,
-                    adapter.getCompatibleType(v));
-            columns[i] = creator.createSpec();
-            i++;
+        //attempt to populate with best types
+        for (final Record record : records) {
+            final List<Pair<String, Value>> fields = record.fields();
+
+            if (columns == null) {
+                columns = new DataColumnSpec[fields.size()];
+            }
+
+            int i = 0;
+            for (final Pair<String,Value> pair : fields) {
+                hasNull = false;
+                if (columns[i] == null) {
+                    final String name = pair.key();
+                    final Value v = pair.value();
+                    if (v.isNull()) {
+                        hasNull = true;
+                    } else {
+                        final DataColumnSpecCreator creator = new DataColumnSpecCreator(name,
+                                adapter.getCompatibleType(v));
+                        columns[i] = creator.createSpec();
+                    }
+                }
+
+                i++;
+            }
+
+            if (!hasNull) {
+                break;
+            }
+        }
+
+        if (hasNull) {
+            //set values for nulls
+            int i = 0;
+            for (final Pair<String,Value> pair : records.get(0).fields()) {
+                if (columns[i] == null) {
+                    final String name = pair.key();
+                    final Value v = pair.value();
+                    final DataColumnSpecCreator creator = new DataColumnSpecCreator(name,
+                            adapter.getCompatibleType(v));
+                    columns[i] = creator.createSpec();
+                }
+                i++;
+            }
         }
 
         return new DataTableSpec(columns);

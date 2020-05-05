@@ -43,7 +43,7 @@ public class Neo4jSupport {
         super();
         this.config = config;
     }
-    public List<Record> runRead(final String query) {
+    public List<Record> runRead(final String query, final RollbackListener l) {
         return runWithSession(s ->  {
             return s.readTransaction(tx -> {
                 final Result run = tx.run(query);
@@ -52,6 +52,9 @@ public class Neo4jSupport {
                 final ResultSummary summary = run.consume();
                 if (summary.queryType() != QueryType.READ_ONLY) {
                     tx.rollback();
+                    if (l != null) {
+                        l.isRolledBack(summary.notifications());
+                    }
                 }
                 return list;
             });
