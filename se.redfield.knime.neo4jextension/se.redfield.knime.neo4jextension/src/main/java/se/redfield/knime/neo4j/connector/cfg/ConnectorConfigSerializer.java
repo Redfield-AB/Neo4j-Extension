@@ -104,7 +104,7 @@ public class ConnectorConfigSerializer {
         settings.addString(S_PARAMETERS, auth.getParameters());
         settings.addString(S_PRINCIPAL, auth.getPrincipal());
         settings.addString(S_REALM, auth.getRealm());
-        settings.addString(S_SCHEME, auth.getScheme());
+        settings.addString(S_SCHEME, auth.getScheme().name());
     }
     /**
      * @param settings
@@ -162,7 +162,7 @@ public class ConnectorConfigSerializer {
         auth.setParameters(settings.getString(S_PARAMETERS));
         auth.setPrincipal(settings.getString(S_PRINCIPAL));
         auth.setRealm(settings.getString(S_REALM));
-        auth.setScheme(settings.getString(S_SCHEME));
+        auth.setScheme(AuthScheme.valueOf(settings.getString(S_SCHEME)));
         return auth;
     }
 }

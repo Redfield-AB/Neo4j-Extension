@@ -22,9 +22,13 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
+import org.knime.core.node.workflow.ICredentials;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
 
+import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
+import se.redfield.knime.neo4j.connector.cfg.AuthScheme;
+import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.db.WithSessionAsyncRunnable;
 
@@ -88,7 +92,7 @@ public class ConnectorModel extends NodeModel {
         runs.add(s -> loadRelationshipProperties(s, relationships));
         runs.add(s -> loadFunctions(s, functions));
 
-        final Neo4jSupport support = new Neo4jSupport(data.getConnectorConfig());
+        final Neo4jSupport support = new Neo4jSupport(createResolvedConfig());
         support.runAndWait(runs);
 
         data.setNodeLabels(new LinkedList<NamedWithProperties>(nodes.values()));
@@ -96,6 +100,19 @@ public class ConnectorModel extends NodeModel {
         data.setFunctions(functions);
 
         return new PortObject[]{new ConnectorPortObject(data)};
+    }
+
+    private ConnectorConfig createResolvedConfig() {
+        ConnectorConfig cfg = data.getConnectorConfig();
+        final AuthConfig auth = cfg.getAuth();
+        if (auth != null && auth.getScheme() == AuthScheme.flowCredentials) {
+            cfg = cfg.clone();
+
+            final ICredentials c = getCredentialsProvider().get(auth.getPrincipal());
+            cfg.getAuth().setPrincipal(c.getLogin());
+            cfg.getAuth().setCredentials(c.getPassword());
+        }
+        return cfg;
     }
 
     private void loadNamedWithProperties(final Session s, final String query,

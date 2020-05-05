@@ -12,7 +12,7 @@ import org.neo4j.driver.Config.TrustStrategy.Strategy;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class SslTrustStrategy {
+public class SslTrustStrategy implements Cloneable {
     private Strategy strategy;
     private File certFile;
     private boolean hostnameVerificationEnabled = true;
@@ -57,5 +57,13 @@ public class SslTrustStrategy {
         return Objects.hash(getCertFile(),
                 isHostnameVerificationEnabled(),
                 getStrategy());
+    }
+    @Override
+    public SslTrustStrategy clone() {
+        try {
+            return (SslTrustStrategy) super.clone();
+        } catch (final CloneNotSupportedException e) {
+            throw new InternalError(e);
+        }
     }
 }

@@ -40,14 +40,19 @@ import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.workflow.FlowVariable;
+import org.knime.core.node.workflow.ICredentials;
 import org.knime.core.node.workflow.VariableType;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.util.Pair;
 
 import se.redfield.knime.json.JsonBuilder;
+import se.redfield.knime.neo4j.connector.ConnectorPortData;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
+import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
+import se.redfield.knime.neo4j.connector.cfg.AuthScheme;
+import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
 import se.redfield.knime.neo4j.db.DataAdapter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.reader.cfg.ReaderConfig;
@@ -100,7 +105,7 @@ public class ReaderModel extends NodeModel {
     @Override
     protected PortObject[] execute(final PortObject[] input, final ExecutionContext exec) throws Exception {
         final ConnectorPortObject portObject = (ConnectorPortObject) input[1];
-        final Neo4jSupport neo4j = new Neo4jSupport(portObject.getPortData().getConnectorConfig());
+        final Neo4jSupport neo4j = new Neo4jSupport(createResolvedConfig(portObject.getPortData()));
 
         final List<Record> records = neo4j.runRead(insertFlowVariables(config.getScript()));
 
@@ -118,6 +123,19 @@ public class ReaderModel extends NodeModel {
                         exec.createSubExecutionContext(0.0)),
                 portObject //forward connection
         };
+    }
+
+    private ConnectorConfig createResolvedConfig(final ConnectorPortData data) {
+        ConnectorConfig cfg = data.getConnectorConfig();
+        final AuthConfig auth = cfg.getAuth();
+        if (auth != null && auth.getScheme() == AuthScheme.flowCredentials) {
+            cfg = cfg.clone();
+
+            final ICredentials c = getCredentialsProvider().get(auth.getPrincipal());
+            cfg.getAuth().setPrincipal(c.getLogin());
+            cfg.getAuth().setCredentials(c.getPassword());
+        }
+        return cfg;
     }
 
     /**

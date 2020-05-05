@@ -37,6 +37,7 @@ import org.neo4j.driver.Config.TrustStrategy.Strategy;
 
 import se.redfield.knime.neo4j.connector.cfg.AdvancedSettings;
 import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
+import se.redfield.knime.neo4j.connector.cfg.AuthScheme;
 import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
 import se.redfield.knime.neo4j.connector.cfg.ConnectorConfigSerializer;
 import se.redfield.knime.utils.HashGenerator;
@@ -54,11 +55,12 @@ public class ConnectorDialog extends NodeDialogPane {
 
     //authentication
     private final JCheckBox useAuth = new JCheckBox();
-    private final JComboBox<String> scheme = new JComboBox<String>();
+    private final JComboBox<AuthScheme> scheme = new JComboBox<AuthScheme>();
     private final JTextField principal = new JTextField();
     private final JPasswordField credentials = new JPasswordField();
     private final JTextField realm = new JTextField();
     private final JTextField parameters = new JTextField();
+    private final JComboBox<String> flowCredentials = new JComboBox<>();
 
     //config
     private final JCheckBox logLeakedSessions = new JCheckBox();
@@ -219,18 +221,16 @@ public class ConnectorDialog extends NodeDialogPane {
                         new EtchedBorder(BevelBorder.RAISED),
                         new EmptyBorder(5, 5, 5, 5)));
 
+                scheme.setRenderer(new AuthSchemeCellRenderer());
                 //scheme
-                scheme.addItem("basic");
-                scheme.addItem("custom");
-                scheme.addItem("kerberos");
+                for (final AuthScheme s : AuthScheme.values()) {
+                    scheme.addItem(s);
+                }
 
-                scheme.setSelectedItem("basic");
-                addLabeledComponent(container, "Scheme:", scheme, 0);
-
-                addLabeledComponent(container, "Login:", principal, 1);
-                addLabeledComponent(container, "Password:", credentials, 2);
-                addLabeledComponent(container, "Realm:", realm, 3);
-                addLabeledComponent(container, "Parameters:", parameters, 4);
+                scheme.setSelectedItem(AuthScheme.basic);
+                authSchemeChanged(container, AuthScheme.basic);
+                scheme.addActionListener(e -> authSchemeChanged(
+                        container, (AuthScheme) scheme.getSelectedItem()));
 
                 wrapper = new JPanel(new BorderLayout());
                 wrapper.add(container, BorderLayout.NORTH);
@@ -241,7 +241,30 @@ public class ConnectorDialog extends NodeDialogPane {
             parent.add(wrapper, BorderLayout.CENTER);
         }
 
-        getPanel().repaint();
+        if (getPanel() != null) {
+            getPanel().repaint();
+        }
+    }
+
+    /**
+     * @param container
+     * @param s
+     */
+    private void authSchemeChanged(final JPanel container, final AuthScheme s) {
+        container.removeAll();
+
+        addLabeledComponent(container, "Scheme:", scheme, 0);
+        if (s == AuthScheme.flowCredentials) {
+            addLabeledComponent(container, "Flow credentials:", flowCredentials, 1);
+        } else {
+            addLabeledComponent(container, "Login:", principal, 1);
+            addLabeledComponent(container, "Password:", credentials, 2);
+            addLabeledComponent(container, "Realm:", realm, 3);
+            addLabeledComponent(container, "Parameters:", parameters, 4);
+        }
+        if (getPanel() != null) {
+            getPanel().repaint();
+        }
     }
 
     /**
@@ -307,14 +330,24 @@ public class ConnectorDialog extends NodeDialogPane {
         useAuth.setSelected(shouldUseAuth);
         useAuthChanged(shouldUseAuth);
 
+        //reload and setup flow credentials
+        flowCredentials.removeAllItems();
+        for (final String cr : getCredentialsNames()) {
+            flowCredentials.addItem(cr);
+        }
         if (shouldUseAuth) {
-            principal.setText(auth.getPrincipal());
+            final AuthScheme authScheme = auth.getScheme();
+            this.scheme.setSelectedItem(authScheme);
 
-            final String password = auth.getCredentials();
-            credentials.putClientProperty(OLD_PASSWORD, password);
-            credentials.setText(createPasswordHash(password));
+            if (authScheme != AuthScheme.flowCredentials) {
+                principal.setText(auth.getPrincipal());
 
-            scheme.setSelectedItem(auth.getScheme());
+                final String password = auth.getCredentials();
+                credentials.putClientProperty(OLD_PASSWORD, password);
+                credentials.setText(createPasswordHash(password));
+            } else {
+                flowCredentials.setSelectedItem(auth.getPrincipal());
+            }
         }
 
         //setting
@@ -348,16 +381,28 @@ public class ConnectorDialog extends NodeDialogPane {
         //authentication
         if (useAuth.isSelected()) {
             final AuthConfig auth = new AuthConfig();
-            auth.setScheme((String) scheme.getSelectedItem());
-            auth.setPrincipal(getNotEmpty("user name", this.principal));
 
-            String password = getNotEmpty("password", this.credentials);
-            final String oldPassword = (String) credentials.getClientProperty(OLD_PASSWORD);
-            //if password not changed save old password
-            if (oldPassword != null && createPasswordHash(oldPassword).equals(password)) {
-                password = oldPassword;
+            final AuthScheme authScheme = (AuthScheme) scheme.getSelectedItem();
+            auth.setScheme(authScheme);
+
+            if (authScheme != AuthScheme.flowCredentials) {
+                auth.setPrincipal(getNotEmpty("user name", this.principal));
+
+                String password = getNotEmpty("password", this.credentials);
+                final String oldPassword = (String) credentials.getClientProperty(OLD_PASSWORD);
+                //if password not changed save old password
+                if (oldPassword != null && createPasswordHash(oldPassword).equals(password)) {
+                    password = oldPassword;
+                }
+                auth.setCredentials(password);
+            } else {
+                final String c = (String) this.flowCredentials.getSelectedItem();
+                if (c == null) {
+                    throw new InvalidSettingsException("Empty flow credentials");
+                }
+                auth.setPrincipal(c);
+                auth.setCredentials(null);
             }
-            auth.setCredentials(password);
 
             config.setAuth(auth);
         }

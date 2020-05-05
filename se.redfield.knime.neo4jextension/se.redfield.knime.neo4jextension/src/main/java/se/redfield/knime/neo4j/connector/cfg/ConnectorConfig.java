@@ -11,7 +11,7 @@ import java.util.Objects;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class ConnectorConfig {
+public class ConnectorConfig implements Cloneable {
     private URI location;
     private AuthConfig auth;
     private AdvancedSettings advancedSettings = new AdvancedSettings();
@@ -24,7 +24,7 @@ public class ConnectorConfig {
             throw new RuntimeException(e);
         }
         auth = new AuthConfig();
-        auth.setScheme("basic");
+        auth.setScheme(AuthScheme.basic);
         auth.setPrincipal("neo4j");
     }
 
@@ -71,5 +71,18 @@ public class ConnectorConfig {
         final StringBuilder sb = new StringBuilder("NeoJ4 DB: ");
         sb.append(getLocation());
         return sb.toString();
+    }
+    @Override
+    public ConnectorConfig clone() {
+        try {
+            final ConnectorConfig clone = (ConnectorConfig) super.clone();
+            clone.advancedSettings = this.advancedSettings.clone();
+            if (auth != null) {
+                clone.auth = auth.clone();
+            }
+            return clone;
+        } catch (final CloneNotSupportedException e) {
+            throw new InternalError(e);
+        }
     }
 }

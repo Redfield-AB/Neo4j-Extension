@@ -9,8 +9,8 @@ import java.util.Objects;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class AuthConfig {
-    private String scheme;
+public class AuthConfig implements Cloneable {
+    private AuthScheme scheme;
     private String principal;
     private String credentials;
     private String realm;
@@ -20,10 +20,10 @@ public class AuthConfig {
         super();
     }
 
-    public String getScheme() {
+    public AuthScheme getScheme() {
         return scheme;
     }
-    public void setScheme(final String scheme) {
+    public void setScheme(final AuthScheme scheme) {
         this.scheme = scheme;
     }
     public String getPrincipal() {
@@ -56,7 +56,7 @@ public class AuthConfig {
             return false;
         }
 
-        AuthConfig that = (AuthConfig) obj;
+        final AuthConfig that = (AuthConfig) obj;
         return Objects.equals(scheme, that.scheme)
                 && Objects.equals(principal, that.principal)
                 && Objects.equals(credentials, that.credentials)
@@ -71,5 +71,13 @@ public class AuthConfig {
                 credentials,
                 realm,
                 parameters);
+    }
+    @Override
+    public AuthConfig clone() {
+        try {
+            return (AuthConfig) super.clone();
+        } catch (final CloneNotSupportedException e) {
+            throw new InternalError(e);
+        }
     }
 }

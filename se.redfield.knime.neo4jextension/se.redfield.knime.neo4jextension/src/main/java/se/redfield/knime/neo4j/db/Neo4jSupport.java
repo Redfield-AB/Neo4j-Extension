@@ -43,7 +43,9 @@ public class Neo4jSupport {
     public List<Record> runRead(final String query) {
         return runWithSession(s ->  {
             return s.readTransaction(tx -> {
-                return tx.run(query).list();
+                final List<Record> list = tx.run(query).list();
+                tx.rollback();
+                return list;
             });
         });
     }

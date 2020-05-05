@@ -17,7 +17,7 @@ import se.redfield.knime.neo4j.reader.cfg.SslTrustStrategy;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class AdvancedSettings {
+public class AdvancedSettings implements Cloneable {
     private int routingFailureLimit;
     private long routingRetryDelayMillis;
     private long routingTablePurgeDelayMillis;
@@ -193,5 +193,15 @@ public class AdvancedSettings {
     }
     public void setTrustStrategy(final SslTrustStrategy trustStrategy) {
         this.trustStrategy = trustStrategy;
+    }
+    @Override
+    public AdvancedSettings clone() {
+        try {
+            final AdvancedSettings clone = (AdvancedSettings) super.clone();
+            clone.trustStrategy = trustStrategy == null ? null : trustStrategy.clone();
+            return clone;
+        } catch (final CloneNotSupportedException e) {
+            throw new InternalError(e);
+        }
     }
 }

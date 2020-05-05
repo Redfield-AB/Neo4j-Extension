@@ -9,6 +9,7 @@ import org.knime.core.node.ModelContentWO;
 import org.knime.core.node.port.AbstractSimplePortObjectSpec;
 
 import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
+import se.redfield.knime.neo4j.connector.cfg.AuthScheme;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -27,7 +28,7 @@ public class ConnectorSpec extends AbstractSimplePortObjectSpec {
         final AuthConfig auth = new AuthConfig();
         auth.setCredentials("*******");
         auth.setPrincipal("user");
-        auth.setScheme("basic");
+        auth.setScheme(AuthScheme.basic);
 
         data.getConnectorConfig().setAuth(auth);
     }
