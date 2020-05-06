@@ -16,6 +16,6 @@ Automatic-Module-Name: com.redfield.ab.knime.neo4jconnector
 Bundle-ClassPath: lib/neo4j-java-driver-4.0.1.jar,
  lib/reactive-streams-1.0.3.jar,
  target/classes/
-Bundle-Activator: se.redfield.knime.neo4jextension.Activator
+Bundle-Activator: se.redfield.knime.neo4j.Activator
 Bundle-ActivationPolicy: lazy
 Import-Package: org.apache.commons.lang3.concurrent;version="3.9.0"

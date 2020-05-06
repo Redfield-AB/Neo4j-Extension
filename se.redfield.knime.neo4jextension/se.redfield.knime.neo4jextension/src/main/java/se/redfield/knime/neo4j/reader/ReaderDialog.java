@@ -4,11 +4,16 @@
 package se.redfield.knime.neo4j.reader;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Event;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -66,6 +71,10 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
     private DefaultListModel<String> relationshipsProperties = new DefaultListModel<>();
     private DefaultListModel<FunctionDesc> functions = new DefaultListModel<>();
 
+    private final Map<JSplitPane, Double> dividerPositions = new HashMap<>();
+
+    private Dimension savedSize;
+
     /**
      * Default constructor.
      */
@@ -79,11 +88,11 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
      * @return script editor page.
      */
     private JComponent createScriptTab() {
-        final JSplitPane topPanel = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        final JSplitPane topPanel = createSplitPane(JSplitPane.HORIZONTAL_SPLIT, 0.3);
         topPanel.setLeftComponent(createFlowVariablesNodesAndRels());
         topPanel.setRightComponent(createScriptPanel());
 
-        final JSplitPane tab = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        final JSplitPane tab = createSplitPane(JSplitPane.VERTICAL_SPLIT, 0.67);
         tab.setTopComponent(topPanel);
         tab.setBottomComponent(createFunctions());
 
@@ -110,15 +119,22 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
     }
 
     private JSplitPane createFlowVariablesNodesAndRels() {
-        final JSplitPane sp = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        final JSplitPane sp = createSplitPane(JSplitPane.VERTICAL_SPLIT, 0.1);
         sp.setTopComponent(createFlowVariables());
 
         //nodes and relationships
-        final JSplitPane nodesAndRel = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        final JSplitPane nodesAndRel = createSplitPane(JSplitPane.VERTICAL_SPLIT, 0.5);
         nodesAndRel.setTopComponent(createNodes());
         nodesAndRel.setBottomComponent(createRelationships());
 
         sp.setBottomComponent(nodesAndRel);
+        return sp;
+    }
+
+    private JSplitPane createSplitPane(final int orientation,
+            final double sliderPosition) {
+        final JSplitPane sp = new JSplitPane(orientation);
+        this.dividerPositions.put(sp, sliderPosition);
         return sp;
     }
     private JSplitPane createNodes() {
@@ -135,7 +151,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
     private JSplitPane createNamedWithPropertiesComponent(final DefaultListModel<NamedWithProperties> named,
             final DefaultListModel<String> propsOfNamed, final String title,
             final String propertiesTitle, final ValueInsertHandler<NamedWithProperties> handler) {
-        final JSplitPane p = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        final JSplitPane p = createSplitPane(JSplitPane.HORIZONTAL_SPLIT, 0.5);
 
         final JPanel nodesContainer = new JPanel(new BorderLayout());
         nodesContainer.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), title));
@@ -313,6 +329,71 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
             initFromModel(model, ((ConnectorPortObject) input[1]).getPortData());
         } catch (final InvalidSettingsException e) {
             throw new NotConfigurableException("Failed to load configuration from settings", e);
+        }
+    }
+    @Override
+    public void onOpen() {
+        if (this.savedSize != null) {
+            getPanel().setSize(savedSize);
+            getPanel().setPreferredSize(savedSize);
+        }
+
+        final List<JSplitPane> splitPanels = new LinkedList<>();
+        getSplitPanesOrderedByParentness(splitPanels, getPanel());
+
+        if (!splitPanels.isEmpty()) {
+            UiUtils.launchOnParentWindowOpened(getPanel(), () -> {
+                final JSplitPane first = splitPanels.get(0);
+                if (first.isShowing() && first.isValid()
+                        && first.getWidth() != 0
+                        && first.getHeight() != 0) {
+                    for (final JSplitPane p : splitPanels) {
+                        p.setDividerLocation(dividerPositions.get(p));
+                        p.doLayout();
+                    }
+                    return false;
+                }
+
+                //resubmit
+                return true;
+            });
+        }
+    }
+
+    private void getSplitPanesOrderedByParentness(final List<JSplitPane> splitPanels, final Container con) {
+        final Component[] children = con.getComponents();
+        for (final Component c : children) {
+            if (dividerPositions.containsKey(c)) {
+                splitPanels.add((JSplitPane) c);
+            }
+            if (c instanceof Container) {
+                getSplitPanesOrderedByParentness(splitPanels, (Container) c);
+            }
+        }
+    }
+
+    @Override
+    public void onClose() {
+        this.savedSize = getPanel().getSize();
+
+        //save divider positions
+        for (final JSplitPane p : new HashSet<>(dividerPositions.keySet())) {
+            //convert int position to double
+            double pos = 0.5;
+
+            //get panel free size
+            int freeSize;
+            if (p.getOrientation() == JSplitPane.VERTICAL_SPLIT) {
+                freeSize = p.getHeight() - p.getDividerSize();
+            } else {
+                freeSize = p.getWidth() - p.getDividerSize();
+            }
+
+            if (freeSize > 0) {
+                pos = (double) p.getDividerLocation() / freeSize;
+            }
+
+            dividerPositions.put(p, pos);
         }
     }
 

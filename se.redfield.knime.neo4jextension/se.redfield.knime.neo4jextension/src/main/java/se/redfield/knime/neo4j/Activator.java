@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4jextension;
+package se.redfield.knime.neo4j;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
