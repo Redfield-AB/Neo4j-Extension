@@ -13,6 +13,9 @@ import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.port.PortTypeRegistry;
 
+import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
+import se.redfield.knime.neo4j.connector.cfg.ConnectorConfigSerializer;
+
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
@@ -23,12 +26,12 @@ public class ConnectorPortObject extends AbstractSimplePortObject {
     public static final PortType TYPE_OPTIONAL = PortTypeRegistry.getInstance().getPortType(
             ConnectorPortObject.class, true);
 
-    private ConnectorPortData data;
+    private ConnectorConfig data;
 
     public ConnectorPortObject() {
-        this(new ConnectorPortData());
+        this(new ConnectorConfig());
     }
-    public ConnectorPortObject(final ConnectorPortData data) {
+    public ConnectorPortObject(final ConnectorConfig data) {
         super();
         this.data = data;
     }
@@ -36,24 +39,24 @@ public class ConnectorPortObject extends AbstractSimplePortObject {
     @Override
     protected void load(final ModelContentRO model, final PortObjectSpec spec, final ExecutionMonitor exec)
             throws InvalidSettingsException, CanceledExecutionException {
-        data = new ConnectorPortDataSerializer().load(model);
+        data = new ConnectorConfigSerializer().load(model);
     }
     @Override
     protected void save(final ModelContentWO model, final ExecutionMonitor exec)
             throws CanceledExecutionException {
-        new ConnectorPortDataSerializer().save(data, model);
+        new ConnectorConfigSerializer().save(data, model);
     }
     @Override
     public String getSummary() {
         final StringBuilder sb = new StringBuilder("NeoJ4 DB: ");
-        sb.append(data.getConnectorConfig().getLocation());
+        sb.append(data.getLocation());
         return sb.toString();
     }
     @Override
     public ConnectorSpec getSpec() {
         return new ConnectorSpec();
     }
-    public ConnectorPortData getPortData() {
+    public ConnectorConfig getPortData() {
         return data;
     }
 }

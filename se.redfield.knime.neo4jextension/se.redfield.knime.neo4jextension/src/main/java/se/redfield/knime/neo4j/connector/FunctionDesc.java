@@ -7,7 +7,7 @@ package se.redfield.knime.neo4j.connector;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class FunctionDesc {
+public class FunctionDesc extends Named {
     private String name;
     private String signature;
     private String description;

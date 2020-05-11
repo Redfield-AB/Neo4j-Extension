@@ -5,8 +5,10 @@ package se.redfield.knime.neo4j.db;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -26,6 +28,8 @@ import org.neo4j.driver.summary.QueryType;
 import org.neo4j.driver.summary.ResultSummary;
 import org.neo4j.driver.types.TypeSystem;
 
+import se.redfield.knime.neo4j.connector.FunctionDesc;
+import se.redfield.knime.neo4j.connector.NamedWithProperties;
 import se.redfield.knime.neo4j.connector.cfg.AdvancedSettings;
 import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
 import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
@@ -161,6 +165,7 @@ public class Neo4jSupport {
                     auth.getPrincipal(), auth.getCredentials(), null);
             d = GraphDatabase.driver(location, token, createConfig(con.getAdvancedSettings()));
         }
+        d.verifyConnectivity();
         return d;
     }
     private static Config createConfig(final AdvancedSettings as) {
@@ -221,5 +226,103 @@ public class Neo4jSupport {
     public DataAdapter createDataAdapter() {
         final TypeSystem ts = runWithDriver(d -> d.defaultTypeSystem());
         return new DataAdapter(ts);
+    }
+
+    public LabelsAndFunctions loadLabesAndFunctions() throws Exception {
+        final LabelsAndFunctions data = new LabelsAndFunctions();
+
+        final List<WithSessionAsyncRunnable<Void>> runs = new ArrayList<>(3);
+
+        final Map<String, NamedWithProperties> nodes = new HashMap<>();
+        final Map<String, NamedWithProperties> relationships = new HashMap<>();
+        final List<FunctionDesc> functions = new LinkedList<>();
+
+        runs.add(s -> loadNamedWithProperties(s, "call db.labels()", nodes));
+        runs.add(s -> loadNodeLabelPropertiess(s, nodes));
+        runs.add(s -> loadNamedWithProperties(s, "call db.relationshipTypes()", relationships));
+        runs.add(s -> loadRelationshipProperties(s, relationships));
+        runs.add(s -> loadFunctions(s, functions));
+
+        runAndWait(runs);
+
+        data.getNodes().addAll(new LinkedList<NamedWithProperties>(nodes.values()));
+        data.getRelationships().addAll(new LinkedList<NamedWithProperties>(relationships.values()));
+        data.getFunctions().addAll(functions);
+
+        return data;
+    }
+
+    private void loadNamedWithProperties(final Session s, final String query,
+            final Map<String, NamedWithProperties> map) {
+        final List<Record> result = s.readTransaction(tx -> tx.run(query).list());
+        for (final Record r : result) {
+            final String type = r.get(0).asString();
+            synchronized (map) {
+                if (!map.containsKey(type)) {
+                    map.put(type, new NamedWithProperties(type));
+                }
+            }
+        }
+    }
+    private void loadNodeLabelPropertiess(final Session s, final Map<String, NamedWithProperties> map) {
+        final List<Record> result = s.readTransaction(tx -> tx.run(
+                "call db.schema.nodeTypeProperties()").list());
+        for (final Record r : result) {
+            final String property = r.get("propertyName").asString();
+            final List<Object> nodeLabels = r.get("nodeLabels").asList();
+
+            for (final Object obj : nodeLabels) {
+                final String type = (String) obj;
+
+                NamedWithProperties n;
+                synchronized (map) {
+                    n = map.get(type);
+                    if (n == null) {
+                        n = new NamedWithProperties(type);
+                        map.put(type, n);
+                    }
+                }
+
+                if (property != null && !property.equals("null")) {
+                    n.getProperties().add(property);
+                }
+            }
+        }
+    }
+
+    private void loadRelationshipProperties(final Session s, final Map<String, NamedWithProperties> map) {
+        final List<Record> result = s.readTransaction(tx -> tx.run(
+                "call db.schema.relTypeProperties()").list());
+        for (final Record r : result) {
+            final String property = r.get("propertyName").asString();
+            String type = r.get("relType").asString();
+            if (type.startsWith(":")) {
+                type = type.substring(2, type.length() - 1);
+            }
+
+            NamedWithProperties n;
+            synchronized (map) {
+                n = map.get(type);
+                if (n == null) {
+                    n = new NamedWithProperties(type);
+                    map.put(type, n);
+                }
+            }
+
+            if (property != null && !property.equals("null")) {
+                n.getProperties().add(property);
+            }
+        }
+    }
+    private void loadFunctions(final Session s, final List<FunctionDesc> functions) {
+        final List<Record> result = s.readTransaction(tx -> tx.run(
+                "call dbms.functions()").list());
+        for (final Record r : result) {
+            final FunctionDesc f = new FunctionDesc();
+            f.setName(r.get("name").asString());
+            f.setSignature(r.get("signature").asString());
+            f.setDescription(r.get("description").asString());
+            functions.add(f);
+        }
     }
 }

@@ -7,6 +7,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Objects;
 
+import org.knime.core.node.workflow.CredentialsProvider;
+import org.knime.core.node.workflow.ICredentials;
+
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
@@ -84,5 +87,15 @@ public class ConnectorConfig implements Cloneable {
         } catch (final CloneNotSupportedException e) {
             throw new InternalError(e);
         }
+    }
+    public ConnectorConfig createResolvedConfig(final CredentialsProvider cp) {
+        final ConnectorConfig cfg = clone();
+        final AuthConfig auth = cfg.getAuth();
+        if (auth != null && auth.getScheme() == AuthScheme.flowCredentials) {
+            final ICredentials c = cp.get(auth.getPrincipal());
+            cfg.getAuth().setPrincipal(c.getLogin());
+            cfg.getAuth().setCredentials(c.getPassword());
+        }
+        return cfg;
     }
 }

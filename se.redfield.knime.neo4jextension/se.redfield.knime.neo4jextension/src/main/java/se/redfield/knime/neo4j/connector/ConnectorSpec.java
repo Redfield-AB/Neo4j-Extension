@@ -10,47 +10,49 @@ import org.knime.core.node.port.AbstractSimplePortObjectSpec;
 
 import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
 import se.redfield.knime.neo4j.connector.cfg.AuthScheme;
+import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
+import se.redfield.knime.neo4j.connector.cfg.ConnectorConfigSerializer;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
 public class ConnectorSpec extends AbstractSimplePortObjectSpec {
-    private ConnectorPortData data;
+    private ConnectorConfig data;
 
     /**
      * Default constructor.
      */
     public ConnectorSpec() {
         super();
-        this.data = new ConnectorPortData();
+        this.data = new ConnectorConfig();
 
         final AuthConfig auth = new AuthConfig();
         auth.setCredentials("*******");
         auth.setPrincipal("user");
         auth.setScheme(AuthScheme.basic);
 
-        data.getConnectorConfig().setAuth(auth);
+        data.setAuth(auth);
     }
     /**
      * @param con connector object.
      */
-    public ConnectorSpec(final ConnectorPortData con) {
+    public ConnectorSpec(final ConnectorConfig con) {
         super();
         this.data = con;
     }
     @Override
     protected void save(final ModelContentWO model) {
-        new ConnectorPortDataSerializer().save(data, model);
+        new ConnectorConfigSerializer().save(data, model);
     }
     @Override
     protected void load(final ModelContentRO model) throws InvalidSettingsException {
-        data = new ConnectorPortDataSerializer().load(model);
+        data = new ConnectorConfigSerializer().load(model);
     }
     /**
      * @return Neo4j connector.
      */
-    public ConnectorPortData getPortData() {
+    public ConnectorConfig getPortData() {
         return data;
     }
 }
