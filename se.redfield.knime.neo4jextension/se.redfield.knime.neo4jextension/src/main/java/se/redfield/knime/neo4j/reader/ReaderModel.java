@@ -93,10 +93,16 @@ public class ReaderModel extends NodeModel {
         if (inSpecs.length < 2 || !(inSpecs[1] instanceof ConnectorSpec)) {
             throw new InvalidSettingsException("Not Neo4j input found");
         }
-        return new PortObjectSpec[] {
-                null,
-                inSpecs[1] //forward connection
-        };
+        final ConnectorSpec connectorSpec = (ConnectorSpec) inSpecs[1];
+
+        PortObjectSpec output = null;
+        //if JSON output used it is possible to specify output.
+        final boolean useTableInput = inSpecs[0] != null;
+        if (useTableInput || config.isUseJson()) {
+            output = createJsonOutputSpec();
+        }
+
+        return new PortObjectSpec[] {output, connectorSpec};
     }
     @Override
     protected PortObject[] execute(final PortObject[] input, final ExecutionContext exec) throws Exception {
@@ -237,9 +243,7 @@ public class ReaderModel extends NodeModel {
     }
     private DataTable createJsonTable(final ExecutionContext exec, final DataAdapter adapter,
             final List<Record> records) throws IOException {
-        //one row, one string column
-        final DataColumnSpec stringColumn = new DataColumnSpecCreator("json", JSONCell.TYPE).createSpec();
-        final DataTableSpec tableSpec = new DataTableSpec(stringColumn);
+        final DataTableSpec tableSpec = createJsonOutputSpec();
 
         //convert output to JSON.
         final String json = buildJson(records, adapter);
@@ -254,6 +258,12 @@ public class ReaderModel extends NodeModel {
         }
 
         return table.getTable();
+    }
+    private DataTableSpec createJsonOutputSpec() {
+        //one row, one string column
+        final DataColumnSpec stringColumn = new DataColumnSpecCreator("json", JSONCell.TYPE).createSpec();
+        final DataTableSpec tableSpec = new DataTableSpec(stringColumn);
+        return tableSpec;
     }
     private String buildJson(final List<Record> records, final DataAdapter adapter) {
         final StringWriter wr = new StringWriter();

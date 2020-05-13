@@ -3,6 +3,11 @@
  */
 package se.redfield.knime.neo4j.reader.cfg;
 
+import java.util.List;
+
+import se.redfield.knime.neo4j.connector.FunctionDesc;
+import se.redfield.knime.neo4j.connector.NamedWithProperties;
+import se.redfield.knime.neo4j.db.LabelsAndFunctions;
 import se.redfield.knime.neo4j.reader.ColumnInfo;
 
 /**
@@ -13,6 +18,7 @@ public class ReaderConfig implements Cloneable {
     private String script;
     private boolean useJson = true; //default true
     private ColumnInfo inputColumn;
+    private LabelsAndFunctions metaData = new LabelsAndFunctions();
 
     public ReaderConfig() {
         super();
@@ -36,6 +42,34 @@ public class ReaderConfig implements Cloneable {
     public void setInputColumn(final ColumnInfo inputColumn) {
         this.inputColumn = inputColumn;
     }
+    public List<NamedWithProperties> getNodeLabels() {
+        return metaData.getNodes();
+    }
+    public List<NamedWithProperties> getRelationshipTypes() {
+        return metaData.getRelationships();
+    }
+    public void setNodeLabels(final List<NamedWithProperties> nodeLabels) {
+        metaData.setNodes(nodeLabels);
+    }
+    public void setRelationshipTypes(final List<NamedWithProperties> relationshipTypes) {
+        metaData.setRelationships(relationshipTypes);
+    }
+    public void setMetaData(final LabelsAndFunctions md) {
+        if (md == null) {
+            throw new NullPointerException("Metadata");
+        }
+        this.metaData = md;
+    }
+    public List<FunctionDesc> getFunctions() {
+        return metaData.getFunctions();
+    }
+    public void setFunctions(final List<FunctionDesc> functions) {
+        metaData.setFunctions(functions);
+    }
+    public LabelsAndFunctions getMetaData() {
+        return metaData;
+    }
+
     @Override
     public ReaderConfig clone() {
         try {
@@ -43,6 +77,7 @@ public class ReaderConfig implements Cloneable {
             if (inputColumn != null) {
                 clone.inputColumn = new ColumnInfo(inputColumn.getName(), inputColumn.getOffset());
             }
+            clone.metaData = metaData.clone();
             return clone;
         } catch (final CloneNotSupportedException e) {
             throw new InternalError(e);

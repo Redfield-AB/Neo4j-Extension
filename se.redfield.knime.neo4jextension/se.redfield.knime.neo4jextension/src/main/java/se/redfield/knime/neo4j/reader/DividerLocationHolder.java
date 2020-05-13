@@ -25,7 +25,7 @@ public class DividerLocationHolder {
     }
     public void setLocation(final double location) {
         if (location < 0 || location > 1) {
-            throw new IllegalArgumentException("JSplitPane divicer location must be between 0 and 1");
+            throw new IllegalArgumentException("JSplitPane divider location must be between 0 and 1");
         }
 
         locInt = null;
@@ -43,8 +43,6 @@ public class DividerLocationHolder {
             size = owner.getWidth() - owner.getDividerSize();
         }
 
-        final int result = (int) ((locDouble == null ? 0. : locDouble) * size);
-        System.out.println("Loc double: " + locDouble + ", Size: " + size + ", Result: " + result);
-        return result;
+        return (int) ((locDouble == null ? 0. : locDouble) * size);
    }
 }

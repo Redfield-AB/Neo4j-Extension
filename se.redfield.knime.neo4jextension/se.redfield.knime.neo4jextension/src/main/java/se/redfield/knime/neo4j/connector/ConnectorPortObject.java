@@ -54,7 +54,7 @@ public class ConnectorPortObject extends AbstractSimplePortObject {
     }
     @Override
     public ConnectorSpec getSpec() {
-        return new ConnectorSpec();
+        return new ConnectorSpec(data);
     }
     public ConnectorConfig getPortData() {
         return data;

@@ -487,13 +487,9 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
         if (useInputTable) {
             //clear all script tab UI
             nodeProperties.clear();
-            model(nodes).clear();;
-
             relationshipsProperties.clear();
-            model(relationships).clear();
-
             funcDescription.setText("");
-            model(functions).clear();
+            applyMetadata(model.getMetaData());
 
             //init input table UI.
             final DefaultComboBoxModel<ColumnInfo> boxModel = (DefaultComboBoxModel<ColumnInfo>) inputColumn.getModel();
@@ -527,6 +523,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
                     final ConnectorConfig cfg = connector.createResolvedConfig(getCredentialsProvider());
                     final Neo4jSupport support = new Neo4jSupport(cfg);
                     final LabelsAndFunctions metaData = support.loadLabesAndFunctions();
+                    ReaderDialog.this.oldModel.setMetaData(metaData);
 
                     SwingUtilities.invokeLater(() -> applyMetadata(metaData));
                 } catch (final Exception e) {

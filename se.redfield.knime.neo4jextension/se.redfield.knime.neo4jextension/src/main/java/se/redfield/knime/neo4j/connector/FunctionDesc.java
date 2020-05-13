@@ -7,7 +7,7 @@ package se.redfield.knime.neo4j.connector;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class FunctionDesc extends Named {
+public class FunctionDesc extends Named implements Cloneable {
     private String name;
     private String signature;
     private String description;
@@ -19,9 +19,11 @@ public class FunctionDesc extends Named {
         this.name = name;
     }
 
+    @Override
     public String getName() {
         return name;
     }
+    @Override
     public void setName(final String name) {
         this.name = name;
     }
@@ -36,5 +38,13 @@ public class FunctionDesc extends Named {
     }
     public void setDescription(final String description) {
         this.description = description;
+    }
+    @Override
+    public FunctionDesc clone() {
+        try {
+            return (FunctionDesc) super.clone();
+        } catch (final CloneNotSupportedException e) {
+            throw new InternalError(e);
+        }
     }
 }
