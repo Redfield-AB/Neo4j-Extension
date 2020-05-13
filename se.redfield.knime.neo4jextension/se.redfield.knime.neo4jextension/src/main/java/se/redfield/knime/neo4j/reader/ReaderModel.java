@@ -6,6 +6,7 @@ package se.redfield.knime.neo4j.reader;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -25,6 +26,7 @@ import org.knime.core.data.RowIterator;
 import org.knime.core.data.RowKey;
 import org.knime.core.data.def.DefaultRow;
 import org.knime.core.data.def.DefaultRowIterator;
+import org.knime.core.data.def.StringCell;
 import org.knime.core.data.json.JSONCell;
 import org.knime.core.data.json.JSONCellFactory;
 import org.knime.core.node.BufferedDataContainer;
@@ -106,24 +108,66 @@ public class ReaderModel extends NodeModel {
     }
     @Override
     protected PortObject[] execute(final PortObject[] input, final ExecutionContext exec) throws Exception {
+        final BufferedDataTable tableInput = (BufferedDataTable) input[0];
         final ConnectorPortObject portObject = (ConnectorPortObject) input[1];
+
         final Neo4jSupport neo4j = new Neo4jSupport(portObject.getPortData().createResolvedConfig(
                 getCredentialsProvider()));
 
-        final String[] warning = {null};
-        final List<Record> records = neo4j.runRead(insertFlowVariables(config.getScript()),
-                n -> warning[0] = buildWarning(n));
-        if (warning[0] != null) {
-            setWarningMessage(warning[0]);
-        }
-
+        final boolean useTableInput = tableInput != null;
         DataTable table;
-        if (records.isEmpty()) {
-            table = createEmptyTable();
-        } else if (config.isUseJson()) {
-            table = createJsonTable(exec, neo4j.createDataAdapter(), records);
+        if (!useTableInput) {
+            final String[] warning = {null};
+            final List<Record> records = neo4j.runRead(insertFlowVariables(config.getScript()),
+                    n -> warning[0] = buildWarning(n));
+            if (warning[0] != null) {
+                setWarningMessage(warning[0]);
+            }
+
+            if (config.isUseJson()) {
+                table = createJsonTable(exec, neo4j.createDataAdapter(), records);
+            } else if (records.isEmpty()) {
+                table = createEmptyTable();
+            } else {
+                table = createDataTable(exec, neo4j.createDataAdapter(), records);
+            }
         } else {
-            table = createDataTable(exec, neo4j.createDataAdapter(), records);
+            final ColumnInfo inputColumn = config.getInputColumn();
+            if (inputColumn == null) {
+                table = createJsonTable(exec, neo4j.createDataAdapter(), new LinkedList<Record>());
+            } else {
+                final List<String> rowKeys = new LinkedList<>();
+                final Map<String, List<Record>> result = new HashMap<>();
+
+                boolean error = false;
+                for (final DataRow dataRow : tableInput) {
+                    final StringCell cell = (StringCell) dataRow.getCell(inputColumn.getOffset());
+                    final String script = cell.getStringValue();
+
+                    final String rowKey = dataRow.getKey().getString();
+                    rowKeys.add(rowKey);
+                    result.put(rowKey, null);
+
+                    if (script == null) {
+                        error = true;
+                    } else {
+                        final boolean[] hasError = {false};
+                        final List<Record> records = neo4j.runRead(insertFlowVariables(config.getScript()),
+                                n -> hasError[0] = true);
+
+                        if (!hasError[0]) {
+                            result.put(rowKey, records);
+                        }
+
+                        error = error || hasError[0];
+                    }
+                }
+
+                table = createDataTable(exec, neo4j.createDataAdapter(), rowKeys, result);
+                if (error) {
+                    setWarningMessage("Some queries were not successfully executed.");
+                }
+            }
         }
 
         return new PortObject[] {
@@ -243,10 +287,18 @@ public class ReaderModel extends NodeModel {
     }
     private DataTable createJsonTable(final ExecutionContext exec, final DataAdapter adapter,
             final List<Record> records) throws IOException {
-        final DataTableSpec tableSpec = createJsonOutputSpec();
-
         //convert output to JSON.
         final String json = buildJson(records, adapter);
+        return createJsonTable(json, exec);
+    }
+    private DataTable createDataTable(final ExecutionContext exec, final DataAdapter adapter,
+            final List<String> rowKeys, final Map<String, List<Record>> records) throws IOException {
+        //convert output to JSON.
+        final String json = buildJson(rowKeys, records, adapter);
+        return createJsonTable(json, exec);
+    }
+    private DataTable createJsonTable(final String json, final ExecutionContext exec) throws IOException {
+        final DataTableSpec tableSpec = createJsonOutputSpec();
         final DefaultRow row = new DefaultRow(new RowKey("json"),
                 JSONCellFactory.create(json, false));
 
@@ -270,6 +322,16 @@ public class ReaderModel extends NodeModel {
 
         final JsonGenerator gen = Json.createGenerator(wr);
         new JsonBuilder(adapter).writeJson(records, gen);
+        gen.flush();
+
+        return wr.toString();
+    }
+    private String buildJson(final List<String> rowKeys, final Map<String, List<Record>> records,
+            final DataAdapter adapter) {
+        final StringWriter wr = new StringWriter();
+
+        final JsonGenerator gen = Json.createGenerator(wr);
+        new JsonBuilder(adapter).writeJson(rowKeys, records, gen);
         gen.flush();
 
         return wr.toString();

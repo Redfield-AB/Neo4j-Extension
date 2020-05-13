@@ -41,6 +41,20 @@ public class JsonBuilder {
         }
         gen.writeEnd();
     }
+    public void writeJson(final List<String> rowKeys, final Map<String, List<Record>> records, final JsonGenerator gen) {
+        gen.writeStartObject();
+        for (final String key : rowKeys) {
+            gen.writeKey(key);
+
+            final List<Record> r = records.get(key);
+            if (r == null) {
+                writeNull(gen);
+            } else {
+                writeJson(r, gen);
+            }
+        }
+        gen.writeEnd();
+    }
     private void writeRecord(final Record r, final JsonGenerator gen) {
         gen.writeStartObject();
         for (final String key: r.keys()) {
