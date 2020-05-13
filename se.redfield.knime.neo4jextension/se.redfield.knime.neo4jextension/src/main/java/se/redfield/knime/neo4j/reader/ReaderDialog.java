@@ -4,13 +4,12 @@
 package se.redfield.knime.neo4j.reader;
 
 import java.awt.BorderLayout;
-import java.awt.Component;
-import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Event;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.Collections;
@@ -74,7 +73,6 @@ import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
  *
  */
 public class ReaderDialog extends DataAwareNodeDialogPane {
-    private static final String DIVIDER_POSITION_CLIENT_PROPERTY = "DividerPosition";
     private static final String INPUT_COLUMN_TAB = "Input column";
     private static final String SCRIPT_TAB = "Script";
 
@@ -222,9 +220,9 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
     }
 
     private JSplitPane createSplitPane(final int orientation,
-            final double sliderPosition) {
-        final JSplitPane sp = new JSplitPane(orientation);
-        sp.putClientProperty(DIVIDER_POSITION_CLIENT_PROPERTY, sliderPosition);
+            final double dividerPosition) {
+        final JSplitPane sp = new SplitPanelExt(orientation);
+        sp.setDividerLocation(dividerPosition);
         return sp;
     }
     private JSplitPane createNodes() {
@@ -448,52 +446,17 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
         if (this.savedSize != null) {
             getPanel().setSize(savedSize);
             getPanel().setPreferredSize(savedSize);
-        }
-    }
-
-    private void getSplitPanesOrderedByParentness(final List<JSplitPane> splitPanels, final Container con) {
-        final Component[] children = con.getComponents();
-        for (final Component c : children) {
-            boolean managed = false;
-            if (c instanceof JSplitPane) {
-                final JSplitPane sp = (JSplitPane) c;
-                if (sp.getClientProperty(DIVIDER_POSITION_CLIENT_PROPERTY) != null) {
-                    splitPanels.add((JSplitPane) c);
-                    managed = true;
-                }
-            }
-            if (!managed && c instanceof Container) {
-                getSplitPanesOrderedByParentness(splitPanels, (Container) c);
-            }
+        } else {
+            final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+            final Dimension dim = new Dimension(screen.width * 2 / 3, screen.height * 2 / 3);
+            getPanel().setSize(dim);
+            getPanel().setPreferredSize(dim);
         }
     }
 
     @Override
     public void onClose() {
         this.savedSize = getPanel().getSize();
-
-        final List<JSplitPane> splitPanels = new LinkedList<>();
-        getSplitPanesOrderedByParentness(splitPanels, getPanel());
-
-        //save divider positions
-        for (final JSplitPane p : splitPanels) {
-            //convert int position to double
-            double pos = 0.5;
-
-            //get panel free size
-            int freeSize;
-            if (p.getOrientation() == JSplitPane.VERTICAL_SPLIT) {
-                freeSize = p.getHeight() - p.getDividerSize();
-            } else {
-                freeSize = p.getWidth() - p.getDividerSize();
-            }
-
-            if (freeSize > 0) {
-                pos = (double) p.getDividerLocation() / freeSize;
-            }
-
-            p.putClientProperty(DIVIDER_POSITION_CLIENT_PROPERTY, pos);
-        }
     }
 
     /**
@@ -568,8 +531,6 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
                     SwingUtilities.invokeLater(() -> applyMetadata(metaData));
                 } catch (final Exception e) {
                     getLogger().error("Failed to reload metadata: " + e.getMessage());
-                } finally {
-                    SwingUtilities.invokeLater(() -> relayoutSplitPanels());
                 }
             }
         }.start();
@@ -583,23 +544,6 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
 
         funcDescription.setText("");
         values(functions, metaData.getFunctions());
-    }
-
-    private void relayoutSplitPanels() {
-        //set divider positions
-        final List<JSplitPane> splitPanels = new LinkedList<>();
-        getSplitPanesOrderedByParentness(splitPanels, getPanel());
-
-        UiUtils.launchOnParentWindowOpened(getPanel(), () -> {
-            for (final JSplitPane p : splitPanels) {
-                double loc = (Double) p.getClientProperty(DIVIDER_POSITION_CLIENT_PROPERTY);
-                loc = loc >= 0. && loc <= 1. ? loc : 0.5;
-
-                p.setDividerLocation(loc);
-                p.doLayout();
-            }
-            return false;
-        });
     }
 
     private <T extends Named> void values(final JList<T> list, final List<T> values) {

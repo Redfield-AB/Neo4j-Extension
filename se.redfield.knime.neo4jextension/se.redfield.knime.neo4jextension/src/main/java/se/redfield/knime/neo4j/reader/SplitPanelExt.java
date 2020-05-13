@@ -13,7 +13,7 @@ import javax.swing.JSplitPane;
  */
 public class SplitPanelExt extends JSplitPane {
     private static final long serialVersionUID = 8532553437433021028L;
-    private double divider = 0.;
+    private final DividerLocationHolder divider = new DividerLocationHolder(this);
 
     public SplitPanelExt() {
         super();
@@ -34,29 +34,16 @@ public class SplitPanelExt extends JSplitPane {
 
     @Override
     public void setDividerLocation(final double d) {
-        if (d < 0.0 || d > 1.0) {
-            throw new IllegalArgumentException("proportional location must "
-                    + "be between 0.0 and 1.0.");
-        }
-
-        divider = d;
         super.setDividerLocation(getDividerLocation());
+        divider.setLocation(d);
     }
     @Override
     public void setDividerLocation(final int location) {
-        final int size = getOrientation() == VERTICAL_SPLIT ? getHeight() : getWidth();
-
-        final int loc = Math.max(0, Math.min(location, size));
-        divider = (double) loc / size;
-
-        super.setDividerLocation(getDividerLocation());
+        super.setDividerLocation(location);
+        divider.setLocation(location);
     }
     @Override
     public int getDividerLocation() {
-         if (getOrientation() == VERTICAL_SPLIT) {
-             return (int)((getHeight() - getDividerSize()) * divider);
-         } else {
-             return (int)((getWidth() - getDividerSize()) * divider);
-         }
+        return divider.getDividerLocation();
     }
 }
