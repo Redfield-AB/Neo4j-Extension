@@ -8,20 +8,24 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Event;
+import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 import javax.swing.AbstractAction;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListModel;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -31,6 +35,7 @@ import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.EtchedBorder;
@@ -42,6 +47,9 @@ import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 import javax.swing.undo.UndoManager;
 
+import org.knime.core.data.DataColumnSpec;
+import org.knime.core.data.def.StringCell;
+import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.DataAwareNodeDialogPane;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
@@ -66,7 +74,12 @@ import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
  *
  */
 public class ReaderDialog extends DataAwareNodeDialogPane {
+    private static final String DIVIDER_POSITION_CLIENT_PROPERTY = "DividerPosition";
+    private static final String INPUT_COLUMN_TAB = "Input column";
+    private static final String SCRIPT_TAB = "Script";
+
     private final JCheckBox useJsonOutput = new JCheckBox();
+    private final JComboBox<ColumnInfo> inputColumn = new JComboBox<>(new DefaultComboBoxModel<>());
 
     private JTextArea scriptEditor;
     private JTextArea funcDescription;
@@ -79,20 +92,60 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
     private final DefaultListModel<String> nodeProperties = new DefaultListModel<>();
     private final DefaultListModel<String> relationshipsProperties = new DefaultListModel<>();
 
-    private final Map<JSplitPane, Double> dividerPositions = new HashMap<>();
-
     private Dimension savedSize;
 
     private ConnectorConfig connector;
+    private boolean useInputTable;
+    private ReaderConfig oldModel;
 
     /**
      * Default constructor.
      */
     public ReaderDialog() {
         super();
-        addTab("Script", createScriptTab(), false);
+
+        addTab(SCRIPT_TAB, createScriptTab(), false);
+        addTab(INPUT_COLUMN_TAB, createInputColumnTab(), false);
     }
 
+    private JPanel createInputColumnTab() {
+        final JPanel tab = new JPanel(new BorderLayout());
+
+        final JPanel wrapper = new JPanel(new FlowLayout(FlowLayout.LEADING));
+        final JPanel parent = new JPanel(new GridBagLayout());
+        wrapper.add(parent);
+
+        addLabeledComponent(parent, "Source column", this.inputColumn, 0);
+
+        tab.add(wrapper, BorderLayout.CENTER);
+        return tab;
+    }
+    private void addLabeledComponent(final JPanel container, final String label,
+            final JComponent component, final int row) {
+        //add label
+        final GridBagConstraints lc = new GridBagConstraints();
+        lc.fill = GridBagConstraints.HORIZONTAL;
+        lc.gridx = 0;
+        lc.gridy = row;
+        lc.weightx = 0.;
+
+        final JLabel l = new JLabel(label);
+        l.setHorizontalTextPosition(SwingConstants.RIGHT);
+        l.setHorizontalAlignment(SwingConstants.RIGHT);
+
+        final JPanel labelWrapper = new JPanel(new BorderLayout());
+        labelWrapper.setBorder(new EmptyBorder(0, 0, 0, 5));
+        labelWrapper.add(l, BorderLayout.CENTER);
+        container.add(labelWrapper, lc);
+
+        //add component.
+        final GridBagConstraints cc = new GridBagConstraints();
+        cc.fill = GridBagConstraints.HORIZONTAL;
+        cc.gridx = 1;
+        cc.gridy = row;
+        cc.weightx = 1.;
+        container.add(component, cc);
+    }
 
     /**
      * @return script editor page.
@@ -171,7 +224,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
     private JSplitPane createSplitPane(final int orientation,
             final double sliderPosition) {
         final JSplitPane sp = new JSplitPane(orientation);
-        this.dividerPositions.put(sp, sliderPosition);
+        sp.putClientProperty(DIVIDER_POSITION_CLIENT_PROPERTY, sliderPosition);
         return sp;
     }
     private JSplitPane createNodes() {
@@ -367,48 +420,49 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
     protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObject[] input) throws NotConfigurableException {
         try {
             final ReaderConfig model = new ReaderConfigSerializer().read(settings);
-            initFromModel(model, ((ConnectorPortObject) input[1]).getPortData());
+            initFromModel(model,
+                    ((ConnectorPortObject) input[1]).getPortData(),
+                    getStringColumns((BufferedDataTable) input[0]));
         } catch (final Exception e) {
             getLogger().error(e);
             throw new NotConfigurableException(e.getMessage(), e);
         }
     }
+    private List<ColumnInfo> getStringColumns(final BufferedDataTable table) {
+        if (table == null) {
+            return null;
+        }
+        final List<ColumnInfo> columns = new LinkedList<>();
+        int index = 0;
+        for (final DataColumnSpec r : table.getDataTableSpec()) {
+            if (r.getType() == StringCell.TYPE) {
+                columns.add(new ColumnInfo(r.getName(), index));
+            }
+            index++;
+        }
+        return columns;
+    }
+
     @Override
     public void onOpen() {
         if (this.savedSize != null) {
             getPanel().setSize(savedSize);
             getPanel().setPreferredSize(savedSize);
         }
-
-        final List<JSplitPane> splitPanels = new LinkedList<>();
-        getSplitPanesOrderedByParentness(splitPanels, getPanel());
-
-        if (!splitPanels.isEmpty()) {
-            UiUtils.launchOnParentWindowOpened(getPanel(), () -> {
-                final JSplitPane first = splitPanels.get(0);
-                if (first.isShowing() && first.isValid()
-                        && first.getWidth() != 0
-                        && first.getHeight() != 0) {
-                    for (final JSplitPane p : splitPanels) {
-                        p.setDividerLocation(dividerPositions.get(p));
-                        p.doLayout();
-                    }
-                    return false;
-                }
-
-                //resubmit
-                return true;
-            });
-        }
     }
 
     private void getSplitPanesOrderedByParentness(final List<JSplitPane> splitPanels, final Container con) {
         final Component[] children = con.getComponents();
         for (final Component c : children) {
-            if (dividerPositions.containsKey(c)) {
-                splitPanels.add((JSplitPane) c);
+            boolean managed = false;
+            if (c instanceof JSplitPane) {
+                final JSplitPane sp = (JSplitPane) c;
+                if (sp.getClientProperty(DIVIDER_POSITION_CLIENT_PROPERTY) != null) {
+                    splitPanels.add((JSplitPane) c);
+                    managed = true;
+                }
             }
-            if (c instanceof Container) {
+            if (!managed && c instanceof Container) {
                 getSplitPanesOrderedByParentness(splitPanels, (Container) c);
             }
         }
@@ -418,8 +472,11 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
     public void onClose() {
         this.savedSize = getPanel().getSize();
 
+        final List<JSplitPane> splitPanels = new LinkedList<>();
+        getSplitPanesOrderedByParentness(splitPanels, getPanel());
+
         //save divider positions
-        for (final JSplitPane p : new HashSet<>(dividerPositions.keySet())) {
+        for (final JSplitPane p : splitPanels) {
             //convert int position to double
             double pos = 0.5;
 
@@ -435,29 +492,67 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
                 pos = (double) p.getDividerLocation() / freeSize;
             }
 
-            dividerPositions.put(p, pos);
+            p.putClientProperty(DIVIDER_POSITION_CLIENT_PROPERTY, pos);
         }
     }
 
     /**
      * @param model model.
+     * @param inputColumns string columns from input table.
      * @throws Exception
      */
-    private void initFromModel(final ReaderConfig model, final ConnectorConfig data) {
+    private void initFromModel(final ReaderConfig model, final ConnectorConfig data,
+            final List<ColumnInfo> inputColumns) {
         this.connector = data;
+        this.oldModel = model;
 
         scriptEditor.setText(model.getScript());
+        inputColumn.removeAllItems();
         funcDescription.setText("");
-        useJsonOutput.setSelected(model.isUseJson());
-
-        reloadMetadata();
-
         model(flowVariables).clear();
-        final DefaultListModel<FlowVariable> flowVariablesModel = model(flowVariables);
-        final Map<String, FlowVariable> vars = getAvailableFlowVariables(
-                ReaderModel.getFlowVariableTypes());
-        for (final FlowVariable var : vars.values()) {
-            flowVariablesModel.addElement(var);
+
+        this.useInputTable = inputColumns != null;
+        if (useInputTable) {
+            setSelected(INPUT_COLUMN_TAB);
+        } else {
+            setSelected(SCRIPT_TAB);
+        }
+
+        setEnabled(!useInputTable, SCRIPT_TAB);
+        setEnabled(useInputTable, INPUT_COLUMN_TAB);
+
+        if (useInputTable) {
+            //clear all script tab UI
+            nodeProperties.clear();
+            model(nodes).clear();;
+
+            relationshipsProperties.clear();
+            model(relationships).clear();
+
+            funcDescription.setText("");
+            model(functions).clear();
+
+            //init input table UI.
+            final DefaultComboBoxModel<ColumnInfo> boxModel = (DefaultComboBoxModel<ColumnInfo>) inputColumn.getModel();
+            final List<ColumnInfo> all = new LinkedList<ColumnInfo>(inputColumns);
+            Collections.sort(all);
+
+            for (final ColumnInfo c : all) {
+                boxModel.addElement(c);
+            }
+
+            if (model.getInputColumn() != null && inputColumns.contains(model.getInputColumn())) {
+                inputColumn.setSelectedItem(model.getInputColumn());
+            }
+        } else {
+            reloadMetadata();
+
+            final DefaultListModel<FlowVariable> flowVariablesModel = model(flowVariables);
+            final Map<String, FlowVariable> vars = getAvailableFlowVariables(
+                    ReaderModel.getFlowVariableTypes());
+            for (final FlowVariable var : vars.values()) {
+                flowVariablesModel.addElement(var);
+            }
         }
     }
 
@@ -470,11 +565,11 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
                     final Neo4jSupport support = new Neo4jSupport(cfg);
                     final LabelsAndFunctions metaData = support.loadLabesAndFunctions();
 
-                    SwingUtilities.invokeLater(() -> {
-                        applyMetadata(metaData);
-                    });
+                    SwingUtilities.invokeLater(() -> applyMetadata(metaData));
                 } catch (final Exception e) {
                     getLogger().error("Failed to reload metadata: " + e.getMessage());
+                } finally {
+                    SwingUtilities.invokeLater(() -> relayoutSplitPanels());
                 }
             }
         }.start();
@@ -488,6 +583,23 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
 
         funcDescription.setText("");
         values(functions, metaData.getFunctions());
+    }
+
+    private void relayoutSplitPanels() {
+        //set divider positions
+        final List<JSplitPane> splitPanels = new LinkedList<>();
+        getSplitPanesOrderedByParentness(splitPanels, getPanel());
+
+        UiUtils.launchOnParentWindowOpened(getPanel(), () -> {
+            for (final JSplitPane p : splitPanels) {
+                double loc = (Double) p.getClientProperty(DIVIDER_POSITION_CLIENT_PROPERTY);
+                loc = loc >= 0. && loc <= 1. ? loc : 0.5;
+
+                p.setDividerLocation(loc);
+                p.doLayout();
+            }
+            return false;
+        });
     }
 
     private <T extends Named> void values(final JList<T> list, final List<T> values) {
@@ -516,16 +628,25 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
      * @return model.
      */
     private ReaderConfig buildConfig() throws InvalidSettingsException {
-        final String script = scriptEditor.getText();
-        if (script == null || script.trim().isEmpty()) {
-            throw new InvalidSettingsException("Invalid script: " + script);
-        }
+        final ReaderConfig model = oldModel == null ? new ReaderConfig() : oldModel.clone();
+        if (useInputTable) {
+            final ColumnInfo column = (ColumnInfo) inputColumn.getSelectedItem();
+            if (column == null) {
+                getLogger().warn("Not input column selected");
+            }
+            model.setInputColumn(column);
+        } else {
+            final String script = scriptEditor.getText();
+            if (script == null || script.trim().isEmpty()) {
+                throw new InvalidSettingsException("Invalid script: " + script);
+            }
 
-        final ReaderConfig model = new ReaderConfig();
-        model.setScript(script);
-        model.setUseJson(this.useJsonOutput.isSelected());
+            model.setScript(script);
+            model.setUseJson(this.useJsonOutput.isSelected());
+        }
         return model;
     }
+
     private <T> DefaultListModel<T> model(final JList<T> list) {
         return (DefaultListModel<T>) list.getModel();
     }
