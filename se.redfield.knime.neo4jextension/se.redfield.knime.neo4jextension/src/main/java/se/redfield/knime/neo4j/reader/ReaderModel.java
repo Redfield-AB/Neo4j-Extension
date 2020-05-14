@@ -117,6 +117,11 @@ public class ReaderModel extends NodeModel {
         final boolean useTableInput = tableInput != null;
         DataTable table;
         if (!useTableInput) {
+            if (config.getScript() == null) {
+                final String error = "Cypher script is not specified but also not input table connected";
+                setWarningMessage(error);
+                throw new InvalidSettingsException(error);
+            }
             final String[] warning = {null};
             final List<Record> records = neo4j.runRead(insertFlowVariables(config.getScript()),
                     n -> warning[0] = buildWarning(n));
