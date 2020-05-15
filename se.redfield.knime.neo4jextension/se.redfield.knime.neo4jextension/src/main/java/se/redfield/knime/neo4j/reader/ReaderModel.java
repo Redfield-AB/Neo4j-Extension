@@ -157,7 +157,7 @@ public class ReaderModel extends NodeModel {
                         error = true;
                     } else {
                         final boolean[] hasError = {false};
-                        final List<Record> records = neo4j.runRead(insertFlowVariables(config.getScript()),
+                        final List<Record> records = neo4j.runRead(insertFlowVariables(script),
                                 n -> hasError[0] = true);
 
                         if (!hasError[0]) {
