@@ -73,7 +73,7 @@ import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
  *
  */
 public class ReaderDialog extends DataAwareNodeDialogPane {
-    private static final String INPUT_COLUMN_TAB = "Input column";
+    private static final String INPUT_COLUMN_TAB = "Query from table";
     private static final String SCRIPT_TAB = "Script";
 
     private final JCheckBox useJsonOutput = new JCheckBox();
