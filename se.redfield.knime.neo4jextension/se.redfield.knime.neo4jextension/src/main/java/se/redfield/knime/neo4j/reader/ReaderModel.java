@@ -6,12 +6,8 @@ package se.redfield.knime.neo4j.reader;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import javax.json.Json;
 import javax.json.stream.JsonGenerator;
@@ -22,11 +18,9 @@ import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTable;
 import org.knime.core.data.DataTableSpec;
-import org.knime.core.data.RowIterator;
 import org.knime.core.data.RowKey;
 import org.knime.core.data.def.DefaultRow;
 import org.knime.core.data.def.DefaultRowIterator;
-import org.knime.core.data.def.StringCell;
 import org.knime.core.data.json.JSONCell;
 import org.knime.core.data.json.JSONCellFactory;
 import org.knime.core.node.BufferedDataContainer;
@@ -41,8 +35,7 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
-import org.knime.core.node.workflow.FlowVariable;
-import org.knime.core.node.workflow.VariableType;
+import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.summary.Notification;
@@ -53,6 +46,9 @@ import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.db.DataAdapter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
+import se.redfield.knime.neo4j.reader.async.AsyncOutputRowIterator;
+import se.redfield.knime.neo4j.reader.async.AsyncScriptLauncher;
+import se.redfield.knime.neo4j.reader.async.AsyncThread;
 import se.redfield.knime.neo4j.reader.cfg.ReaderConfig;
 import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
 
@@ -60,7 +56,8 @@ import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class ReaderModel extends NodeModel {
+public class ReaderModel extends NodeModel implements FlowVariablesProvider {
+    public static final String SOME_QUERIES_ERROR = "Some queries were not successfully executed.";
     private ReaderConfig config;
 
     public ReaderModel() {
@@ -99,9 +96,11 @@ public class ReaderModel extends NodeModel {
 
         PortObjectSpec output = null;
         //if JSON output used it is possible to specify output.
-        final boolean useTableInput = inSpecs[0] != null;
-        if (useTableInput || config.isUseJson()) {
-            output = createJsonOutputSpec();
+        final boolean useTableInput = inSpecs[0] instanceof DataTableSpec;
+        if (useTableInput) {
+            output = createSpecWithAddedJsonColumn((DataTableSpec) inSpecs[0]);
+        } else if (config.isUseJson()) {
+            output = createOneColumnJsonOutputSpec("json");
         }
 
         return new PortObjectSpec[] {output, connectorSpec};
@@ -109,80 +108,78 @@ public class ReaderModel extends NodeModel {
     @Override
     protected PortObject[] execute(final PortObject[] input, final ExecutionContext exec) throws Exception {
         final BufferedDataTable tableInput = (BufferedDataTable) input[0];
-        final ConnectorPortObject portObject = (ConnectorPortObject) input[1];
+        final ConnectorPortObject connectorPort = (ConnectorPortObject) input[1];
 
-        final Neo4jSupport neo4j = new Neo4jSupport(portObject.getPortData().createResolvedConfig(
+        final Neo4jSupport neo4j = new Neo4jSupport(connectorPort.getPortData().createResolvedConfig(
                 getCredentialsProvider()));
 
         final boolean useTableInput = tableInput != null;
         DataTable table;
         if (!useTableInput) {
-            if (config.getScript() == null) {
-                final String error = "Cypher script is not specified but also not input table connected";
-                setWarningMessage(error);
-                throw new InvalidSettingsException(error);
-            }
-            final String[] warning = {null};
-            final List<Record> records = neo4j.runRead(insertFlowVariables(config.getScript()),
-                    n -> warning[0] = buildWarning(n));
-            if (warning[0] != null) {
-                setWarningMessage(warning[0]);
-            }
-
-            if (config.isUseJson()) {
-                table = createJsonTable(exec, neo4j.createDataAdapter(), records);
-            } else if (records.isEmpty()) {
-                table = createEmptyTable();
-            } else {
-                table = createDataTable(exec, neo4j.createDataAdapter(), records);
-            }
+            table = executeFromScriptSource(exec, neo4j);
         } else {
-            final ColumnInfo inputColumn = config.getInputColumn();
-            if (inputColumn == null) {
-                table = createJsonTable(exec, neo4j.createDataAdapter(), new LinkedList<Record>());
-            } else {
-                final List<String> rowKeys = new LinkedList<>();
-                final Map<String, List<Record>> result = new HashMap<>();
-
-                boolean error = false;
-                for (final DataRow dataRow : tableInput) {
-                    final StringCell cell = (StringCell) dataRow.getCell(inputColumn.getOffset());
-                    final String script = cell.getStringValue();
-
-                    final String rowKey = dataRow.getKey().getString();
-                    rowKeys.add(rowKey);
-                    result.put(rowKey, null);
-
-                    if (script == null) {
-                        error = true;
-                    } else {
-                        final boolean[] hasError = {false};
-                        final List<Record> records = neo4j.runRead(insertFlowVariables(script),
-                                n -> hasError[0] = true);
-
-                        if (!hasError[0]) {
-                            result.put(rowKey, records);
-                        }
-
-                        error = error || hasError[0];
-                    }
-                }
-
-                table = createDataTable(exec, neo4j.createDataAdapter(), rowKeys, result);
-                if (error) {
-                    setWarningMessage("Some queries were not successfully executed.");
-                }
-            }
+            table = executeFromTableSource(config.getInputColumn(), tableInput, neo4j);
         }
 
+        final BufferedDataTable executionResultPort = exec.createBufferedDataTable(table,
+                exec.createSubExecutionContext(0.0));
         return new PortObject[] {
-                exec.createBufferedDataTable(table,
-                        exec.createSubExecutionContext(0.0)),
-                portObject //forward connection
+                executionResultPort,
+                connectorPort //forward connection
         };
     }
 
-    private String buildWarning(final List<Notification> notifs) {
+    private DataTable executeFromTableSource(final ColumnInfo inputColumn,
+            final BufferedDataTable inputTable, final Neo4jSupport neo4j) {
+        final AsyncOutputRowIterator iter = new AsyncOutputRowIterator(inputTable.size());
+        final DataTableSpec spec = createSpecWithAddedJsonColumn(inputTable.getSpec());
+
+        final AsyncScriptLauncher launcher = new AsyncScriptLauncher(neo4j,
+                inputTable, iter, this, config.getInputColumn().getOffset()) {
+            @Override
+            protected void handleError(final String message, final Throwable e) {
+                setWarningMessage(SOME_QUERIES_ERROR);
+            }
+        };
+        for (int i = 0; i < config.getMaxConnectionPoolSize(); i++) {
+            new AsyncThread(launcher).start();
+        }
+
+        return new DataTableImpl(spec, iter);
+    }
+
+    private DataTable executeFromScriptSource(final ExecutionContext exec, final Neo4jSupport neo4j)
+            throws Exception {
+        DataTable table;
+        if (config.getScript() == null) {
+            final String error = "Cypher script is not specified but also not input table connected";
+            setWarningMessage(error);
+            throw new InvalidSettingsException(error);
+        }
+
+        final Driver driver = neo4j.createDriver();
+
+        final String[] warning = {null};
+        final List<Record> records = Neo4jSupport.runRead(driver,
+                UiUtils.insertFlowVariables(config.getScript(), this),
+                n -> warning[0] = buildWarning(n));
+        if (warning[0] != null) {
+            setWarningMessage(warning[0]);
+        }
+
+        if (config.isUseJson()) {
+            //convert output to JSON.
+            final String json = buildJson(records, new DataAdapter(driver.defaultTypeSystem()));
+            table = createJsonTable(json, exec);
+        } else if (records.isEmpty()) {
+            table = createEmptyTable();
+        } else {
+            table = createDataTable(records, exec, new DataAdapter(driver.defaultTypeSystem()));
+        }
+        return table;
+    }
+
+    public static String buildWarning(final List<Notification> notifs) {
         final StringBuilder sb = new StringBuilder();
         if (notifs != null && !notifs.isEmpty()) {
             for (final Notification n : notifs) {
@@ -202,84 +199,17 @@ public class ReaderModel extends NodeModel {
         return sb.toString();
     }
 
-    /**
-     * @param script
-     * @return
-     */
-    private String insertFlowVariables(final String script) {
-        final Map<String, FlowVariable> vars = getAvailableFlowVariables(getFlowVariableTypes());
-
-        final int[] indexes = getSortedVarOccurences(script, vars);
-
-        final StringBuilder sb = new StringBuilder(script);
-        for (int i = indexes.length - 1; i >= 0; i--) {
-            final int offset = indexes[i];
-            final int end = sb.indexOf("}}", offset + 2) + 2;
-
-            final String var = sb.substring(offset + 3, end - 2);
-            sb.replace(offset, end, vars.get(var).getValueAsString());
-        }
-
-        return sb.toString();
-    }
-
-    /**
-     * @param script
-     * @param vars
-     * @return
-     */
-    private int[] getSortedVarOccurences(final String script, final Map<String, FlowVariable> vars) {
-        int pos = 0;
-        final List<Integer> offsets = new LinkedList<Integer>();
-        while (true) {
-            final int offset = script.indexOf("${{", pos);
-            if (offset < 0) {
-                break;
-            }
-
-            final int end = script.indexOf("}}", offset);
-            if (end < 0) {
-                break;
-            }
-
-            offsets.add(offset);
-            pos = end;
-        }
-
-        //convert to int array
-        final int[] result = new int[offsets.size()];
-        int i = 0;
-        for (final Integer o : offsets) {
-            result[i] = o.intValue();
-            i++;
-        }
-        return result;
-    }
-
-    /**
-     * @return
-     */
     private DataTable createEmptyTable() {
-        return new DataTable() {
-            /** {@inheritDoc} */
-            @Override
-            public DataTableSpec getDataTableSpec() {
-                return new DataTableSpec("Empty Result");
-            }
-
-            /** {@inheritDoc} */
-            @Override
-            public RowIterator iterator() {
-                return new DefaultRowIterator();
-            }
-        };
+        return new DataTableImpl(new DataTableSpec("Empty Result"), new DefaultRowIterator());
     }
-
-    private DataTable createDataTable(final ExecutionContext exec,
-            final DataAdapter adapter, final List<Record> records) throws Exception {
+    private DataTable createDataTable(final List<Record> records,
+            final ExecutionContext exec, final DataAdapter adapter) throws Exception {
         final DataTableSpec tableSpec = createTableSpec(adapter,  records);
-        final List<DataRow> rows = createDateRows(adapter, records);
-
+        final List<DataRow> rows = createDateRows(records, adapter);
+        return createTable(exec, tableSpec, rows);
+    }
+    private DataTable createTable(final ExecutionContext exec, final DataTableSpec tableSpec,
+            final List<DataRow> rows) {
         final BufferedDataContainer table = exec.createDataContainer(tableSpec);
         try {
             for (final DataRow row : rows) {
@@ -290,20 +220,8 @@ public class ReaderModel extends NodeModel {
         }
         return table.getTable();
     }
-    private DataTable createJsonTable(final ExecutionContext exec, final DataAdapter adapter,
-            final List<Record> records) throws IOException {
-        //convert output to JSON.
-        final String json = buildJson(records, adapter);
-        return createJsonTable(json, exec);
-    }
-    private DataTable createDataTable(final ExecutionContext exec, final DataAdapter adapter,
-            final List<String> rowKeys, final Map<String, List<Record>> records) throws IOException {
-        //convert output to JSON.
-        final String json = buildJson(rowKeys, records, adapter);
-        return createJsonTable(json, exec);
-    }
     private DataTable createJsonTable(final String json, final ExecutionContext exec) throws IOException {
-        final DataTableSpec tableSpec = createJsonOutputSpec();
+        final DataTableSpec tableSpec = createOneColumnJsonOutputSpec("json");
         final DefaultRow row = new DefaultRow(new RowKey("json"),
                 JSONCellFactory.create(json, false));
 
@@ -316,13 +234,13 @@ public class ReaderModel extends NodeModel {
 
         return table.getTable();
     }
-    private DataTableSpec createJsonOutputSpec() {
+    private DataTableSpec createOneColumnJsonOutputSpec(final String columnName) {
         //one row, one string column
-        final DataColumnSpec stringColumn = new DataColumnSpecCreator("json", JSONCell.TYPE).createSpec();
+        final DataColumnSpec stringColumn = new DataColumnSpecCreator(columnName, JSONCell.TYPE).createSpec();
         final DataTableSpec tableSpec = new DataTableSpec(stringColumn);
         return tableSpec;
     }
-    private String buildJson(final List<Record> records, final DataAdapter adapter) {
+    public static String buildJson(final List<Record> records, final DataAdapter adapter) {
         final StringWriter wr = new StringWriter();
 
         final JsonGenerator gen = Json.createGenerator(wr);
@@ -331,21 +249,6 @@ public class ReaderModel extends NodeModel {
 
         return wr.toString();
     }
-    private String buildJson(final List<String> rowKeys, final Map<String, List<Record>> records,
-            final DataAdapter adapter) {
-        final StringWriter wr = new StringWriter();
-
-        final JsonGenerator gen = Json.createGenerator(wr);
-        new JsonBuilder(adapter).writeJson(rowKeys, records, gen);
-        gen.flush();
-
-        return wr.toString();
-    }
-
-    /**
-     * @param record
-     * @return
-     */
     private DataTableSpec createTableSpec(final DataAdapter adapter, final List<Record> records) {
         DataColumnSpec[] columns = null;
         boolean hasNull = false;
@@ -399,30 +302,30 @@ public class ReaderModel extends NodeModel {
         return new DataTableSpec(columns);
     }
     /**
-     * @param adapter type system.
      * @param records record list.
+     * @param adapter type system.
      * @return list of data rows.
      * @throws Exception
      */
-    private List<DataRow> createDateRows(final DataAdapter adapter,
-            final List<Record> records) throws Exception {
+    private List<DataRow> createDateRows(final List<Record> records,
+            final DataAdapter adapter) throws Exception {
         int index = 0;
         final List<DataRow> rows = new LinkedList<DataRow>();
         for (final Record r : records) {
-            rows.add(createDataRow(adapter, index, r));
+            rows.add(createDataRow(r, adapter, index));
             index++;
         }
         return rows;
     }
     /**
+     * @param r record.
      * @param adapter data adapter.
      * @param index row index.
-     * @param r record.
      * @return data row.
      * @throws Exception
      */
-    private DataRow createDataRow(final DataAdapter adapter,
-            final int index, final Record r) throws Exception {
+    private DataRow createDataRow(final Record r,
+            final DataAdapter adapter, final int index) throws Exception {
         final DataCell[] cells = new DataCell[r.size()];
         for (int i = 0; i < cells.length; i++) {
             cells[i] = adapter.createCell(r.get(i));
@@ -430,6 +333,9 @@ public class ReaderModel extends NodeModel {
         return new DefaultRow(new RowKey("r-" + index), cells);
     }
 
+    public DataTableSpec createSpecWithAddedJsonColumn(final DataTableSpec origin) {
+        return new DataTableSpec("result", origin, createOneColumnJsonOutputSpec("results"));
+    }
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec) throws Exception {
         return new BufferedDataTable[0]; // just disable
@@ -440,27 +346,5 @@ public class ReaderModel extends NodeModel {
     }
     @Override
     protected void reset() {
-    }
-    /**
-     * @return all flow variable types.
-     */
-    @SuppressWarnings("rawtypes")
-    public static VariableType[] getFlowVariableTypes() {
-        final Set<VariableType<?>> types = new HashSet<>();
-        types.add(VariableType.BooleanArrayType.INSTANCE);
-        types.add(VariableType.BooleanType.INSTANCE);
-        types.add(VariableType.CredentialsType.INSTANCE);
-        types.add(VariableType.DoubleArrayType.INSTANCE);
-        types.add(VariableType.BooleanArrayType.INSTANCE);
-        types.add(VariableType.DoubleArrayType.INSTANCE);
-        types.add(VariableType.DoubleType.INSTANCE);
-        types.add(VariableType.IntArrayType.INSTANCE);
-        types.add(VariableType.IntType.INSTANCE);
-        types.add(VariableType.LongArrayType.INSTANCE);
-        types.add(VariableType.LongType.INSTANCE);
-        types.add(VariableType.StringArrayType.INSTANCE);
-        types.add(VariableType.StringType.INSTANCE);
-
-        return types.toArray(new VariableType[types.size()]);
     }
 }

@@ -3,7 +3,6 @@
  */
 package se.redfield.knime.neo4j.db;
 
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -26,7 +25,6 @@ import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.summary.QueryType;
 import org.neo4j.driver.summary.ResultSummary;
-import org.neo4j.driver.types.TypeSystem;
 
 import se.redfield.knime.neo4j.connector.FunctionDesc;
 import se.redfield.knime.neo4j.connector.NamedWithProperties;
@@ -47,8 +45,8 @@ public class Neo4jSupport {
         super();
         this.config = config;
     }
-    public List<Record> runRead(final String query, final RollbackListener l) {
-        return runWithSession(s ->  {
+    public static List<Record> runRead(final Driver driver, final String query, final RollbackListener l) {
+        return runWithSession(driver, s ->  {
             return s.readTransaction(tx -> {
                 final Result run = tx.run(query);
                 final List<Record> list = run.list();
@@ -72,17 +70,12 @@ public class Neo4jSupport {
             driver.close();
         }
     }
-    public <R> R runWithSession(final WithSessionRunnable<R> r) {
-        final Driver driver = createDriver();
+    public static <R> R runWithSession(final Driver driver, final WithSessionRunnable<R> r) {
+        final Session s = driver.session();
         try {
-            final Session s = driver.session();
-            try {
-                return r.run(s);
-            } finally {
-                s.close();
-            }
+            return r.run(s);
         } finally {
-            driver.close();
+            s.close();
         }
     }
     public void runAndWait(final List<WithSessionAsyncRunnable<Void>> runs) throws Exception {
@@ -153,18 +146,12 @@ public class Neo4jSupport {
      * @return Neo4J driver.
      */
     private static Driver createDriver(final ConnectorConfig con) {
-        final URI location = con.getLocation();
-        //final Config config = connector.getConnector().getConfig();
         final AuthConfig auth = con.getAuth();
+        final AuthToken token = auth == null ? null :  AuthTokens.basic(
+                auth.getPrincipal(), auth.getCredentials(), null);
 
-        Driver d;
-        if (auth == null) {
-            d = GraphDatabase.driver(location);
-        } else {
-            final AuthToken token = AuthTokens.basic(
-                    auth.getPrincipal(), auth.getCredentials(), null);
-            d = GraphDatabase.driver(location, token, createConfig(con.getAdvancedSettings()));
-        }
+        final Driver d = GraphDatabase.driver(con.getLocation(), token,
+                createConfig(con.getAdvancedSettings()));
         d.verifyConnectivity();
         return d;
     }
@@ -223,11 +210,6 @@ public class Neo4jSupport {
         }
         return s;
     }
-    public DataAdapter createDataAdapter() {
-        final TypeSystem ts = runWithDriver(d -> d.defaultTypeSystem());
-        return new DataAdapter(ts);
-    }
-
     public LabelsAndFunctions loadLabesAndFunctions() throws Exception {
         final LabelsAndFunctions data = new LabelsAndFunctions();
 

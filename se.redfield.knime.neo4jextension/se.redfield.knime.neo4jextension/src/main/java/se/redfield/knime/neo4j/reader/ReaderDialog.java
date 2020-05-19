@@ -72,7 +72,7 @@ import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class ReaderDialog extends DataAwareNodeDialogPane {
+public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariablesProvider {
     private static final String INPUT_COLUMN_TAB = "Query from table";
     private static final String SCRIPT_TAB = "Script";
 
@@ -507,8 +507,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane {
             reloadMetadata();
 
             final DefaultListModel<FlowVariable> flowVariablesModel = model(flowVariables);
-            final Map<String, FlowVariable> vars = getAvailableFlowVariables(
-                    ReaderModel.getFlowVariableTypes());
+            final Map<String, FlowVariable> vars = UiUtils.getAvailableFlowVariables(this);
             for (final FlowVariable var : vars.values()) {
                 flowVariablesModel.addElement(var);
             }
