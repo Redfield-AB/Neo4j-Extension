@@ -20,6 +20,7 @@ public class ReaderConfig implements Cloneable {
     private ColumnInfo inputColumn;
     private LabelsAndFunctions metaData = new LabelsAndFunctions();
     private int maxConnectionPoolSize = 3;
+    private boolean stopOnQueryFailure;
 
     public ReaderConfig() {
         super();
@@ -93,5 +94,11 @@ public class ReaderConfig implements Cloneable {
             throw new IllegalArgumentException("Incorrect pool size " + size);
         }
         this.maxConnectionPoolSize = size;
+    }
+    public boolean isStopOnQueryFailure() {
+        return stopOnQueryFailure;
+    }
+    public void setStopOnQueryFailure(final boolean stop) {
+        this.stopOnQueryFailure = stop;
     }
 }

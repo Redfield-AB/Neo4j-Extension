@@ -56,11 +56,6 @@ public class ColumnInfo implements Comparable<ColumnInfo> {
     }
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder();
-        sb.append('[');
-        sb.append(offset);
-        sb.append("]: ");
-        sb.append(name);
-        return sb.toString();
+        return String.valueOf(name);
     }
 }
