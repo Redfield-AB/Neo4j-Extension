@@ -159,4 +159,11 @@ public class AsyncScriptRunnerTest extends AsyncScriptRunner {
         }
         return results.get(script);
     }
+    @Override
+    public Map<Long, String> run(final List<String> scripts, final int originMumThreads) {
+        //need to copy the map for pure experiment
+        //because when map is tested it can be asynchronously populating
+        //with running threads.
+        return new HashMap<>(super.run(scripts, originMumThreads));
+    }
 }
