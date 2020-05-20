@@ -100,7 +100,6 @@ public class AsyncScriptRunner {
                     result.put(offset, json);
                 }
             } catch (final Throwable e) {
-                e.printStackTrace();
                 synchronized (result) {
                     result.put(offset, null);
                     hasErrors = true;
@@ -112,7 +111,7 @@ public class AsyncScriptRunner {
         }
     }
 
-    private String runScript(final String script) {
+    protected String runScript(final String script) {
         final List<Record> records = Neo4jSupport.runRead(driver, script, null);
         final String json = ReaderModel.buildJson(records,
                 new DataAdapter(driver.defaultTypeSystem()));
