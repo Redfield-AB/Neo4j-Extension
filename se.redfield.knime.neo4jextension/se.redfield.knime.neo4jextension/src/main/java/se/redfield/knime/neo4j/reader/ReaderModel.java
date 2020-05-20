@@ -141,7 +141,8 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         try {
             final AsyncScriptRunner runner = new AsyncScriptRunner(driver);
             runner.setStopOnQueryFailure(config.isStopOnQueryFailure());
-            results = runner.run(scripts, config.getMaxConnectionPoolSize());
+            results = runner.run(scripts,
+                    neo4j.getConfig().getAdvancedSettings().getMaxConnectionPoolSize());
             if (runner.hasErrors()) {
                 if (config.isStopOnQueryFailure()) {
                     getLogger().error(SOME_QUERIES_ERROR);

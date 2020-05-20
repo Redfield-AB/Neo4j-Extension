@@ -307,4 +307,7 @@ public class Neo4jSupport {
             functions.add(f);
         }
     }
+    public ConnectorConfig getConfig() {
+        return config;
+    }
 }

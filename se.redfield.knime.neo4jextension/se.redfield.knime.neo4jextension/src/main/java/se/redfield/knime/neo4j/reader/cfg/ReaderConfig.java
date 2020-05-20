@@ -19,7 +19,6 @@ public class ReaderConfig implements Cloneable {
     private boolean useJson = true; //default true
     private ColumnInfo inputColumn;
     private LabelsAndFunctions metaData = new LabelsAndFunctions();
-    private int maxConnectionPoolSize = 3;
     private boolean stopOnQueryFailure;
 
     public ReaderConfig() {
@@ -84,16 +83,6 @@ public class ReaderConfig implements Cloneable {
         } catch (final CloneNotSupportedException e) {
             throw new InternalError(e);
         }
-    }
-
-    public int getMaxConnectionPoolSize() {
-        return maxConnectionPoolSize;
-    }
-    public void setMaxConnectionPoolSize(final int size) {
-        if (size < 1) {
-            throw new IllegalArgumentException("Incorrect pool size " + size);
-        }
-        this.maxConnectionPoolSize = size;
     }
     public boolean isStopOnQueryFailure() {
         return stopOnQueryFailure;

@@ -39,10 +39,15 @@ public class AsyncScriptRunner {
 
     /**
      * @param scripts list of scripts to execute.
-     * @param numThreads number of threads.
+     * @param originMumThreads number of threads.
      * @return map of execution results to its position in origin list.
      */
-    public Map<Long, String> run(final List<String> scripts, final int numThreads) {
+    public Map<Long, String> run(final List<String> scripts, final int originMumThreads) {
+        if (scripts.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        final int numThreads = Math.min(scripts.size(), originMumThreads);
         if (numThreads < 1) {
             throw new IllegalArgumentException("Number of threads " + numThreads + " < 1");
         }
