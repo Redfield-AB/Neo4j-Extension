@@ -78,6 +78,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
 
     private final JCheckBox useJsonOutput = new JCheckBox();
     private final JComboBox<ColumnInfo> inputColumn = new JComboBox<>(new DefaultComboBoxModel<>());
+    private final JCheckBox stopInQueryFailure = new JCheckBox();
 
     private JTextArea scriptEditor;
     private JTextArea funcDescription;
@@ -113,7 +114,9 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
         final JPanel parent = new JPanel(new GridBagLayout());
         wrapper.add(parent);
 
-        addLabeledComponent(parent, "Source column", this.inputColumn, 0);
+        inputColumn.setRenderer(new SourceColumnCellRenderer());
+        addLabeledComponent(parent, "Column with query", this.inputColumn, 0);
+        addLabeledComponent(parent, "Stop on query failure", this.stopInQueryFailure, 1);
 
         tab.add(wrapper, BorderLayout.CENTER);
         return tab;
@@ -503,6 +506,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
             if (model.getInputColumn() != null && inputColumns.contains(model.getInputColumn())) {
                 inputColumn.setSelectedItem(model.getInputColumn());
             }
+            stopInQueryFailure.setSelected(model.isStopOnQueryFailure());
         } else {
             reloadMetadata();
 
@@ -575,6 +579,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
                 getLogger().warn("Not input column selected");
             }
             model.setInputColumn(column);
+            model.setStopOnQueryFailure(stopInQueryFailure.isSelected());
         } else {
             final String script = scriptEditor.getText();
             if (script == null || script.trim().isEmpty()) {

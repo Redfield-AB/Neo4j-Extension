@@ -22,6 +22,7 @@ import se.redfield.knime.neo4j.reader.ColumnInfo;
  *
  */
 public class ReaderConfigSerializer {
+    private static final String STOP_ON_QUERY_FAILURE_KEY = "stopOnQueryFailure";
     private static final String INPUT_COLUMN_KEY = "inputColumn";
     private static final String USE_JSON_KEY = "useJson";
     private static final String SCRIPT_KEY = "script";
@@ -42,6 +43,7 @@ public class ReaderConfigSerializer {
         settings.addString(SCRIPT_KEY, config.getScript());
         settings.addBoolean(USE_JSON_KEY, config.isUseJson());
         settings.addString(INPUT_COLUMN_KEY, columnToString(config.getInputColumn()));
+        settings.addBoolean(STOP_ON_QUERY_FAILURE_KEY, config.isStopOnQueryFailure());
 
         saveNamedWithProperties(settings, NODE_LABELS_KEY, config.getNodeLabels());
         saveNamedWithProperties(settings, RELATIONSHIP_TYPES_KEY, config.getRelationshipTypes());
@@ -58,6 +60,9 @@ public class ReaderConfigSerializer {
         }
         if (settings.containsKey(INPUT_COLUMN_KEY)) {
             config.setInputColumn(columnFromString(settings.getString(INPUT_COLUMN_KEY)));
+        }
+        if (settings.containsKey(STOP_ON_QUERY_FAILURE_KEY)) {
+            config.setStopOnQueryFailure(settings.getBoolean(STOP_ON_QUERY_FAILURE_KEY));
         }
 
         config.setNodeLabels(loadNamedWithPropertiesSafely(settings, NODE_LABELS_KEY));
