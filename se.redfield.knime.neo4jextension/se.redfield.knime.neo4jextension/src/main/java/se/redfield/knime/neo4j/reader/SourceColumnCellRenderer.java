@@ -29,7 +29,7 @@ public class SourceColumnCellRenderer extends DefaultListCellRenderer {
             final Object value, final int index, final boolean isSelected, final boolean cellHasFocus) {
         final Component comp = super.getListCellRendererComponent(list,
                 value, index, isSelected, cellHasFocus);
-        setIcon(SharedIcons.FLOWVAR_STRING.get());
+        setIcon(SharedIcons.TYPE_STRING.get());
         return comp;
     }
 }
