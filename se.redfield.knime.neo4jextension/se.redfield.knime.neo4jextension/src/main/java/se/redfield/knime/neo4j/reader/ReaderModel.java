@@ -5,13 +5,9 @@ package se.redfield.knime.neo4j.reader;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
-import javax.json.Json;
-import javax.json.stream.JsonGenerator;
 
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
@@ -48,11 +44,12 @@ import org.neo4j.driver.util.Pair;
 import se.redfield.knime.json.JsonBuilder;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
-import se.redfield.knime.neo4j.db.DataAdapter;
+import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.reader.async.AsyncScriptRunner;
 import se.redfield.knime.neo4j.reader.cfg.ReaderConfig;
 import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
+import se.redfield.knime.table.Neo4jTableOutputSupport;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -209,12 +206,12 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
 
         if (config.isUseJson()) {
             //convert output to JSON.
-            final String json = buildJson(records, new DataAdapter(driver.defaultTypeSystem()));
+            final String json = buildJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
             table = createJsonTable(json, exec);
         } else if (records.isEmpty()) {
             table = createEmptyTable();
         } else {
-            table = createDataTable(records, exec, new DataAdapter(driver.defaultTypeSystem()));
+            table = createDataTable(records, exec, new Neo4jDataConverter(driver.defaultTypeSystem()));
         }
         return table;
     }
@@ -243,9 +240,11 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         return new DataTableImpl(new DataTableSpec("Empty Result"), new DefaultRowIterator());
     }
     private DataTable createDataTable(final List<Record> records,
-            final ExecutionContext exec, final DataAdapter adapter) throws Exception {
-        final DataTableSpec tableSpec = createTableSpec(adapter,  records);
-        final List<DataRow> rows = createDateRows(records, adapter);
+            final ExecutionContext exec, final Neo4jDataConverter converter) throws Exception {
+        final Neo4jTableOutputSupport support = new Neo4jTableOutputSupport(converter);
+
+        final DataTableSpec tableSpec = createTableSpec(support,  records);
+        final List<DataRow> rows = createDateRows(support, records);
         return createTable(exec, tableSpec, rows);
     }
     private DataTable createTable(final ExecutionContext exec, final DataTableSpec tableSpec,
@@ -280,16 +279,10 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         final DataTableSpec tableSpec = new DataTableSpec(stringColumn);
         return tableSpec;
     }
-    public static String buildJson(final List<Record> records, final DataAdapter adapter) {
-        final StringWriter wr = new StringWriter();
-
-        final JsonGenerator gen = Json.createGenerator(wr);
-        new JsonBuilder(adapter).writeJson(records, gen);
-        gen.flush();
-
-        return wr.toString();
+    public static String buildJson(final List<Record> records, final Neo4jDataConverter adapter) {
+        return new JsonBuilder(adapter).buildJson(records);
     }
-    private DataTableSpec createTableSpec(final DataAdapter adapter, final List<Record> records) {
+    private DataTableSpec createTableSpec(final Neo4jTableOutputSupport support, final List<Record> records) {
         DataColumnSpec[] columns = null;
         boolean hasNull = false;
 
@@ -297,6 +290,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         for (final Record record : records) {
             final List<Pair<String, Value>> fields = record.fields();
 
+            //create specs array
             if (columns == null) {
                 columns = new DataColumnSpec[fields.size()];
             }
@@ -311,7 +305,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
                         hasNull = true;
                     } else {
                         final DataColumnSpecCreator creator = new DataColumnSpecCreator(name,
-                                adapter.getCompatibleType(v));
+                                support.getCompatibleCellType(v));
                         columns[i] = creator.createSpec();
                     }
                 }
@@ -330,9 +324,8 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
             for (final Pair<String,Value> pair : records.get(0).fields()) {
                 if (columns[i] == null) {
                     final String name = pair.key();
-                    final Value v = pair.value();
-                    final DataColumnSpecCreator creator = new DataColumnSpecCreator(name,
-                            adapter.getCompatibleType(v));
+                    //set string as default for null value
+                    final DataColumnSpecCreator creator = new DataColumnSpecCreator(name, StringCell.TYPE);
                     columns[i] = creator.createSpec();
                 }
                 i++;
@@ -342,17 +335,17 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         return new DataTableSpec(columns);
     }
     /**
+     * @param support type system.
      * @param records record list.
-     * @param adapter type system.
      * @return list of data rows.
      * @throws Exception
      */
-    private List<DataRow> createDateRows(final List<Record> records,
-            final DataAdapter adapter) throws Exception {
+    private List<DataRow> createDateRows(final Neo4jTableOutputSupport support,
+            final List<Record> records) throws Exception {
         int index = 0;
         final List<DataRow> rows = new LinkedList<DataRow>();
         for (final Record r : records) {
-            rows.add(createDataRow(r, adapter, index));
+            rows.add(createDataRow(r, support, index));
             index++;
         }
         return rows;
@@ -365,7 +358,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
      * @throws Exception
      */
     private DataRow createDataRow(final Record r,
-            final DataAdapter adapter, final int index) throws Exception {
+            final Neo4jTableOutputSupport adapter, final int index) throws Exception {
         final DataCell[] cells = new DataCell[r.size()];
         for (int i = 0; i < cells.length; i++) {
             cells[i] = adapter.createCell(r.get(i));

@@ -12,7 +12,7 @@ import java.util.Map;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 
-import se.redfield.knime.neo4j.db.DataAdapter;
+import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.reader.ReaderModel;
 
@@ -114,7 +114,7 @@ public class AsyncScriptRunner {
     protected String runScript(final String script) {
         final List<Record> records = Neo4jSupport.runRead(driver, script, null);
         final String json = ReaderModel.buildJson(records,
-                new DataAdapter(driver.defaultTypeSystem()));
+                new Neo4jDataConverter(driver.defaultTypeSystem()));
         return json;
     }
 
