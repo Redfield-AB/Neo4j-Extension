@@ -141,7 +141,7 @@ public interface Neo4jCellFactory extends ConvertedValueConsumer {
         wr.acceptObject(value);
         gen.flush();
 
-        final String json = wr.toString();
+        final String json = sw.toString();
         try {
             return JSONCellFactory.create(json, false);
         } catch (final IOException e) {

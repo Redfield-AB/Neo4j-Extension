@@ -10,7 +10,6 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +50,9 @@ public interface ConvertedValueConsumer {
         acceptLocalDateTime(t);
     }
     default void acceptDuration(final IsoDuration d) {
-        acceptDurationMilliseconds(d.get(ChronoUnit.MILLIS));
+        long millis = d.seconds() * 1000l;
+        millis += d.nanoseconds() / 1000000l;
+        acceptDurationMilliseconds(millis);
     }
     void acceptDurationMilliseconds(long duration);
     void acceptNull();
