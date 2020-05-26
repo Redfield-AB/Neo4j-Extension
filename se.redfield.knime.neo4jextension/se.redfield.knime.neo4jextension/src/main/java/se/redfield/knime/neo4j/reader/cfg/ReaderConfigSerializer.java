@@ -15,7 +15,6 @@ import org.knime.core.node.config.ConfigWO;
 
 import se.redfield.knime.neo4j.connector.FunctionDesc;
 import se.redfield.knime.neo4j.connector.NamedWithProperties;
-import se.redfield.knime.neo4j.reader.ColumnInfo;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -42,7 +41,7 @@ public class ReaderConfigSerializer {
     public void write(final ReaderConfig config, final NodeSettingsWO settings) {
         settings.addString(SCRIPT_KEY, config.getScript());
         settings.addBoolean(USE_JSON_KEY, config.isUseJson());
-        settings.addString(INPUT_COLUMN_KEY, columnToString(config.getInputColumn()));
+        settings.addString(INPUT_COLUMN_KEY, config.getInputColumn());
         settings.addBoolean(STOP_ON_QUERY_FAILURE_KEY, config.isStopOnQueryFailure());
 
         saveNamedWithProperties(settings, NODE_LABELS_KEY, config.getNodeLabels());
@@ -59,7 +58,7 @@ public class ReaderConfigSerializer {
             config.setUseJson(settings.getBoolean(USE_JSON_KEY));
         }
         if (settings.containsKey(INPUT_COLUMN_KEY)) {
-            config.setInputColumn(columnFromString(settings.getString(INPUT_COLUMN_KEY)));
+            config.setInputColumn(settings.getString(INPUT_COLUMN_KEY));
         }
         if (settings.containsKey(STOP_ON_QUERY_FAILURE_KEY)) {
             config.setStopOnQueryFailure(settings.getBoolean(STOP_ON_QUERY_FAILURE_KEY));
@@ -71,27 +70,6 @@ public class ReaderConfigSerializer {
 
         return config;
     }
-
-    private ColumnInfo columnFromString(final String str) {
-        if (str == null) {
-            return null;
-        }
-
-        final int offset = str.indexOf(':');
-        return new ColumnInfo(
-                str.substring(offset + 1),
-                Integer.parseInt(str.substring(0, offset)));
-    }
-    private String columnToString(final ColumnInfo col) {
-        if (col == null) {
-            return null;
-        }
-
-        final StringBuilder sb = new StringBuilder();
-        sb.append(col.getOffset()).append(':').append(col.getName());
-        return sb.toString();
-    }
-
 
     private List<NamedWithProperties> loadNamedWithPropertiesSafely(final ConfigRO model, final String key)
             throws InvalidSettingsException {

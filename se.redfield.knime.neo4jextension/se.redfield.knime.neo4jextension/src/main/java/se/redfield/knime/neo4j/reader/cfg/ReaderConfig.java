@@ -8,7 +8,6 @@ import java.util.List;
 import se.redfield.knime.neo4j.connector.FunctionDesc;
 import se.redfield.knime.neo4j.connector.NamedWithProperties;
 import se.redfield.knime.neo4j.db.LabelsAndFunctions;
-import se.redfield.knime.neo4j.reader.ColumnInfo;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -17,7 +16,7 @@ import se.redfield.knime.neo4j.reader.ColumnInfo;
 public class ReaderConfig implements Cloneable {
     private String script;
     private boolean useJson = true; //default true
-    private ColumnInfo inputColumn;
+    private String inputColumn;
     private LabelsAndFunctions metaData = new LabelsAndFunctions();
     private boolean stopOnQueryFailure;
 
@@ -37,10 +36,10 @@ public class ReaderConfig implements Cloneable {
     public void setUseJson(final boolean useJson) {
         this.useJson = useJson;
     }
-    public ColumnInfo getInputColumn() {
+    public String getInputColumn() {
         return inputColumn;
     }
-    public void setInputColumn(final ColumnInfo inputColumn) {
+    public void setInputColumn(final String inputColumn) {
         this.inputColumn = inputColumn;
     }
     public List<NamedWithProperties> getNodeLabels() {
@@ -75,9 +74,6 @@ public class ReaderConfig implements Cloneable {
     public ReaderConfig clone() {
         try {
             final ReaderConfig clone = (ReaderConfig) super.clone();
-            if (inputColumn != null) {
-                clone.inputColumn = new ColumnInfo(inputColumn.getName(), inputColumn.getOffset());
-            }
             clone.metaData = metaData.clone();
             return clone;
         } catch (final CloneNotSupportedException e) {

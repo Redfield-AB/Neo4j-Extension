@@ -129,7 +129,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
     }
 
     private DataTable executeFromTableSource(
-            final ExecutionContext exec, final ColumnInfo inputColumn,
+            final ExecutionContext exec, final String inputColumn,
             final BufferedDataTable inputTable, final Neo4jSupport neo4j) throws Exception {
         final List<String> scripts = getScriptsToLaunch(inputTable, inputColumn);
         final Driver driver = neo4j.createDriver();
@@ -163,19 +163,21 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         return createTable(exec, createSpecWithAddedJsonColumn(inputTable.getSpec()), rows);
     }
 
-    private List<String> getScriptsToLaunch(final BufferedDataTable inputTable, final ColumnInfo inputColumn) {
+    private List<String> getScriptsToLaunch(final BufferedDataTable inputTable, final String inputColumn) {
         final List<String> scripts = new LinkedList<>();
         for (final DataRow row : inputTable) {
             String script = null;
             if (inputColumn != null) {
-                final StringCell cell = (StringCell) row.getCell(inputColumn.getOffset());
-                script = UiUtils.insertFlowVariables(cell.getStringValue(), this);
+                final int colIndex = inputTable.getDataTableSpec().findColumnIndex(inputColumn);
+                if (colIndex > -1) {
+                    final StringCell cell = (StringCell) row.getCell(colIndex);
+                    script = UiUtils.insertFlowVariables(cell.getStringValue(), this);
+                }
             }
             scripts.add(script);
         }
         return scripts;
     }
-
     private DataRow createExpandedRow(final DataRow originRow, final String json) {
         if (json != null) {
             try {
@@ -369,7 +371,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
     public DataTableSpec createSpecWithAddedJsonColumn(final DataTableSpec origin) {
         String resultColumn = "results";
         if (config.getInputColumn() != null) {
-            resultColumn = config.getInputColumn().getName() + ":result";
+            resultColumn = config.getInputColumn() + ":result";
         }
         return new DataTableSpec("result", origin, createOneColumnJsonOutputSpec(resultColumn));
     }

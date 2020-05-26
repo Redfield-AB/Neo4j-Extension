@@ -77,7 +77,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
     private static final String SCRIPT_TAB = "Script";
 
     private final JCheckBox useJsonOutput = new JCheckBox();
-    private final JComboBox<ColumnInfo> inputColumn = new JComboBox<>(new DefaultComboBoxModel<>());
+    private final JComboBox<String> inputColumn = new JComboBox<>(new DefaultComboBoxModel<>());
     private final JCheckBox stopInQueryFailure = new JCheckBox();
 
     private JTextArea scriptEditor;
@@ -429,17 +429,15 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
             throw new NotConfigurableException(e.getMessage(), e);
         }
     }
-    private List<ColumnInfo> getStringColumns(final BufferedDataTable table) {
+    private List<String> getStringColumns(final BufferedDataTable table) {
         if (table == null) {
             return null;
         }
-        final List<ColumnInfo> columns = new LinkedList<>();
-        int index = 0;
+        final List<String> columns = new LinkedList<>();
         for (final DataColumnSpec r : table.getDataTableSpec()) {
             if (r.getType() == StringCell.TYPE) {
-                columns.add(new ColumnInfo(r.getName(), index));
+                columns.add(r.getName());
             }
-            index++;
         }
         return columns;
     }
@@ -468,7 +466,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
      * @throws Exception
      */
     private void initFromModel(final ReaderConfig model, final ConnectorConfig data,
-            final List<ColumnInfo> inputColumns) {
+            final List<String> inputColumns) {
         this.connector = data;
         this.oldModel = model;
 
@@ -495,11 +493,11 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
             applyMetadata(model.getMetaData());
 
             //init input table UI.
-            final DefaultComboBoxModel<ColumnInfo> boxModel = (DefaultComboBoxModel<ColumnInfo>) inputColumn.getModel();
-            final List<ColumnInfo> all = new LinkedList<ColumnInfo>(inputColumns);
+            final DefaultComboBoxModel<String> boxModel = (DefaultComboBoxModel<String>) inputColumn.getModel();
+            final List<String> all = new LinkedList<String>(inputColumns);
             Collections.sort(all);
 
-            for (final ColumnInfo c : all) {
+            for (final String c : all) {
                 boxModel.addElement(c);
             }
 
@@ -574,7 +572,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
     private ReaderConfig buildConfig() throws InvalidSettingsException {
         final ReaderConfig model = oldModel == null ? new ReaderConfig() : oldModel.clone();
         if (useInputTable) {
-            final ColumnInfo column = (ColumnInfo) inputColumn.getSelectedItem();
+            final String column = (String) inputColumn.getSelectedItem();
             if (column == null) {
                 getLogger().warn("Not input column selected");
             }
