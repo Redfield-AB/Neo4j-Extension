@@ -55,5 +55,6 @@ public class Neo4JTestContext {
         final Driver d = current.driver;
         current = null;
         d.close();
+        System.out.println("Neo4JTestContext.destroy()");
     }
 }

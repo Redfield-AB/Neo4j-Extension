@@ -9,13 +9,14 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 
+import org.junit.runners.BlockJUnit4ClassRunner;
+
 import sun.misc.Resource;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-@SuppressWarnings("restriction")
 public class DisableCertsClassLoader extends URLClassLoader {
     /**
      * @param urls
@@ -30,17 +31,23 @@ public class DisableCertsClassLoader extends URLClassLoader {
     }
 
     @Override
-    protected Class<?> findClass(final String name) throws ClassNotFoundException {
-        if (!shouldDisableCerts(name)) {
-            return super.findClass(name);
+    public Class<?> loadClass(final String name) throws ClassNotFoundException {
+        if (!shouldProcess(name)) {
+            return BlockJUnit4ClassRunner.class.getClassLoader().loadClass(name);
         }
+        return super.loadClass(name);
+    }
 
-        String path = name.replace('.', '/').concat(".class");
-        Resource res = getResourceImpl(path);
+    @Override
+    protected Class<?> findClass(final String name) throws ClassNotFoundException {
+        final String path = name.replace('.', '/').concat(".class");
+        final Resource res = getResourceImpl(path);
         if (res != null) {
             try {
-                return defineClassImpl(name, new ResourceExt(res));
-            } catch (Throwable e) {
+                final Class<?> found = defineClassImpl(name, new ResourceExt(res));
+                System.out.println(found.getName() + " loaded");
+                return found;
+            } catch (final Throwable e) {
                 throw new ClassNotFoundException(name, e);
             }
         } else {
@@ -61,7 +68,7 @@ public class DisableCertsClassLoader extends URLClassLoader {
             throws NoSuchMethodException, SecurityException,
             IllegalAccessException, IllegalArgumentException, InvocationTargetException {
 //        private Class<?> defineClass(String name, Resource res)
-        Method m = URLClassLoader.class.getDeclaredMethod(
+        final Method m = URLClassLoader.class.getDeclaredMethod(
                 "defineClass", String.class, Resource.class);
         m.setAccessible(true);
         return (Class<?>) m.invoke(this, name, res);
@@ -72,13 +79,13 @@ public class DisableCertsClassLoader extends URLClassLoader {
      */
     private Resource getResourceImpl(final String path) throws ClassNotFoundException {
         try {
-            Object ucp = getMyProperty(this, this.getClass(), "ucp");
+            final Object ucp = getMyProperty(this, this.getClass(), "ucp");
 
-            Class<?> clazz = loadClass("sun.misc.URLClassPath");
-            Method m = clazz.getDeclaredMethod("getResource", String.class, boolean.class);
+            final Class<?> clazz = loadClass("sun.misc.URLClassPath");
+            final Method m = clazz.getDeclaredMethod("getResource", String.class, boolean.class);
             m.setAccessible(true);
             return (Resource) m.invoke(ucp, path, Boolean.FALSE);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new ClassNotFoundException(path);
         }
     }
@@ -89,10 +96,10 @@ public class DisableCertsClassLoader extends URLClassLoader {
         }
 
         try {
-            Field f = clazz.getDeclaredField(fieldName);
+            final Field f = clazz.getDeclaredField(fieldName);
             f.setAccessible(true);
             return f.get(obj);
-        } catch (NoSuchFieldException e) {
+        } catch (final NoSuchFieldException e) {
             return getMyProperty(obj, clazz.getSuperclass(), fieldName);
         }
     }
@@ -100,16 +107,18 @@ public class DisableCertsClassLoader extends URLClassLoader {
      * @param name class name.
      * @return true if should disable certificates.
      */
-    private boolean shouldDisableCerts(final String name) {
-        return name.startsWith("org.knime.");
+    private boolean shouldProcess(final String name) {
+        final boolean should = !(name.startsWith("org.junit.") || name.startsWith("junit."));
+        return should;
     }
     public static void launchMe(final Class<?> cl, final String methodName) {
         @SuppressWarnings("resource")
+        final
         DisableCertsClassLoader loader = new DisableCertsClassLoader();
         try {
-            Class<?> clazz = loader.loadClass(cl.getName());
+            final Class<?> clazz = loader.loadClass(cl.getName());
             clazz.getMethod(methodName).invoke(null);
-        } catch (Throwable e) {
+        } catch (final Throwable e) {
             throw new RuntimeException(e);
         }
     }
