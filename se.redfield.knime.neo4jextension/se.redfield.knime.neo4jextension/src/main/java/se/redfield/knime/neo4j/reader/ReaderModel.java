@@ -199,13 +199,21 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         final Driver driver = neo4j.createDriver();
 
         final String[] warning = {null};
-        final List<Record> records = Neo4jSupport.runRead(driver,
-                UiUtils.insertFlowVariables(config.getScript(), this),
-                n -> warning[0] = buildWarning(n));
-        if (warning[0] != null) {
-            setWarningMessage(warning[0]);
+        List<Record> records;
+        try {
+            records = Neo4jSupport.runRead(driver, UiUtils.insertFlowVariables(config.getScript(), this),
+                    n -> warning[0] = buildWarning(n));
+            if (warning[0] != null) {
+                setWarningMessage(warning[0]);
+            }
+        } catch (final Exception e) {
+            if (config.isStopOnQueryFailure()) {
+                throw e;
+            } else {
+                setWarningMessage(e.getMessage());
+                records = new LinkedList<>();
+            }
         }
-
         if (config.isUseJson()) {
             //convert output to JSON.
             final String json = buildJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));

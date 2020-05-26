@@ -32,6 +32,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
+import javax.swing.JToggleButton.ToggleButtonModel;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
@@ -73,12 +74,13 @@ import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
  *
  */
 public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariablesProvider {
+    private static final String STOP_ON_QUERY_FAILURE = "Stop on query failure";
     private static final String INPUT_COLUMN_TAB = "Query from table";
     private static final String SCRIPT_TAB = "Script";
 
     private final JCheckBox useJsonOutput = new JCheckBox();
     private final JComboBox<String> inputColumn = new JComboBox<>(new DefaultComboBoxModel<>());
-    private final JCheckBox stopInQueryFailure = new JCheckBox();
+    private final ToggleButtonModel stopInQueryFailure = new ToggleButtonModel();
 
     private JTextArea scriptEditor;
     private JTextArea funcDescription;
@@ -116,7 +118,10 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
 
         inputColumn.setRenderer(new SourceColumnCellRenderer());
         addLabeledComponent(parent, "Column with query", this.inputColumn, 0);
-        addLabeledComponent(parent, "Stop on query failure", this.stopInQueryFailure, 1);
+
+        final JCheckBox cb = new JCheckBox();
+        cb.setModel(stopInQueryFailure);
+        addLabeledComponent(parent, STOP_ON_QUERY_FAILURE, cb, 1);
 
         tab.add(wrapper, BorderLayout.CENTER);
         return tab;
@@ -169,12 +174,21 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
         return vertical;
     }
     private JPanel createScriptPanel() {
+        //use JSON
         final JPanel useJsonOutputPane = new JPanel(new BorderLayout(5, 5));
         useJsonOutputPane.add(new JLabel("Use JSON output"), BorderLayout.WEST);
         useJsonOutputPane.add(useJsonOutput, BorderLayout.CENTER);
 
-        final JPanel north = new JPanel(new BorderLayout(5, 5));
-        north.add(useJsonOutputPane, BorderLayout.WEST);
+        //stop on failure
+        final JPanel stopOnFailurePane = new JPanel(new BorderLayout(5, 5));
+        stopOnFailurePane.add(new JLabel(STOP_ON_QUERY_FAILURE), BorderLayout.WEST);
+        final JCheckBox cb = new JCheckBox();
+        cb.setModel(stopInQueryFailure);
+        stopOnFailurePane.add(cb, BorderLayout.CENTER);
+
+        final JPanel north = new JPanel(new FlowLayout(FlowLayout.LEADING, 5, 5));
+        north.add(useJsonOutputPane);
+        north.add(stopOnFailurePane);
 
         //Script editor
         final JPanel scriptPanel = new JPanel(new BorderLayout());
@@ -504,7 +518,6 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
             if (model.getInputColumn() != null && inputColumns.contains(model.getInputColumn())) {
                 inputColumn.setSelectedItem(model.getInputColumn());
             }
-            stopInQueryFailure.setSelected(model.isStopOnQueryFailure());
         } else {
             reloadMetadata();
 
@@ -514,6 +527,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
                 flowVariablesModel.addElement(var);
             }
         }
+        stopInQueryFailure.setSelected(model.isStopOnQueryFailure());
     }
 
     private void reloadMetadata() {
@@ -577,7 +591,6 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
                 getLogger().warn("Not input column selected");
             }
             model.setInputColumn(column);
-            model.setStopOnQueryFailure(stopInQueryFailure.isSelected());
         } else {
             final String script = scriptEditor.getText();
             if (script == null || script.trim().isEmpty()) {
@@ -587,6 +600,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
             model.setScript(script);
             model.setUseJson(this.useJsonOutput.isSelected());
         }
+        model.setStopOnQueryFailure(stopInQueryFailure.isSelected());
         return model;
     }
 
