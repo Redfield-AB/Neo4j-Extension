@@ -11,8 +11,6 @@ import org.neo4j.driver.internal.cluster.RoutingSettings;
 import org.neo4j.driver.internal.handlers.pulln.FetchSizeUtil;
 import org.neo4j.driver.internal.retry.RetrySettings;
 
-import se.redfield.knime.neo4j.reader.cfg.SslTrustStrategy;
-
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *

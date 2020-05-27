@@ -41,15 +41,16 @@ import org.neo4j.driver.Value;
 import org.neo4j.driver.summary.Notification;
 import org.neo4j.driver.util.Pair;
 
-import se.redfield.knime.json.JsonBuilder;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
+import se.redfield.knime.neo4j.db.AsyncScriptRunner;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
-import se.redfield.knime.neo4j.reader.async.AsyncScriptRunner;
-import se.redfield.knime.neo4j.reader.cfg.ReaderConfig;
-import se.redfield.knime.neo4j.reader.cfg.ReaderConfigSerializer;
-import se.redfield.knime.table.Neo4jTableOutputSupport;
+import se.redfield.knime.neo4j.json.JsonBuilder;
+import se.redfield.knime.neo4j.table.DataTableImpl;
+import se.redfield.knime.neo4j.table.Neo4jTableOutputSupport;
+import se.redfield.knime.neo4j.ui.FlowVariablesProvider;
+import se.redfield.knime.neo4j.ui.UiUtils;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -136,7 +137,8 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         final Map<Long, String> results;
 
         try {
-            final AsyncScriptRunner runner = new AsyncScriptRunner(driver);
+            final AsyncScriptRunner<String> runner = new AsyncScriptRunner<String>(
+                    r -> runSingleScript(driver, r));
             runner.setStopOnQueryFailure(config.isStopOnQueryFailure());
             results = runner.run(scripts,
                     neo4j.getConfig().getAdvancedSettings().getMaxConnectionPoolSize());
@@ -163,6 +165,10 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         return createTable(exec, createSpecWithAddedJsonColumn(inputTable.getSpec()), rows);
     }
 
+    private String runSingleScript(final Driver driver, final String script) {
+        final List<Record> records = Neo4jSupport.runRead(driver, script, null);
+        return buildJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
+    }
     private List<String> getScriptsToLaunch(final BufferedDataTable inputTable, final String inputColumn) {
         final List<String> scripts = new LinkedList<>();
         for (final DataRow row : inputTable) {
@@ -197,32 +203,36 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         }
 
         final Driver driver = neo4j.createDriver();
-
-        final String[] warning = {null};
-        List<Record> records;
         try {
-            records = Neo4jSupport.runRead(driver, UiUtils.insertFlowVariables(config.getScript(), this),
-                    n -> warning[0] = buildWarning(n));
-            if (warning[0] != null) {
-                setWarningMessage(warning[0]);
+            final String[] warning = {null};
+            List<Record> records;
+            try {
+                records = Neo4jSupport.runRead(driver, UiUtils.insertFlowVariables(config.getScript(), this),
+                        n -> warning[0] = buildWarning(n));
+                if (warning[0] != null) {
+                    setWarningMessage(warning[0]);
+                }
+            } catch (final Exception e) {
+                if (config.isStopOnQueryFailure()) {
+                    throw e;
+                } else {
+                    setWarningMessage(e.getMessage());
+                    records = new LinkedList<>();
+                }
             }
-        } catch (final Exception e) {
-            if (config.isStopOnQueryFailure()) {
-                throw e;
+            if (config.isUseJson()) {
+                //convert output to JSON.
+                final String json = buildJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
+                table = createJsonTable(json, exec);
+            } else if (records.isEmpty()) {
+                table = createEmptyTable();
             } else {
-                setWarningMessage(e.getMessage());
-                records = new LinkedList<>();
+                table = createDataTable(records, exec, new Neo4jDataConverter(driver.defaultTypeSystem()));
             }
+        } finally {
+            driver.closeAsync();
         }
-        if (config.isUseJson()) {
-            //convert output to JSON.
-            final String json = buildJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
-            table = createJsonTable(json, exec);
-        } else if (records.isEmpty()) {
-            table = createEmptyTable();
-        } else {
-            table = createDataTable(records, exec, new Neo4jDataConverter(driver.defaultTypeSystem()));
-        }
+
         return table;
     }
 
@@ -254,7 +264,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         final Neo4jTableOutputSupport support = new Neo4jTableOutputSupport(converter);
 
         final DataTableSpec tableSpec = createTableSpec(support,  records);
-        final List<DataRow> rows = createDateRows(support, records);
+        final List<DataRow> rows = createDataRows(support, records);
         return createTable(exec, tableSpec, rows);
     }
     private DataTable createTable(final ExecutionContext exec, final DataTableSpec tableSpec,
@@ -289,7 +299,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         final DataTableSpec tableSpec = new DataTableSpec(stringColumn);
         return tableSpec;
     }
-    public static String buildJson(final List<Record> records, final Neo4jDataConverter adapter) {
+    public String buildJson(final List<Record> records, final Neo4jDataConverter adapter) {
         return new JsonBuilder(adapter).buildJson(records);
     }
     private DataTableSpec createTableSpec(final Neo4jTableOutputSupport support, final List<Record> records) {
@@ -350,7 +360,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
      * @return list of data rows.
      * @throws Exception
      */
-    private List<DataRow> createDateRows(final Neo4jTableOutputSupport support,
+    private List<DataRow> createDataRows(final Neo4jTableOutputSupport support,
             final List<Record> records) throws Exception {
         int index = 0;
         final List<DataRow> rows = new LinkedList<DataRow>();

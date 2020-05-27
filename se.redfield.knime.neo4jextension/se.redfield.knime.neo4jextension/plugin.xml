@@ -13,6 +13,11 @@
             deprecated="false"
             factory-class="se.redfield.knime.neo4j.connector.ConnectorFactory">
       </node>
+      <node
+            category-path="/neo4j"
+            deprecated="false"
+            factory-class="se.redfield.knime.neo4j.writer.WriterFactory">
+      </node>
    </extension>
    <extension
          point="org.knime.workbench.repository.categories">

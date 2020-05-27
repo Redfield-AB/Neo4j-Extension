@@ -20,6 +20,7 @@ import org.neo4j.driver.Value;
 import junit.framework.AssertionFailedError;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
+import se.redfield.knime.neo4j.table.Neo4jTableOutputSupport;
 import se.redfield.knime.table.runner.Neo4JTestContext;
 import se.redfield.knime.table.runner.Neo4jTestRunner;
 

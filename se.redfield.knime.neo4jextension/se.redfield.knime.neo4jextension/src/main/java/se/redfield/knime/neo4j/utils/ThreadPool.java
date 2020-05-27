@@ -1,0 +1,18 @@
+/**
+ *
+ */
+package se.redfield.knime.neo4j.utils;
+
+import java.util.concurrent.AbstractExecutorService;
+
+/**
+ * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
+ *
+ */
+public class ThreadPool {
+    private static final AbstractExecutorService EXECUTOR = new ExecutorServiceImpl("Neo4j Thread Pool");
+
+    public static AbstractExecutorService getExecutor() {
+        return EXECUTOR;
+    }
+}

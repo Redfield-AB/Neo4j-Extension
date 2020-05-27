@@ -15,17 +15,19 @@ import java.util.Map;
 import org.junit.Test;
 
 import junit.framework.AssertionFailedError;
+import se.redfield.knime.neo4j.db.AsyncScriptRunner;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class AsyncScriptRunnerTest extends AsyncScriptRunner {
+public class AsyncScriptRunnerTest extends AsyncScriptRunner<String> {
     private final Map<String, String> results = new HashMap<>();
     private final Map<String, RuntimeException> errors = new HashMap<>();
 
     public AsyncScriptRunnerTest() {
-        super(null);
+        super();
+        setRunner(s -> runScriptImpl(s));
     }
 
     @Test
@@ -152,18 +154,10 @@ public class AsyncScriptRunnerTest extends AsyncScriptRunner {
         }
     }
 
-    @Override
-    protected String runScript(final String script) {
+    private String runScriptImpl(final String script) {
         if (errors.containsKey(script)) {
             throw errors.get(script);
         }
         return results.get(script);
-    }
-    @Override
-    public Map<Long, String> run(final List<String> scripts, final int originMumThreads) {
-        //need to copy the map for pure experiment
-        //because when map is tested it can be asynchronously populating
-        //with running threads.
-        return new HashMap<>(super.run(scripts, originMumThreads));
     }
 }

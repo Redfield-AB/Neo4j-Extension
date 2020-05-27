@@ -9,8 +9,8 @@ import java.util.concurrent.TimeUnit;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 
-import se.redfield.knime.utils.ExecutorServiceImpl;
-import se.redfield.knime.utils.ThreadPool;
+import se.redfield.knime.neo4j.utils.ExecutorServiceImpl;
+import se.redfield.knime.neo4j.utils.ThreadPool;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

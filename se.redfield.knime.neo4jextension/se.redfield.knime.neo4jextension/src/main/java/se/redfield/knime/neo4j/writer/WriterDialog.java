@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4j.reader;
+package se.redfield.knime.neo4j.writer;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -79,12 +79,12 @@ import se.redfield.knime.neo4j.ui.WithStringIconCellRenderer;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariablesProvider {
+public class WriterDialog extends DataAwareNodeDialogPane implements FlowVariablesProvider {
     private static final String STOP_ON_QUERY_FAILURE = "Stop on query failure";
     private static final String INPUT_COLUMN_TAB = "Query from table";
     private static final String SCRIPT_TAB = "Script";
 
-    private final JCheckBox useJsonOutput = new JCheckBox();
+    private final JCheckBox useAsyncExe = new JCheckBox();
     private final JComboBox<String> inputColumn = new JComboBox<>(new DefaultComboBoxModel<>());
     private final ToggleButtonModel stopInQueryFailure = new ToggleButtonModel();
 
@@ -103,12 +103,12 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
 
     private ConnectorConfig connector;
     private boolean useInputTable;
-    private ReaderConfig oldModel;
+    private WriterConfig oldModel;
 
     /**
      * Default constructor.
      */
-    public ReaderDialog() {
+    public WriterDialog() {
         super();
 
         addTab(SCRIPT_TAB, createScriptTab(), false);
@@ -128,6 +128,8 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
         final JCheckBox cb = new JCheckBox();
         cb.setModel(stopInQueryFailure);
         addLabeledComponent(parent, STOP_ON_QUERY_FAILURE, cb, 1);
+
+        addLabeledComponent(parent, "Use asynchronous script execution", this.useAsyncExe, 2);
 
         tab.add(wrapper, BorderLayout.CENTER);
         return tab;
@@ -180,11 +182,6 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
         return vertical;
     }
     private JPanel createScriptPanel() {
-        //use JSON
-        final JPanel useJsonOutputPane = new JPanel(new BorderLayout(5, 5));
-        useJsonOutputPane.add(new JLabel("Use JSON output"), BorderLayout.WEST);
-        useJsonOutputPane.add(useJsonOutput, BorderLayout.CENTER);
-
         //stop on failure
         final JPanel stopOnFailurePane = new JPanel(new BorderLayout(5, 5));
         stopOnFailurePane.add(new JLabel(STOP_ON_QUERY_FAILURE), BorderLayout.WEST);
@@ -193,7 +190,6 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
         stopOnFailurePane.add(cb, BorderLayout.CENTER);
 
         final JPanel north = new JPanel(new FlowLayout(FlowLayout.LEADING, 5, 5));
-        north.add(useJsonOutputPane);
         north.add(stopOnFailurePane);
 
         //Script editor
@@ -209,7 +205,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
     }
 
     private JPanel createRefreshButton() {
-        final ImageIcon icon = new ImageIcon(ReaderDialog.class.getResource("refresh.png"));
+        final ImageIcon icon = new ImageIcon(WriterDialog.class.getResource("refresh.png"));
         final JButton b = new JButton();
         b.setIcon(icon);
 
@@ -433,14 +429,14 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
-        final ReaderConfig model = buildConfig();
-        new ReaderConfigSerializer().write(model, settings);
+        final WriterConfig model = buildConfig();
+        new WriterConfigSerializer().write(model, settings);
     }
 
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObject[] input) throws NotConfigurableException {
         try {
-            final ReaderConfig model = new ReaderConfigSerializer().read(settings);
+            final WriterConfig model = new WriterConfigSerializer().read(settings);
             initFromModel(model,
                     ((ConnectorPortObject) input[1]).getPortData(),
                     getStringColumns((BufferedDataTable) input[0]));
@@ -485,7 +481,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
      * @param inputColumns string columns from input table.
      * @throws Exception
      */
-    private void initFromModel(final ReaderConfig model, final ConnectorConfig data,
+    private void initFromModel(final WriterConfig model, final ConnectorConfig data,
             final List<String> inputColumns) {
         this.connector = data;
         this.oldModel = model;
@@ -524,6 +520,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
             if (model.getInputColumn() != null && inputColumns.contains(model.getInputColumn())) {
                 inputColumn.setSelectedItem(model.getInputColumn());
             }
+            useAsyncExe.setSelected(model.isUseAsync());
         } else {
             reloadMetadata();
 
@@ -544,7 +541,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
                     final ConnectorConfig cfg = connector.createResolvedConfig(getCredentialsProvider());
                     final Neo4jSupport support = new Neo4jSupport(cfg);
                     final LabelsAndFunctions metaData = support.loadLabesAndFunctions();
-                    ReaderDialog.this.oldModel.setMetaData(metaData);
+                    WriterDialog.this.oldModel.setMetaData(metaData);
 
                     SwingUtilities.invokeLater(() -> applyMetadata(metaData));
                 } catch (final Exception e) {
@@ -589,14 +586,15 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
     /**
      * @return model.
      */
-    private ReaderConfig buildConfig() throws InvalidSettingsException {
-        final ReaderConfig model = oldModel == null ? new ReaderConfig() : oldModel.clone();
+    private WriterConfig buildConfig() throws InvalidSettingsException {
+        final WriterConfig model = oldModel == null ? new WriterConfig() : oldModel.clone();
         if (useInputTable) {
             final String column = (String) inputColumn.getSelectedItem();
             if (column == null) {
                 getLogger().warn("Not input column selected");
             }
             model.setInputColumn(column);
+            model.setUseAsync(this.useAsyncExe.isSelected());
         } else {
             final String script = scriptEditor.getText();
             if (script == null || script.trim().isEmpty()) {
@@ -604,7 +602,6 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
             }
 
             model.setScript(script);
-            model.setUseJson(this.useJsonOutput.isSelected());
         }
         model.setStopOnQueryFailure(stopInQueryFailure.isSelected());
         return model;

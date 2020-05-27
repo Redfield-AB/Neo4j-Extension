@@ -40,7 +40,7 @@ import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
 import se.redfield.knime.neo4j.connector.cfg.AuthScheme;
 import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
 import se.redfield.knime.neo4j.connector.cfg.ConnectorConfigSerializer;
-import se.redfield.knime.utils.HashGenerator;
+import se.redfield.knime.neo4j.utils.HashGenerator;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

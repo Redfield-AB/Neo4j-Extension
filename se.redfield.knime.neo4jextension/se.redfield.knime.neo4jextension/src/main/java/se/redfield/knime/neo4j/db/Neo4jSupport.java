@@ -31,8 +31,8 @@ import se.redfield.knime.neo4j.connector.NamedWithProperties;
 import se.redfield.knime.neo4j.connector.cfg.AdvancedSettings;
 import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
 import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
-import se.redfield.knime.neo4j.reader.cfg.SslTrustStrategy;
-import se.redfield.knime.utils.ThreadPool;
+import se.redfield.knime.neo4j.connector.cfg.SslTrustStrategy;
+import se.redfield.knime.neo4j.utils.ThreadPool;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
