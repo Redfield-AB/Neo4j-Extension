@@ -18,14 +18,14 @@ import org.osgi.framework.BundleReference;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class DisableCertsClassLoader extends URLClassLoader implements BundleReference {
-    public DisableCertsClassLoader() {
-        super(calculateClassPath(), DisableCertsClassLoader.class.getClassLoader());
+class TestClassLoader extends URLClassLoader implements BundleReference {
+    public TestClassLoader() {
+        super(calculateClassPath(), TestClassLoader.class.getClassLoader());
         fixClassLoader(this);
-        fixClassLoader(DisableCertsClassLoader.class.getClassLoader());
+        fixClassLoader(TestClassLoader.class.getClassLoader());
     }
     private static URL[] calculateClassPath() {
-        return ((URLClassLoader) DisableCertsClassLoader.class.getClassLoader()).getURLs();
+        return ((URLClassLoader) TestClassLoader.class.getClassLoader()).getURLs();
     }
 
     @Override
@@ -67,7 +67,7 @@ public class DisableCertsClassLoader extends URLClassLoader implements BundleRef
     public static void launchMe(final Class<?> cl, final String methodName) {
         @SuppressWarnings("resource")
         final
-        DisableCertsClassLoader loader = new DisableCertsClassLoader();
+        TestClassLoader loader = new TestClassLoader();
         try {
             final Class<?> clazz = loader.loadClass(cl.getName());
             clazz.getMethod(methodName).invoke(null);
@@ -81,10 +81,7 @@ public class DisableCertsClassLoader extends URLClassLoader implements BundleRef
     }
 
     /**
-     * @param loader
-     * @throws NoSuchFieldException
-     * @throws Exception
-     * @throws IllegalAccessException
+     * @param loader class loader to disable certificate verification
      */
     private static void fixClassLoader(final ClassLoader loader) {
         try {
@@ -97,15 +94,11 @@ public class DisableCertsClassLoader extends URLClassLoader implements BundleRef
             throw new RuntimeException(e);
         }
     }
-
-    /**
-     * @param p2c
-     */
-    private static void setFieldNotFinal(final Field p2c) throws Exception {
+    private static void setFieldNotFinal(final Field f) throws Exception {
         final Field modifiers = Field.class.getDeclaredField("modifiers");
         modifiers.setAccessible(true);
 
-        final int access = modifiers.getInt(p2c);
-        modifiers.setInt(p2c, access & ~Modifier.FINAL );
+        final int access = modifiers.getInt(f);
+        modifiers.setInt(f, access & ~Modifier.FINAL );
     }
 }

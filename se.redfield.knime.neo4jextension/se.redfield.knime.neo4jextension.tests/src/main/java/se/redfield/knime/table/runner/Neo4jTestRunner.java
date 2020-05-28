@@ -13,7 +13,7 @@ import org.junit.runners.model.InitializationError;
  *
  */
 public class Neo4jTestRunner extends BlockJUnit4ClassRunner {
-    private static final DisableCertsClassLoader loader = new DisableCertsClassLoader();
+    private static final TestClassLoader loader = new TestClassLoader();
 
     /**
      * @param klass testing class.
