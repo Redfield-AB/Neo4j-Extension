@@ -9,4 +9,5 @@ Require-Bundle: se.redfield.knime.neo4jextension;bundle-version="1.0.0",
  org.knime.core,
  org.junit.source;bundle-version="4.12.0",
  org.junit;bundle-version="4.12.0",
- org.apache.log4j;bundle-version="1.2.15"
+ org.apache.log4j;bundle-version="1.2.15",
+ org.apache.commons.codec;bundle-version="1.10.0"

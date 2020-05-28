@@ -40,7 +40,6 @@ import org.knime.core.node.port.PortType;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
-import org.neo4j.driver.summary.Notification;
 
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
@@ -289,28 +288,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
         gen.flush();
 
         return wr.toString();
-  }
-
-    public static String buildWarning(final List<Notification> notifs) {
-        final StringBuilder sb = new StringBuilder();
-        if (notifs != null && !notifs.isEmpty()) {
-            for (final Notification n : notifs) {
-                final String desc = n.description();
-                if (desc != null) {
-                    if (sb.length() > 0) {
-                        sb.append(", ");
-                    }
-                    sb.append(desc);
-                }
-            }
-        }
-
-        if (sb.length() == 0){
-            sb.append("Query has not only read actions therefore transaction is rolled back");
-        }
-        return sb.toString();
     }
-
     private DataTable createTable(final ExecutionContext exec, final DataTableSpec tableSpec,
             final List<DataRow> rows) {
         final BufferedDataContainer table = exec.createDataContainer(tableSpec);
@@ -325,7 +303,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     }
     private DataTable createJsonTable(final String json, final ExecutionContext exec) throws IOException {
         final DataTableSpec tableSpec = createOneColumnSpec();
-        final DefaultRow row = new DefaultRow(new RowKey("json"), createJsonCell(json));
+        final DefaultRow row = new DefaultRow(new RowKey("result"), createJsonCell(json));
         final BufferedDataContainer table = exec.createDataContainer(tableSpec);
         try {
             table.addRowToTable(row);
@@ -335,7 +313,6 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
 
         return table.getTable();
     }
-
     private DataCell createJsonCell(final String json) throws IOException {
         return JSONCellFactory.create(json, false);
     }
