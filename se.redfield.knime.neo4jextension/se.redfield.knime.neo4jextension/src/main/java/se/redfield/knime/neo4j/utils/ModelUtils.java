@@ -1,14 +1,25 @@
 /**
  *
  */
-package se.redfield.knime.neo4j.ui;
+package se.redfield.knime.neo4j.utils;
 
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.knime.core.data.DataColumnSpec;
+import org.knime.core.data.DataColumnSpecCreator;
+import org.knime.core.data.DataRow;
+import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.MissingCell;
+import org.knime.core.data.append.AppendedColumnRow;
+import org.knime.core.data.def.StringCell;
+import org.knime.core.data.json.JSONCell;
+import org.knime.core.data.json.JSONCellFactory;
+import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.core.node.workflow.VariableType;
 
@@ -16,7 +27,7 @@ import org.knime.core.node.workflow.VariableType;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class UiUtils {
+public class ModelUtils {
     /**
      * @param script origin script.
      * @param vars flow variables map.
@@ -41,6 +52,22 @@ public class UiUtils {
     public static Map<String, FlowVariable> getAvailableFlowVariables(
             final FlowVariablesProvider varsProvider) {
         return varsProvider.getAvailableFlowVariables(getFlowVariableTypes());
+    }
+    public static List<String> getStringsFromTextColumn(final BufferedDataTable inputTable,
+            final String inputColumn, final FlowVariablesProvider varsProvider) {
+        final List<String> scripts = new LinkedList<>();
+        for (final DataRow row : inputTable) {
+            String script = null;
+            if (inputColumn != null) {
+                final int colIndex = inputTable.getDataTableSpec().findColumnIndex(inputColumn);
+                if (colIndex > -1) {
+                    final StringCell cell = (StringCell) row.getCell(colIndex);
+                    script = insertFlowVariables(cell.getStringValue(), varsProvider);
+                }
+            }
+            scripts.add(script);
+        }
+        return scripts;
     }
 
     /**
@@ -101,5 +128,30 @@ public class UiUtils {
         types.add(VariableType.StringType.INSTANCE);
 
         return types.toArray(new VariableType[types.size()]);
+    }
+    public static DataTableSpec createOneColumnJsonTableSpec(final String columnName) {
+        //one row, one string column
+        final DataColumnSpec stringColumn = new DataColumnSpecCreator(columnName, JSONCell.TYPE).createSpec();
+        final DataTableSpec tableSpec = new DataTableSpec(stringColumn);
+        return tableSpec;
+    }
+    public static DataTableSpec createSpecWithAddedJsonColumn(
+            final DataTableSpec origin, final String inputColumn) {
+        String resultColumn;
+        if (inputColumn != null) {
+            resultColumn = inputColumn + ":result";
+        } else {
+            resultColumn = "results";
+        }
+        return new DataTableSpec("result", origin, createOneColumnJsonTableSpec(resultColumn));
+    }
+    public static DataRow createRowWithAppendedJson(final DataRow originRow, final String json) {
+        if (json != null) {
+            try {
+                return new AppendedColumnRow(originRow, JSONCellFactory.create(json, false));
+            } catch (final IOException e) {
+            }
+        }
+        return new AppendedColumnRow(originRow, new MissingCell("Not a value"));
     }
 }

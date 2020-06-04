@@ -152,7 +152,12 @@ public class Neo4jSupport {
 
         final Driver d = GraphDatabase.driver(con.getLocation(), token,
                 createConfig(con.getAdvancedSettings()));
-        d.verifyConnectivity();
+        try {
+            d.verifyConnectivity();
+        } catch (final RuntimeException e) {
+            d.close();
+            throw e;
+        }
         return d;
     }
     private static Config createConfig(final AdvancedSettings as) {

@@ -9,5 +9,5 @@ package se.redfield.knime.neo4j.db;
  */
 @FunctionalInterface
 public interface SingleScriptRunner<R> {
-    R run(String script);
+    AsyncResult<R> run(String script);
 }

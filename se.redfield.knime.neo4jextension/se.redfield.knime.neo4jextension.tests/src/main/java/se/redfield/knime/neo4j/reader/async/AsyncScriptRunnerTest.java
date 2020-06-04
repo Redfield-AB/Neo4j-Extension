@@ -15,6 +15,7 @@ import java.util.Map;
 import org.junit.Test;
 
 import junit.framework.AssertionFailedError;
+import se.redfield.knime.neo4j.db.AsyncResult;
 import se.redfield.knime.neo4j.db.AsyncScriptRunner;
 
 /**
@@ -27,7 +28,7 @@ public class AsyncScriptRunnerTest extends AsyncScriptRunner<String> {
 
     public AsyncScriptRunnerTest() {
         super();
-        setRunner(s -> runScriptImpl(s));
+        setRunner(s -> new AsyncResult<String>(runScriptImpl(s)));
     }
 
     @Test

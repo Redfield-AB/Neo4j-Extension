@@ -15,13 +15,10 @@ import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTable;
 import org.knime.core.data.DataTableSpec;
-import org.knime.core.data.MissingCell;
 import org.knime.core.data.RowKey;
-import org.knime.core.data.append.AppendedColumnRow;
 import org.knime.core.data.def.DefaultRow;
 import org.knime.core.data.def.DefaultRowIterator;
 import org.knime.core.data.def.StringCell;
-import org.knime.core.data.json.JSONCell;
 import org.knime.core.data.json.JSONCellFactory;
 import org.knime.core.node.BufferedDataContainer;
 import org.knime.core.node.BufferedDataTable;
@@ -43,14 +40,15 @@ import org.neo4j.driver.util.Pair;
 
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
+import se.redfield.knime.neo4j.db.AsyncResult;
 import se.redfield.knime.neo4j.db.AsyncScriptRunner;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.json.JsonBuilder;
 import se.redfield.knime.neo4j.table.DataTableImpl;
 import se.redfield.knime.neo4j.table.Neo4jTableOutputSupport;
-import se.redfield.knime.neo4j.ui.FlowVariablesProvider;
-import se.redfield.knime.neo4j.ui.UiUtils;
+import se.redfield.knime.neo4j.utils.FlowVariablesProvider;
+import se.redfield.knime.neo4j.utils.ModelUtils;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -98,9 +96,10 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         //if JSON output used it is possible to specify output.
         final boolean useTableInput = inSpecs[0] instanceof DataTableSpec;
         if (useTableInput) {
-            output = createSpecWithAddedJsonColumn((DataTableSpec) inSpecs[0]);
+            output = ModelUtils.createSpecWithAddedJsonColumn(
+                    (DataTableSpec) inSpecs[0], config.getInputColumn());
         } else if (config.isUseJson()) {
-            output = createOneColumnJsonOutputSpec("json");
+            output = ModelUtils.createOneColumnJsonTableSpec("json");
         }
 
         return new PortObjectSpec[] {output, connectorSpec};
@@ -132,13 +131,13 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
     private DataTable executeFromTableSource(
             final ExecutionContext exec, final String inputColumn,
             final BufferedDataTable inputTable, final Neo4jSupport neo4j) throws Exception {
-        final List<String> scripts = getScriptsToLaunch(inputTable, inputColumn);
+        final List<String> scripts = ModelUtils.getStringsFromTextColumn(inputTable, inputColumn, this);
         final Driver driver = neo4j.createDriver();
         final Map<Long, String> results;
 
         try {
             final AsyncScriptRunner<String> runner = new AsyncScriptRunner<String>(
-                    r -> runSingleScript(driver, r));
+                    r -> new AsyncResult<String>(runSingleScript(driver, r)));
             runner.setStopOnQueryFailure(config.isStopOnQueryFailure());
             results = runner.run(scripts,
                     neo4j.getConfig().getAdvancedSettings().getMaxConnectionPoolSize());
@@ -158,40 +157,17 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         final List<DataRow> rows = new LinkedList<DataRow>();
         long rowNum = 0;
         for (final DataRow origin : inputTable) {
-            rows.add(createExpandedRow(origin, results.get(rowNum)));
+            rows.add(ModelUtils.createRowWithAppendedJson(origin, results.get(rowNum)));
             rowNum++;
         }
 
-        return createTable(exec, createSpecWithAddedJsonColumn(inputTable.getSpec()), rows);
+        return createTable(exec, ModelUtils.createSpecWithAddedJsonColumn(
+                inputTable.getSpec(), config.getInputColumn()), rows);
     }
 
     private String runSingleScript(final Driver driver, final String script) {
         final List<Record> records = Neo4jSupport.runRead(driver, script, null);
         return buildJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
-    }
-    private List<String> getScriptsToLaunch(final BufferedDataTable inputTable, final String inputColumn) {
-        final List<String> scripts = new LinkedList<>();
-        for (final DataRow row : inputTable) {
-            String script = null;
-            if (inputColumn != null) {
-                final int colIndex = inputTable.getDataTableSpec().findColumnIndex(inputColumn);
-                if (colIndex > -1) {
-                    final StringCell cell = (StringCell) row.getCell(colIndex);
-                    script = UiUtils.insertFlowVariables(cell.getStringValue(), this);
-                }
-            }
-            scripts.add(script);
-        }
-        return scripts;
-    }
-    private DataRow createExpandedRow(final DataRow originRow, final String json) {
-        if (json != null) {
-            try {
-                return new AppendedColumnRow(originRow, JSONCellFactory.create(json, false));
-            } catch (final IOException e) {
-            }
-        }
-        return new AppendedColumnRow(originRow, new MissingCell("Not a value"));
     }
     private DataTable executeFromScriptSource(final ExecutionContext exec, final Neo4jSupport neo4j)
             throws Exception {
@@ -207,7 +183,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
             final String[] warning = {null};
             List<Record> records;
             try {
-                records = Neo4jSupport.runRead(driver, UiUtils.insertFlowVariables(config.getScript(), this),
+                records = Neo4jSupport.runRead(driver, ModelUtils.insertFlowVariables(config.getScript(), this),
                         n -> warning[0] = buildWarning(n));
                 if (warning[0] != null) {
                     setWarningMessage(warning[0]);
@@ -280,7 +256,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         return table.getTable();
     }
     private DataTable createJsonTable(final String json, final ExecutionContext exec) throws IOException {
-        final DataTableSpec tableSpec = createOneColumnJsonOutputSpec("json");
+        final DataTableSpec tableSpec = ModelUtils.createOneColumnJsonTableSpec("json");
         final DefaultRow row = new DefaultRow(new RowKey("json"),
                 JSONCellFactory.create(json, false));
 
@@ -292,12 +268,6 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         }
 
         return table.getTable();
-    }
-    private DataTableSpec createOneColumnJsonOutputSpec(final String columnName) {
-        //one row, one string column
-        final DataColumnSpec stringColumn = new DataColumnSpecCreator(columnName, JSONCell.TYPE).createSpec();
-        final DataTableSpec tableSpec = new DataTableSpec(stringColumn);
-        return tableSpec;
     }
     public String buildJson(final List<Record> records, final Neo4jDataConverter adapter) {
         return new JsonBuilder(adapter).buildJson(records);
@@ -384,14 +354,6 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
             cells[i] = adapter.createCell(r.get(i));
         }
         return new DefaultRow(new RowKey("r-" + index), cells);
-    }
-
-    public DataTableSpec createSpecWithAddedJsonColumn(final DataTableSpec origin) {
-        String resultColumn = "results";
-        if (config.getInputColumn() != null) {
-            resultColumn = config.getInputColumn() + ":result";
-        }
-        return new DataTableSpec("result", origin, createOneColumnJsonOutputSpec(resultColumn));
     }
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec) throws Exception {

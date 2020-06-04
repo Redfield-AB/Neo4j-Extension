@@ -66,14 +66,14 @@ import se.redfield.knime.neo4j.connector.NamedWithProperties;
 import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
 import se.redfield.knime.neo4j.db.LabelsAndFunctions;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
-import se.redfield.knime.neo4j.ui.FlowVariablesProvider;
 import se.redfield.knime.neo4j.ui.FunctionDescRenderer;
 import se.redfield.knime.neo4j.ui.ListClickListener;
 import se.redfield.knime.neo4j.ui.NamedWithPropertiesRenderer;
 import se.redfield.knime.neo4j.ui.SplitPanelExt;
-import se.redfield.knime.neo4j.ui.UiUtils;
 import se.redfield.knime.neo4j.ui.ValueInsertHandler;
 import se.redfield.knime.neo4j.ui.WithStringIconCellRenderer;
+import se.redfield.knime.neo4j.utils.FlowVariablesProvider;
+import se.redfield.knime.neo4j.utils.ModelUtils;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -528,7 +528,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
             reloadMetadata();
 
             final DefaultListModel<FlowVariable> flowVariablesModel = model(flowVariables);
-            final Map<String, FlowVariable> vars = UiUtils.getAvailableFlowVariables(this);
+            final Map<String, FlowVariable> vars = ModelUtils.getAvailableFlowVariables(this);
             for (final FlowVariable var : vars.values()) {
                 flowVariablesModel.addElement(var);
             }

@@ -20,6 +20,7 @@ import org.knime.core.node.port.PortType;
 
 import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
 import se.redfield.knime.neo4j.connector.cfg.ConnectorConfigSerializer;
+import se.redfield.knime.neo4j.db.Neo4jSupport;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -69,6 +70,12 @@ public class ConnectorModel extends NodeModel {
     }
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
+        //test connection
+        final ConnectorConfig cfg = data.createResolvedConfig(getCredentialsProvider());
+        final Neo4jSupport s = new Neo4jSupport(cfg);
+        s.createDriver().closeAsync();
+
+        //return port object
         return new PortObject[]{new ConnectorPortObject(data)};
     }
 

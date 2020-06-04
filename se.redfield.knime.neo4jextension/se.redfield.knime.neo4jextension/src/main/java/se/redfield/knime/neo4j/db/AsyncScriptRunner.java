@@ -93,15 +93,12 @@ public class AsyncScriptRunner<R> {
                 next = source.next();
             }
 
-            final long offset = next.getNumber();
-            try {
-                final R result = runScript(next.getString());
-                synchronized (results) {
-                    results.put(offset, result);
-                }
-            } catch (final Throwable e) {
-                synchronized (results) {
-                    results.put(offset, null);
+            final AsyncResult<R> result = runScript(next.getString());
+
+            synchronized (results) {
+                results.put((long) next.getNumber(), result.getResult());
+
+                if (result.getException() != null) {
                     hasErrors = true;
                     if (isStopOnQueryFailure()) {
                         readToEnd(source);
@@ -111,8 +108,16 @@ public class AsyncScriptRunner<R> {
         }
     }
 
-    protected R runScript(final String script) {
-        return runner.run(script);
+    protected AsyncResult<R> runScript(final String script) {
+        try {
+            return runner.run(script);
+        } catch (final Throwable e) {
+            // runner should not throw exception
+            // but need to catch it in any case
+            final AsyncResult<R> res = new AsyncResult<>();
+            res.setException(e);
+            return res;
+        }
     }
 
     private void readToEnd(final Iterator<NumberedString> iter) {

@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4j.ui;
+package se.redfield.knime.neo4j.utils;
 
 import java.util.Map;
 

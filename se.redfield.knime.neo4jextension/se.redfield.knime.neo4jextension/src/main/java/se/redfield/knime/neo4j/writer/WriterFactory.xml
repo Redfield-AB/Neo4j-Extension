@@ -17,5 +17,6 @@
 		<inPort index="0"  name="Input Table">One column table with Cypher script rows</inPort>
 		<inPort index="1"  name="Neo4j Connector">Neo4j Connector</inPort>
  	    <outPort index="0" name="Neo4j Output">Neo4j output as one column table with JSON cells</outPort>
+		<outPort index="1"  name="Neo4j Connector">Forwarded Neo4j Connector</outPort>
 	</ports>
 </knimeNode>
