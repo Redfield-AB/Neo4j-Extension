@@ -51,12 +51,12 @@ class TestClassLoader extends URLClassLoader implements BundleReference {
      * @return true if should disable certificates.
      */
     private boolean shouldProcess(final String name) {
-        final Set<String> excludesStartWith = new HashSet<String>();
-        excludesStartWith.add("org.osgi.framework");
-        excludesStartWith.add("org.junit.");
-        excludesStartWith.add("junit.");
-        excludesStartWith.add("org.apache.log4j");
-        for (final String prefix : excludesStartWith) {
+        final Set<String> prefixes = new HashSet<String>();
+        prefixes.add("org.osgi.framework");
+        prefixes.add("org.junit.");
+        prefixes.add("junit.");
+        prefixes.add("org.apache.log4j");
+        for (final String prefix : prefixes) {
             if (name.startsWith(prefix)) {
                 return false;
             }
@@ -89,7 +89,7 @@ class TestClassLoader extends URLClassLoader implements BundleReference {
             setFieldNotFinal(p2c);
 
             p2c.setAccessible(true);
-            p2c.set(loader, new AlwaysEmptyPackagesToCertsMap<String, Certificate[]>());
+            p2c.set(loader, new AlwaysEmptyMap<String, Certificate[]>());
         } catch (final Exception e) {
             throw new RuntimeException(e);
         }

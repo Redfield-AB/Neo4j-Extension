@@ -106,11 +106,8 @@ class TestInitializer implements Runnable {
      * @throws Exception
      */
     private Class<?> getEclipsePlatformImplClass() throws Exception {
-        final Class<?> cls = loadClass("org.eclipse.core.internal.runtime.InternalPlatform");
-        return cls;
-    }
-    private Class<?> loadClass(final String name) throws Exception{
-        return TestInitializer.class.getClassLoader().loadClass(name);
+        return TestInitializer.class.getClassLoader().loadClass(
+                "org.eclipse.core.internal.runtime.InternalPlatform");
     }
     private void initNeo4j() {
         final Neo4JTestContext ctxt = new Neo4JTestContext(URL, DBUSER, PASSWORD);
