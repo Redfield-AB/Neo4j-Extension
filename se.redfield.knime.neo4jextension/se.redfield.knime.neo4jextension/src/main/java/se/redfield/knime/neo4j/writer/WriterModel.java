@@ -156,21 +156,55 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     private Map<Long, String> executeSync(final Neo4jSupport neo4j,
             final List<String> scripts, final Driver driver) throws Exception {
         final Map<Long, String> results = new HashMap<>();
-        long row = 0;
-        for (final String script : scripts) {
-            try {
-                results.put(row, runSingleScript(driver, script));
-            } catch (final Exception e) {
-                results.put(row, createErrorJson(e.getMessage()));
-                if (config.isStopOnQueryFailure()) {
-                    getLogger().error(SOME_QUERIES_ERROR);
-                    throw new Exception(SOME_QUERIES_ERROR);
-                } else {
-                    setWarningMessage(SOME_QUERIES_ERROR);
+        final Neo4jDataConverter converter = new Neo4jDataConverter(driver.defaultTypeSystem());
+
+        final Session session = driver.session();
+        Transaction tx = null;
+        try {
+            long row = 0;
+            for (final String script : scripts) {
+                if (tx == null) {
+                    tx = session.beginTransaction();
+                }
+
+                try {
+                    final Result run = tx.run(script);
+                    final List<Record> res = run.list();
+                    results.put(row, createSuccessJson(res, converter));
+
+                    if (!config.isStopOnQueryFailure()) {
+                        tx.commit();
+                        tx.close();
+                        tx = null;
+                    }
+
+                    results.put(row, runSingleScript(driver, script));
+                } catch (final Exception e) {
+                    results.put(row, createErrorJson(e.getMessage()));
+
+                    tx.rollback();
+                    tx.close();
+                    tx = null;
+                    if (config.isStopOnQueryFailure()) {
+                        getLogger().error(SOME_QUERIES_ERROR);
+                        throw new Exception(SOME_QUERIES_ERROR);
+                    } else {
+                        setWarningMessage(SOME_QUERIES_ERROR);
+                    }
+                }
+                row++;
+            }
+        } finally {
+            if (tx != null) {
+                try {
+                    tx.commit();
+                    tx.close();
+                } catch (final Throwable e) {
                 }
             }
-            row++;
+            session.close();
         }
+
         return results;
     }
     private Map<Long, String> executeAsync(final Neo4jSupport neo4j,
