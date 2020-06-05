@@ -26,6 +26,10 @@ public final class Neo4jHelper {
     }
 
     public static Driver createDriver() {
+        final Neo4jSupport s = createSupport();
+        return s.createDriver();
+    }
+    public static Neo4jSupport createSupport() {
         final ConnectorConfig cfg = new ConnectorConfig();
         try {
             cfg.setLocation(new URI(URL));
@@ -37,7 +41,6 @@ public final class Neo4jHelper {
         cfg.getAuth().setCredentials(PASSWORD);
 
         //create driver
-        final Neo4jSupport s = new Neo4jSupport(cfg);
-        return s.createDriver();
+        return new Neo4jSupport(cfg);
     }
 }

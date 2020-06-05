@@ -28,7 +28,7 @@ public class KnimeTestRunner extends BlockJUnit4ClassRunner {
      */
     public KnimeTestRunner(final Class<?> klass) throws InitializationError {
         super(loadTestClass(klass.getName()));
-        final Runnable  init = loadRunnable(TestInitializer.class.getName());
+        final Runnable  init = loadRunnable(KnimeRuntimeInitializer.class.getName());
         init.run();
     }
     private Runnable loadRunnable(final String name) {

@@ -160,7 +160,8 @@ public class Neo4jSupport {
 
             final AsyncRunnerLauncher<Void, WithSessionRunnable<Void>> runner = new AsyncRunnerLauncher<>(r -> {
                 runWithSession(driver, r);
-                return null;
+                //return empty result
+                return new RunResult<>();
             });
             runner.setStopOnQueryFailure(true);
             runner.run(runs, runs.size());
