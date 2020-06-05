@@ -66,10 +66,10 @@ import se.redfield.knime.neo4j.connector.NamedWithProperties;
 import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
 import se.redfield.knime.neo4j.db.LabelsAndFunctions;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
-import se.redfield.knime.neo4j.ui.FunctionDescRenderer;
-import se.redfield.knime.neo4j.ui.ListClickListener;
 import se.redfield.knime.neo4j.ui.NamedValueRenderer;
+import se.redfield.knime.neo4j.ui.OnClickInserter;
 import se.redfield.knime.neo4j.ui.SplitPanelExt;
+import se.redfield.knime.neo4j.ui.UiUtils;
 import se.redfield.knime.neo4j.ui.ValueInsertHandler;
 import se.redfield.knime.neo4j.ui.WithStringIconCellRenderer;
 import se.redfield.knime.neo4j.utils.FlowVariablesProvider;
@@ -209,7 +209,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
     }
 
     private JPanel createRefreshButton() {
-        final ImageIcon icon = new ImageIcon(ReaderDialog.class.getResource("refresh.png"));
+        final ImageIcon icon = UiUtils.createRefreshIcon();
         final JButton b = new JButton();
         b.setIcon(icon);
 
@@ -268,7 +268,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
         nodesContainer.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), title));
 
         named.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        named.addMouseListener(new ListClickListener<NamedWithProperties>(named, handler));
+        named.addMouseListener(new OnClickInserter<NamedWithProperties>(named, handler));
         nodesContainer.add(named, BorderLayout.CENTER);
 
         named.setCellRenderer(new NamedValueRenderer());
@@ -298,7 +298,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
         p.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Flow variables"));
 
         flowVariables.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        flowVariables.addMouseListener(new ListClickListener<FlowVariable>(
+        flowVariables.addMouseListener(new OnClickInserter<FlowVariable>(
                 flowVariables, v -> insertToScript("${{" + v.getName() + "}}")));
         flowVariables.setCellRenderer(new FlowVariableListCellRenderer());
         p.add(new JScrollPane(flowVariables), BorderLayout.CENTER);
@@ -318,7 +318,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
             final ValueInsertHandler<T> h) {
         final JList<T> list = new JList<T>(listModel);
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        list.addMouseListener(new ListClickListener<T>(list, h));
+        list.addMouseListener(new OnClickInserter<T>(list, h));
         return list;
     }
     private JPanel createFunctions() {
@@ -332,7 +332,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
         p.add(funcDescription, BorderLayout.CENTER);
 
         functions.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        functions.addMouseListener(new ListClickListener<FunctionDesc>(functions,
+        functions.addMouseListener(new OnClickInserter<FunctionDesc>(functions,
                 v -> insertToScript(v.getName())));
         functions.getSelectionModel().addListSelectionListener(e -> {
             final int index = functions.getSelectedIndex();
@@ -342,7 +342,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
             }
         });
 
-        functions.setCellRenderer(new FunctionDescRenderer());
+        functions.setCellRenderer(new NamedValueRenderer());
         p.add(new JScrollPane(functions), BorderLayout.WEST);
 
         return p;

@@ -41,7 +41,7 @@ public class HashGenerator {
             for (int i = 0; i < bytes.length; i++) {
                 sb.append(Integer.toString((bytes[i] & 0xff) + 0x100, 16).substring(1));
             }
-            // Get complete hashed password in hex format
+            // Get complete hashed string in hex format
             hash = sb.toString();
         } catch (final NoSuchAlgorithmException e) {
             throw new RuntimeException(e);

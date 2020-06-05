@@ -48,10 +48,11 @@ import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.db.AsyncRunnerLauncher;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
-import se.redfield.knime.neo4j.db.ScriptResult;
+import se.redfield.knime.neo4j.db.RunResult;
 import se.redfield.knime.neo4j.json.JsonBuilder;
 import se.redfield.knime.neo4j.utils.FlowVariablesProvider;
 import se.redfield.knime.neo4j.utils.ModelUtils;
+import se.redfield.knime.neo4j.utils.ThransactionWithSession;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -214,7 +215,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
      * @param trs map of transactions.
      * @return
      */
-    private ScriptResult<String> runScriptInAsyncContext(final Driver driver, final String script,
+    private RunResult<String> runScriptInAsyncContext(final Driver driver, final String script,
             final Map<Long, ThransactionWithSession> trs) {
         //get ID of current worker thread
         final long threadId = Thread.currentThread().getId();
@@ -250,7 +251,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
             //immediately because transaction is not supplied
             if (!config.isStopOnQueryFailure()) {
                 tr.rollbackAndClose();
-                return new ScriptResult<String>(createErrorJson(e.getMessage()), e);
+                return new RunResult<String>(createErrorJson(e.getMessage()), e);
             } else {
                 throw e;
             }
@@ -258,7 +259,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
 
         //build JSON result from records.
         final String result = createSuccessJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
-        return new ScriptResult<String>(result);
+        return new RunResult<String>(result);
     }
 
     private String runSingleScript(final Driver driver, final String script) {

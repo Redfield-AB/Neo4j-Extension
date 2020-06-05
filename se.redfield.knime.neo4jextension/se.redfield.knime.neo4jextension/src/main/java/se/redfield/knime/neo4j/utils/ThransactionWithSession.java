@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4j.writer;
+package se.redfield.knime.neo4j.utils;
 
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Transaction;

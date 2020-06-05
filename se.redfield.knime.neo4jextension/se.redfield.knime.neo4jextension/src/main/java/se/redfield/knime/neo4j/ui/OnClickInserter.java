@@ -13,11 +13,15 @@ import javax.swing.JList;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class ListClickListener<T> extends MouseAdapter {
+public class OnClickInserter<T> extends MouseAdapter {
     private final JList<T> list;
     private final ValueInsertHandler<T> handler;
 
-    public ListClickListener(final JList<T> list, final ValueInsertHandler<T> h) {
+    /**
+     * @param list listened list of values.
+     * @param h event handler.
+     */
+    public OnClickInserter(final JList<T> list, final ValueInsertHandler<T> h) {
         super();
         this.list = list;
         this.handler = h;
@@ -34,6 +38,13 @@ public class ListClickListener<T> extends MouseAdapter {
             }
         }
     }
+    /**
+     * @param list list of values.
+     * @param x x mouse coordinate
+     * @param y y mouse coordinate
+     * @return index of element which is clicked on. Or -1 if is clicked outside of any
+     * element.
+     */
     public static int indexOfUnderlyingElement(final JList<?> list, final int x, final int y) {
         final int size = list.getModel().getSize();
         for (int i = 0; i < size; i++) {

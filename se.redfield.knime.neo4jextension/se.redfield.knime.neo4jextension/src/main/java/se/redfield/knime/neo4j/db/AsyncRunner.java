@@ -16,5 +16,5 @@ public interface AsyncRunner<R, V> {
      * as simple throw it. It will correct catch and converted to script result with
      * exception and null result.
      */
-    ScriptResult<R> run(V arg) throws Exception;
+    RunResult<R> run(V arg) throws Exception;
 }

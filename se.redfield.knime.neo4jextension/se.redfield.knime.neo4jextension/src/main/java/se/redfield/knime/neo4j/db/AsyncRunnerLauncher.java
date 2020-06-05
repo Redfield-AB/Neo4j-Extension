@@ -93,7 +93,7 @@ public class AsyncRunnerLauncher<R, A> {
                 next = source.next();
             }
 
-            final ScriptResult<R> result = runScript(next.getArgument());
+            final RunResult<R> result = runScript(next.getArgument());
 
             synchronized (results) {
                 results.put((long) next.getNumber(), result.getResult());
@@ -108,11 +108,11 @@ public class AsyncRunnerLauncher<R, A> {
         }
     }
 
-    protected ScriptResult<R> runScript(final A script) {
+    protected RunResult<R> runScript(final A script) {
         try {
             return runner.run(script);
         } catch (final Throwable e) {
-            final ScriptResult<R> res = new ScriptResult<>();
+            final RunResult<R> res = new RunResult<>();
             res.setException(e);
             return res;
         }

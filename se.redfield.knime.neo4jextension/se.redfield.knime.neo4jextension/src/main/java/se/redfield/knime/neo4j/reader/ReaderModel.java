@@ -42,7 +42,7 @@ import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.db.AsyncRunnerLauncher;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
-import se.redfield.knime.neo4j.db.ScriptResult;
+import se.redfield.knime.neo4j.db.RunResult;
 import se.redfield.knime.neo4j.json.JsonBuilder;
 import se.redfield.knime.neo4j.table.DataTableImpl;
 import se.redfield.knime.neo4j.table.Neo4jTableOutputSupport;
@@ -137,7 +137,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
 
         try {
             final AsyncRunnerLauncher<String, String> runner = new AsyncRunnerLauncher<>(
-                    r -> new ScriptResult<String>(runSingleScript(driver, r)));
+                    r -> new RunResult<String>(runSingleScript(driver, r)));
             runner.setStopOnQueryFailure(config.isStopOnQueryFailure());
             results = runner.run(scripts,
                     neo4j.getConfig().getAdvancedSettings().getMaxConnectionPoolSize());

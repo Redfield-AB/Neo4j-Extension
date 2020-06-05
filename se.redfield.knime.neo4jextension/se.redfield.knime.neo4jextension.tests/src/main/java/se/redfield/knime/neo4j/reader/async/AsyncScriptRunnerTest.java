@@ -16,7 +16,7 @@ import org.junit.Test;
 
 import junit.framework.AssertionFailedError;
 import se.redfield.knime.neo4j.db.AsyncRunnerLauncher;
-import se.redfield.knime.neo4j.db.ScriptResult;
+import se.redfield.knime.neo4j.db.RunResult;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -28,7 +28,7 @@ public class AsyncScriptRunnerTest extends AsyncRunnerLauncher<String, String> {
 
     public AsyncScriptRunnerTest() {
         super();
-        setRunner(s -> new ScriptResult<String>(runScriptImpl(s)));
+        setRunner(s -> new RunResult<String>(runScriptImpl(s)));
     }
 
     @Test
