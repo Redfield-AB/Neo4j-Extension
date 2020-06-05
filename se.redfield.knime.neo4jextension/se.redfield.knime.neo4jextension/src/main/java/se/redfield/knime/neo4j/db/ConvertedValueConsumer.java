@@ -103,13 +103,13 @@ public interface ConvertedValueConsumer {
                     .atZone(ZoneId.systemDefault())
                     .toLocalDateTime();
                 acceptLocalDateTime(ldt);
-            //unknown as string
             } else {
                 acceptUndefined(value);
             }
         }
     }
     default void acceptUndefined(final Object value) {
+        //by default undefined value is handled as the string
         acceptString(String.valueOf(value));
     }
     Neo4jDataConverter getConverter();

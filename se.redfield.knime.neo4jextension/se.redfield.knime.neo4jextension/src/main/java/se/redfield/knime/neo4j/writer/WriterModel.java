@@ -45,10 +45,10 @@ import org.neo4j.driver.Transaction;
 
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
-import se.redfield.knime.neo4j.db.AsyncResult;
-import se.redfield.knime.neo4j.db.AsyncScriptRunner;
+import se.redfield.knime.neo4j.db.AsyncRunnerLauncher;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
+import se.redfield.knime.neo4j.db.ScriptResult;
 import se.redfield.knime.neo4j.json.JsonBuilder;
 import se.redfield.knime.neo4j.utils.FlowVariablesProvider;
 import se.redfield.knime.neo4j.utils.ModelUtils;
@@ -178,7 +178,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
         //create thread ID to transaction map.
         final Map<Long, ThransactionWithSession> transactions = new HashMap<>();
 
-        final AsyncScriptRunner<String> runner = new AsyncScriptRunner<>(
+        final AsyncRunnerLauncher<String, String> runner = new AsyncRunnerLauncher<>(
                 s -> runScriptInAsyncContext(driver, s, transactions));
         runner.setStopOnQueryFailure(config.isStopOnQueryFailure());
 
@@ -214,7 +214,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
      * @param trs map of transactions.
      * @return
      */
-    private AsyncResult<String> runScriptInAsyncContext(final Driver driver, final String script,
+    private ScriptResult<String> runScriptInAsyncContext(final Driver driver, final String script,
             final Map<Long, ThransactionWithSession> trs) {
         //get ID of current worker thread
         final long threadId = Thread.currentThread().getId();
@@ -250,7 +250,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
             //immediately because transaction is not supplied
             if (!config.isStopOnQueryFailure()) {
                 tr.rollbackAndClose();
-                return new AsyncResult<String>(createErrorJson(e.getMessage()), e);
+                return new ScriptResult<String>(createErrorJson(e.getMessage()), e);
             } else {
                 throw e;
             }
@@ -258,7 +258,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
 
         //build JSON result from records.
         final String result = createSuccessJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
-        return new AsyncResult<String>(result);
+        return new ScriptResult<String>(result);
     }
 
     private String runSingleScript(final Driver driver, final String script) {

@@ -13,20 +13,20 @@ import java.util.Map;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class AsyncScriptRunner<R> {
+public class AsyncRunnerLauncher<R, A> {
     private boolean stopOnQueryFailure;
     private boolean hasErrors;
-    private SingleScriptRunner<R> runner;
+    private AsyncRunner<R, A> runner;
 
-    public AsyncScriptRunner(final SingleScriptRunner<R> runner) {
+    public AsyncRunnerLauncher(final AsyncRunner<R, A> runner) {
         super();
         this.runner = runner;
     }
     //just for unit tests
-    protected AsyncScriptRunner() {
+    protected AsyncRunnerLauncher() {
         super();
     }
-    protected void setRunner(final SingleScriptRunner<R> runner) {
+    protected void setRunner(final AsyncRunner<R, A> runner) {
         this.runner = runner;
     }
 
@@ -38,22 +38,22 @@ public class AsyncScriptRunner<R> {
     }
 
     /**
-     * @param scripts list of scripts to execute.
+     * @param arguments list of arguments to execute.
      * @param originMumThreads number of threads.
      * @return map of execution results to its position in origin list.
      */
-    public Map<Long, R> run(final List<String> scripts, final int originMumThreads) {
-        if (scripts.isEmpty()) {
+    public Map<Long, R> run(final List<A> arguments, final int originMumThreads) {
+        if (arguments.isEmpty()) {
             return new HashMap<>();
         }
 
-        final int numThreads = Math.min(scripts.size(), originMumThreads);
+        final int numThreads = Math.min(arguments.size(), originMumThreads);
         if (numThreads < 1) {
             throw new IllegalArgumentException("Number of threads " + numThreads + " < 1");
         }
 
         final int[] numThreadsHolder = {numThreads};
-        final Iterator<NumberedString> iter = createNumberedIterator(scripts);
+        final Iterator<NumberedArgument<A>> iter = createNumberedIterator(arguments);
         final Map<Long, R> result = new HashMap<>();
 
         synchronized (numThreadsHolder) {
@@ -73,19 +73,19 @@ public class AsyncScriptRunner<R> {
         return result;
     }
 
-    private Iterator<NumberedString> createNumberedIterator(final List<String> scripts) {
+    private Iterator<NumberedArgument<A>> createNumberedIterator(final List<A> args) {
         int pos = 0;
-        final List<NumberedString> result = new LinkedList<>();
-        for (final String script : scripts) {
-            result.add(new NumberedString(pos, script));
+        final List<NumberedArgument<A>> result = new LinkedList<>();
+        for (final A arg : args) {
+            result.add(new NumberedArgument<A>(pos, arg));
             pos++;
         }
         return result.iterator();
     }
 
-    private void runScripts(final Iterator<NumberedString> source, final Map<Long, R> results) {
+    private void runScripts(final Iterator<NumberedArgument<A>> source, final Map<Long, R> results) {
         while (true) {
-            NumberedString next;
+            NumberedArgument<A> next;
             synchronized (results) {
                 if (!source.hasNext()) {
                     return;
@@ -93,7 +93,7 @@ public class AsyncScriptRunner<R> {
                 next = source.next();
             }
 
-            final AsyncResult<R> result = runScript(next.getString());
+            final ScriptResult<R> result = runScript(next.getArgument());
 
             synchronized (results) {
                 results.put((long) next.getNumber(), result.getResult());
@@ -108,19 +108,17 @@ public class AsyncScriptRunner<R> {
         }
     }
 
-    protected AsyncResult<R> runScript(final String script) {
+    protected ScriptResult<R> runScript(final A script) {
         try {
             return runner.run(script);
         } catch (final Throwable e) {
-            // runner should not throw exception
-            // but need to catch it in any case
-            final AsyncResult<R> res = new AsyncResult<>();
+            final ScriptResult<R> res = new ScriptResult<>();
             res.setException(e);
             return res;
         }
     }
 
-    private void readToEnd(final Iterator<NumberedString> iter) {
+    private void readToEnd(final Iterator<NumberedArgument<A>> iter) {
         while (iter.hasNext()) {
             iter.next();
         }

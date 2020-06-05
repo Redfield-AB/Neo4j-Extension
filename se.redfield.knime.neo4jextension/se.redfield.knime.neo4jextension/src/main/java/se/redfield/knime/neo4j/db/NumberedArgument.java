@@ -7,18 +7,18 @@ package se.redfield.knime.neo4j.db;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class NumberedString {
+class NumberedArgument<A> {
     private final int number;
-    private final String string;
-    public NumberedString(final int num, final String string) {
+    private final A argument;
+    public NumberedArgument(final int num, final A arg) {
         super();
         this.number = num;
-        this.string = string;
+        this.argument = arg;
     }
     public int getNumber() {
         return number;
     }
-    public String getString() {
-        return string;
+    public A getArgument() {
+        return argument;
     }
 }

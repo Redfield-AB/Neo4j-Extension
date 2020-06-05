@@ -68,7 +68,7 @@ import se.redfield.knime.neo4j.db.LabelsAndFunctions;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.ui.FunctionDescRenderer;
 import se.redfield.knime.neo4j.ui.ListClickListener;
-import se.redfield.knime.neo4j.ui.NamedWithPropertiesRenderer;
+import se.redfield.knime.neo4j.ui.NamedValueRenderer;
 import se.redfield.knime.neo4j.ui.SplitPanelExt;
 import se.redfield.knime.neo4j.ui.ValueInsertHandler;
 import se.redfield.knime.neo4j.ui.WithStringIconCellRenderer;
@@ -271,7 +271,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
         named.addMouseListener(new ListClickListener<NamedWithProperties>(named, handler));
         nodesContainer.add(named, BorderLayout.CENTER);
 
-        named.setCellRenderer(new NamedWithPropertiesRenderer());
+        named.setCellRenderer(new NamedValueRenderer());
         named.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 final int index = named.getSelectedIndex();

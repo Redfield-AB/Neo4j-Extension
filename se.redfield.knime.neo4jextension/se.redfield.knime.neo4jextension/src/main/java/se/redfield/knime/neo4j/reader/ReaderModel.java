@@ -35,15 +35,14 @@ import org.knime.core.node.port.PortType;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
-import org.neo4j.driver.summary.Notification;
 import org.neo4j.driver.util.Pair;
 
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
-import se.redfield.knime.neo4j.db.AsyncResult;
-import se.redfield.knime.neo4j.db.AsyncScriptRunner;
+import se.redfield.knime.neo4j.db.AsyncRunnerLauncher;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
+import se.redfield.knime.neo4j.db.ScriptResult;
 import se.redfield.knime.neo4j.json.JsonBuilder;
 import se.redfield.knime.neo4j.table.DataTableImpl;
 import se.redfield.knime.neo4j.table.Neo4jTableOutputSupport;
@@ -55,6 +54,7 @@ import se.redfield.knime.neo4j.utils.ModelUtils;
  *
  */
 public class ReaderModel extends NodeModel implements FlowVariablesProvider {
+    private static final String NOT_READ_ONLY_ERROR = "Query has not only read actions therefore transaction is rolled back";
     public static final String SOME_QUERIES_ERROR = "Some queries were not successfully executed.";
     private ReaderConfig config;
 
@@ -136,8 +136,8 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         final Map<Long, String> results;
 
         try {
-            final AsyncScriptRunner<String> runner = new AsyncScriptRunner<String>(
-                    r -> new AsyncResult<String>(runSingleScript(driver, r)));
+            final AsyncRunnerLauncher<String, String> runner = new AsyncRunnerLauncher<>(
+                    r -> new ScriptResult<String>(runSingleScript(driver, r)));
             runner.setStopOnQueryFailure(config.isStopOnQueryFailure());
             results = runner.run(scripts,
                     neo4j.getConfig().getAdvancedSettings().getMaxConnectionPoolSize());
@@ -184,7 +184,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
             List<Record> records;
             try {
                 records = Neo4jSupport.runRead(driver, ModelUtils.insertFlowVariables(config.getScript(), this),
-                        n -> warning[0] = buildWarning(n));
+                        () -> warning[0] = NOT_READ_ONLY_ERROR);
                 if (warning[0] != null) {
                     setWarningMessage(warning[0]);
                 }
@@ -210,26 +210,6 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         }
 
         return table;
-    }
-
-    public static String buildWarning(final List<Notification> notifs) {
-        final StringBuilder sb = new StringBuilder();
-        if (notifs != null && !notifs.isEmpty()) {
-            for (final Notification n : notifs) {
-                final String desc = n.description();
-                if (desc != null) {
-                    if (sb.length() > 0) {
-                        sb.append(", ");
-                    }
-                    sb.append(desc);
-                }
-            }
-        }
-
-        if (sb.length() == 0){
-            sb.append("Query has not only read actions therefore transaction is rolled back");
-        }
-        return sb.toString();
     }
 
     private DataTable createEmptyTable() {

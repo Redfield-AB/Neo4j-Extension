@@ -8,8 +8,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.AbstractExecutorService;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import org.knime.core.node.InvalidSettingsException;
@@ -32,7 +30,6 @@ import se.redfield.knime.neo4j.connector.cfg.AdvancedSettings;
 import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
 import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
 import se.redfield.knime.neo4j.connector.cfg.SslTrustStrategy;
-import se.redfield.knime.neo4j.utils.ThreadPool;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -55,20 +52,12 @@ public class Neo4jSupport {
                 if (summary.queryType() != QueryType.READ_ONLY) {
                     tx.rollback();
                     if (l != null) {
-                        l.isRolledBack(summary.notifications());
+                        l.isRolledBack();
                     }
                 }
                 return list;
             });
         });
-    }
-    public <R> R runWithDriver(final WithDriverRunnable<R> r) {
-        final Driver driver = createDriver();
-        try {
-            return r.run(driver);
-        } finally {
-            driver.close();
-        }
     }
     public static <R> R runWithSession(final Driver driver, final WithSessionRunnable<R> r) {
         final Session s = driver.session();
@@ -77,66 +66,6 @@ public class Neo4jSupport {
         } finally {
             s.close();
         }
-    }
-    public void runAndWait(final List<WithSessionAsyncRunnable<Void>> runs) throws Exception {
-        final AbstractExecutorService executor = ThreadPool.getExecutor();
-        final Driver driver = createDriver();
-
-        final List<Exception> errors = new LinkedList<>();
-        final List<Callable<Void>> tasks = new ArrayList<Callable<Void>>(runs.size());
-        for (final WithSessionAsyncRunnable<Void> r : runs) {
-            //create callables
-            final Callable<Void> c = () -> {
-                final Session s = driver.session();
-                try {
-                    r.run(s);
-                } catch (final Exception e) {
-                    errors.add(e);
-                } finally {
-                    s.close();
-                }
-                return null;
-            };
-
-            tasks.add(c);
-        }
-
-        try {
-            try {
-                executor.invokeAll(tasks);
-            } catch (final InterruptedException e) {
-                e.printStackTrace();
-            }
-        } finally {
-            driver.close();
-        }
-
-        if (!errors.isEmpty()) {
-            final Exception exc = errors.remove(0);
-            for (final Exception e : errors) {
-                exc.addSuppressed(e);
-            }
-
-            throw exc;
-        }
-    }
-    public void runAsync(final WithSessionRunnable<Void> run) {
-        final AbstractExecutorService executor = ThreadPool.getExecutor();
-        final Driver driver = createDriver();
-
-        //create callables
-        final Callable<Void> c = () -> {
-            final Session s = driver.session();
-            try {
-                run.run(s);
-            } finally {
-                s.close();
-                driver.close();
-            }
-            return null;
-        };
-
-        executor.submit(c);
     }
     public Driver createDriver() {
         return createDriver(config);
@@ -216,22 +145,34 @@ public class Neo4jSupport {
         return s;
     }
     public LabelsAndFunctions loadLabesAndFunctions() throws Exception {
-        final LabelsAndFunctions data = new LabelsAndFunctions();
-
-        final List<WithSessionAsyncRunnable<Void>> runs = new ArrayList<>(3);
-
         final Map<String, NamedWithProperties> nodes = new HashMap<>();
         final Map<String, NamedWithProperties> relationships = new HashMap<>();
         final List<FunctionDesc> functions = new LinkedList<>();
 
-        runs.add(s -> loadNamedWithProperties(s, "call db.labels()", nodes));
-        runs.add(s -> loadNodeLabelPropertiess(s, nodes));
-        runs.add(s -> loadNamedWithProperties(s, "call db.relationshipTypes()", relationships));
-        runs.add(s -> loadRelationshipProperties(s, relationships));
-        runs.add(s -> loadFunctions(s, functions));
+        final Driver driver = createDriver();
+        try {
+            final List<WithSessionRunnable<Void>> runs = new ArrayList<>(3);
+            runs.add(s -> loadNamedWithProperties(s, "call db.labels()", nodes));
+            runs.add(s -> loadNodeLabelPropertiess(s, nodes));
+            runs.add(s -> loadNamedWithProperties(s, "call db.relationshipTypes()", relationships));
+            runs.add(s -> loadRelationshipProperties(s, relationships));
+            runs.add(s -> loadFunctions(s, functions));
 
-        runAndWait(runs);
+            final AsyncRunnerLauncher<Void, WithSessionRunnable<Void>> runner = new AsyncRunnerLauncher<>(r -> {
+                runWithSession(driver, r);
+                return null;
+            });
+            runner.setStopOnQueryFailure(true);
+            runner.run(runs, runs.size());
 
+            if (runner.hasErrors()) {
+                throw new Exception("Failed to read Neo4j DB metadata");
+            }
+        } finally {
+            driver.closeAsync();
+        }
+
+        final LabelsAndFunctions data = new LabelsAndFunctions();
         data.getNodes().addAll(new LinkedList<NamedWithProperties>(nodes.values()));
         data.getRelationships().addAll(new LinkedList<NamedWithProperties>(relationships.values()));
         data.getFunctions().addAll(functions);
@@ -239,7 +180,7 @@ public class Neo4jSupport {
         return data;
     }
 
-    private void loadNamedWithProperties(final Session s, final String query,
+    private Void loadNamedWithProperties(final Session s, final String query,
             final Map<String, NamedWithProperties> map) {
         final List<Record> result = s.readTransaction(tx -> tx.run(query).list());
         for (final Record r : result) {
@@ -250,8 +191,9 @@ public class Neo4jSupport {
                 }
             }
         }
+        return null;
     }
-    private void loadNodeLabelPropertiess(final Session s, final Map<String, NamedWithProperties> map) {
+    private Void loadNodeLabelPropertiess(final Session s, final Map<String, NamedWithProperties> map) {
         final List<Record> result = s.readTransaction(tx -> tx.run(
                 "call db.schema.nodeTypeProperties()").list());
         for (final Record r : result) {
@@ -275,9 +217,10 @@ public class Neo4jSupport {
                 }
             }
         }
+        return null;
     }
 
-    private void loadRelationshipProperties(final Session s, final Map<String, NamedWithProperties> map) {
+    private Void loadRelationshipProperties(final Session s, final Map<String, NamedWithProperties> map) {
         final List<Record> result = s.readTransaction(tx -> tx.run(
                 "call db.schema.relTypeProperties()").list());
         for (final Record r : result) {
@@ -300,8 +243,9 @@ public class Neo4jSupport {
                 n.getProperties().add(property);
             }
         }
+        return null;
     }
-    private void loadFunctions(final Session s, final List<FunctionDesc> functions) {
+    private Void loadFunctions(final Session s, final List<FunctionDesc> functions) {
         final List<Record> result = s.readTransaction(tx -> tx.run(
                 "call dbms.functions()").list());
         for (final Record r : result) {
@@ -311,6 +255,7 @@ public class Neo4jSupport {
             f.setDescription(r.get("description").asString());
             functions.add(f);
         }
+        return null;
     }
     public ConnectorConfig getConfig() {
         return config;

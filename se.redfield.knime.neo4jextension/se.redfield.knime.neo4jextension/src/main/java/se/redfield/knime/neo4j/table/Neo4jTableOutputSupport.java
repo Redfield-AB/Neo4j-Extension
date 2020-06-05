@@ -5,6 +5,7 @@ package se.redfield.knime.neo4j.table;
 
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataType;
+import org.knime.core.data.def.StringCell;
 import org.neo4j.driver.Value;
 
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
@@ -38,7 +39,8 @@ public class Neo4jTableOutputSupport {
             }
         };
         converter.convert(v, f);
-        return ref[0];
+        final DataType type = ref[0];
+        return type == null ? StringCell.TYPE : type;
     }
     /**
      * @param value value.

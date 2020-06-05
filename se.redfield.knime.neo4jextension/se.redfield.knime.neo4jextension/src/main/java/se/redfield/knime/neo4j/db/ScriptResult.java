@@ -7,20 +7,20 @@ package se.redfield.knime.neo4j.db;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class AsyncResult<R> {
+public class ScriptResult<R> {
     private R result;
     private Throwable exception;
 
     /**
      * Default constructor.
      */
-    public AsyncResult() {
+    public ScriptResult() {
         super();
     }
     /**
      * @param result result.
      */
-    public AsyncResult(final R result) {
+    public ScriptResult(final R result) {
         super();
         setResult(result);
     }
@@ -28,7 +28,7 @@ public class AsyncResult<R> {
      * @param result
      * @param e exception.
      */
-    public AsyncResult(final R result, final RuntimeException e) {
+    public ScriptResult(final R result, final RuntimeException e) {
         super();
         setResult(result);
         setException(e);

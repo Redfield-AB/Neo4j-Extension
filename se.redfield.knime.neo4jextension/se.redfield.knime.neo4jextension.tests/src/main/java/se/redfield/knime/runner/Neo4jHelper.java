@@ -36,8 +36,6 @@ public final class Neo4jHelper {
         cfg.getAuth().setPrincipal(DBUSER);
         cfg.getAuth().setCredentials(PASSWORD);
 
-        //create support
-
         //create driver
         final Neo4jSupport s = new Neo4jSupport(cfg);
         return s.createDriver();
