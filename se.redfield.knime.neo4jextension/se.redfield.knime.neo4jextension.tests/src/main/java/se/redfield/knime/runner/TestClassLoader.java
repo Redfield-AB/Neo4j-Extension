@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.table.runner;
+package se.redfield.knime.runner;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -15,6 +15,8 @@ import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleReference;
 
 /**
+ * Test class loader disables certificate check during class loading.
+ *
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
@@ -83,7 +85,7 @@ class TestClassLoader extends URLClassLoader implements BundleReference {
     /**
      * @param loader class loader to disable certificate verification
      */
-    private static void fixClassLoader(final ClassLoader loader) {
+    public static void fixClassLoader(final ClassLoader loader) {
         try {
             final Field p2c = ClassLoader.class.getDeclaredField("package2certs");
             setFieldNotFinal(p2c);

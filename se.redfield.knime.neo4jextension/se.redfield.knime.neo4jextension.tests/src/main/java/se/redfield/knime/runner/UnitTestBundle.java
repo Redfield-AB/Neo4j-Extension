@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.table.runner;
+package se.redfield.knime.runner;
 
 import java.io.File;
 import java.io.IOException;

@@ -8,6 +8,7 @@ import static org.junit.Assert.assertNotNull;
 
 import java.util.List;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -21,16 +22,17 @@ import junit.framework.AssertionFailedError;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.table.Neo4jTableOutputSupport;
-import se.redfield.knime.table.runner.Neo4JTestContext;
-import se.redfield.knime.table.runner.Neo4jTestRunner;
+import se.redfield.knime.runner.Neo4jHelper;
+import se.redfield.knime.runner.KnimeTestRunner;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-@RunWith(Neo4jTestRunner.class)
+@RunWith(KnimeTestRunner.class)
 public class Neo4jTableOutputSupportTest {
     private Neo4jTableOutputSupport support;
+    private Driver driver;
 
     /**
      * Default constructor.
@@ -41,8 +43,14 @@ public class Neo4jTableOutputSupportTest {
 
     @Before
     public void setUp() {
-        support = new Neo4jTableOutputSupport(new Neo4jDataConverter(getDriver().defaultTypeSystem()));
+        driver = Neo4jHelper.createDriver();
+        support = new Neo4jTableOutputSupport(new Neo4jDataConverter(driver.defaultTypeSystem()));
     }
+    @After
+    public void tearDown() {
+        driver.close();
+    }
+
     @Test
     public void testDatesInMap() {
         final String query = "UNWIND [\n" +
@@ -92,9 +100,6 @@ public class Neo4jTableOutputSupportTest {
     }
 
     private List<Record> run(final String query) {
-        return Neo4jSupport.runRead(getDriver(), query, null);
-    }
-    private Driver getDriver() {
-        return Neo4JTestContext.getCurrent().getDriver();
+        return Neo4jSupport.runRead(driver, query, null);
     }
 }

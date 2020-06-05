@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.table.runner;
+package se.redfield.knime.runner;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -19,9 +19,6 @@ import org.osgi.util.tracker.ServiceTracker;
  */
 @SuppressWarnings("restriction")
 class TestInitializer implements Runnable {
-    private static final String DBUSER = "neo4j";
-    private static final String PASSWORD = "password";
-    private static final String URL = "bolt://localhost:7687";
     private static final ConfigValues configVars = new ConfigValues(new HashMap<>());
 
     /**
@@ -33,11 +30,10 @@ class TestInitializer implements Runnable {
     @Override
     public void run() {
         initLog4j();
-        initNeo4j();
         try {
             hackKnime();
         } catch (final Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
     private void initLog4j() {
@@ -66,7 +62,7 @@ class TestInitializer implements Runnable {
      * @param workDir
      * @return
      */
-    private  ServiceTracker<Location,Location> createLocationServiceTracker(
+    private ServiceTracker<Location,Location> createLocationServiceTracker(
             final String property, final String workDir)
             throws Exception {
         final ServiceTracker<Location, Location> st = new ServiceTracker<Location, Location>(
@@ -108,9 +104,5 @@ class TestInitializer implements Runnable {
     private Class<?> getEclipsePlatformImplClass() throws Exception {
         return TestInitializer.class.getClassLoader().loadClass(
                 "org.eclipse.core.internal.runtime.InternalPlatform");
-    }
-    private void initNeo4j() {
-        final Neo4JTestContext ctxt = new Neo4JTestContext(URL, DBUSER, PASSWORD);
-        Neo4JTestContext.setCurrent(ctxt);
     }
 }
