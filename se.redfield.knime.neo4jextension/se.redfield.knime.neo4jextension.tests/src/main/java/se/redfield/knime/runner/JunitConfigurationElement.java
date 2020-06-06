@@ -122,7 +122,7 @@ public class JunitConfigurationElement implements IConfigurationElement {
 
     @Override
     public IContributor getContributor() throws InvalidRegistryObjectException {
-        return null;
+        return JUnitContributor.INSTANCE;
     }
 
     @Override

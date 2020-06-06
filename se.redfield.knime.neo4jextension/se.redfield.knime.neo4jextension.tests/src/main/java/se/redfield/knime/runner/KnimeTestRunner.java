@@ -10,12 +10,9 @@ import org.junit.runners.model.InitializationError;
 
 /**
  * Warning!!!
- * This is development scope test runner. Please not use it as part of serious
- * tests for covering the project.
- * This runner minimally populates an Eclipse and Knime classes for be possible
- * run simple classes without run heavy Eclipse Plugin Tests.
- * The runner uses reflection mechanism and may stop be actual. Please remove it
- * in this case and also remove the tests which use it.
+ * This test runner is in fact hacking. I know it, but it is better to use fast
+ * unit test then use standard Eclipse Test runner. It saves your time.
+ * If anything did stop to work, please debug it and correct KNime initialization.
  *
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *

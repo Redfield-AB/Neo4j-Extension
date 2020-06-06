@@ -44,7 +44,7 @@ class JUnitExtensionPoint implements IExtensionPoint {
     }
     @Override
     public IContributor getContributor() throws InvalidRegistryObjectException {
-        return null;
+        return JUnitContributor.INSTANCE;
     }
     @Override
     public JUnitExtension getExtension(final String extensionId) throws InvalidRegistryObjectException {

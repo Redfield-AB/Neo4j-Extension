@@ -38,7 +38,7 @@ class JUnitExtension implements IExtension {
     }
     @Override
     public IContributor getContributor() throws InvalidRegistryObjectException {
-        return null;
+        return JUnitContributor.INSTANCE;
     }
     @Override
     public String getExtensionPointUniqueIdentifier() throws InvalidRegistryObjectException {

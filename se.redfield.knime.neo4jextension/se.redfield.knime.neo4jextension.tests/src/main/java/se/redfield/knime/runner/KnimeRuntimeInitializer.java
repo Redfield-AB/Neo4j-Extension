@@ -15,6 +15,7 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.osgi.internal.framework.EquinoxConfiguration.ConfigValues;
 import org.eclipse.osgi.internal.location.BasicLocation;
 import org.eclipse.osgi.service.datalocation.Location;
+import org.knime.core.data.container.DefaultTableStoreFormat;
 import org.osgi.util.tracker.ServiceTracker;
 
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
@@ -69,11 +70,28 @@ class KnimeRuntimeInitializer implements Runnable {
         final JUnitExtensionRegistry reg = new JUnitExtensionRegistry();
 
         //add connector port extension
-        final JUnitExtensionPoint point = reg.getExtensionPoint(JUnitExtensionRegistry.PORT_TYPE);
+        final JUnitExtension connectorPort = new JUnitExtension();
+        addConnectorPortObject(connectorPort);
 
-        final JUnitExtension ext = new JUnitExtension();
-        point.addExtension("neo4j-connector-port", ext);
+        final JUnitExtension tableStoreFormat = new JUnitExtension();
+        addDefaultFormat(tableStoreFormat);
 
+        reg.getExtensionPoint(JUnitExtensionRegistry.PORT_TYPE).addExtension(
+                "neo4j-connector-port", connectorPort);
+        reg.getExtensionPoint(JUnitExtensionRegistry.TABLE_FORMAT).addExtension(
+                "table-store-format", tableStoreFormat);
+
+        RegistryProviderFactory.setDefault(new RegistryProviderOSGI(reg));
+    }
+    private void addDefaultFormat(final JUnitExtension ext) {
+        final JunitConfigurationElement e = new JunitConfigurationElement();
+        e.putAttribute("formatDefinition", DefaultTableStoreFormat.class.getName());
+        e.putAttribute("objectClass", DefaultTableStoreFormat.class.getName());
+        e.putAttribute("formatDefinition", DefaultTableStoreFormat.class.getName());
+
+        ext.addConfigurationElement(e);
+    }
+    private void addConnectorPortObject(final JUnitExtension ext) {
         final JunitConfigurationElement e = new JunitConfigurationElement();
         e.putAttribute("color", "red");
         e.putAttribute("hidden", "false");
@@ -84,8 +102,6 @@ class KnimeRuntimeInitializer implements Runnable {
         e.putAttribute("specSerializer", ConnectorSpecSer.class.getName());
 
         ext.addConfigurationElement(e);
-
-        RegistryProviderFactory.setDefault(new RegistryProviderOSGI(reg));
     }
     private void setLocationToPlatformInstance(final String fieldName,
             final String workDir) throws Exception {

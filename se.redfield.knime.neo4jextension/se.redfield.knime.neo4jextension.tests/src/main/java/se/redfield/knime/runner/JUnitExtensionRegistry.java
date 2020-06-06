@@ -24,6 +24,8 @@ import org.eclipse.core.runtime.IRegistryEventListener;
  *
  */
 class JUnitExtensionRegistry implements IExtensionRegistry {
+    public static final String TABLE_FORMAT = "org.knime.core.TableFormat";
+    public static final String COLUMN_META_DATA = "org.knime.core.DataColumnMetaDataType";
     public static final String PORT_TYPE = "org.knime.core.PortType";
 
     private final Map<String, JUnitExtensionPoint> extensionPoints = new HashMap<>();
@@ -33,9 +35,10 @@ class JUnitExtensionRegistry implements IExtensionRegistry {
      */
     public JUnitExtensionRegistry() {
         super();
-        final JUnitExtensionPoint p = new JUnitExtensionPoint();
         //add extension points
-        extensionPoints.put(PORT_TYPE, p);
+        extensionPoints.put(PORT_TYPE, new JUnitExtensionPoint());
+        extensionPoints.put(COLUMN_META_DATA, new JUnitExtensionPoint());
+        extensionPoints.put(TABLE_FORMAT, new JUnitExtensionPoint());
     }
 
     @Override

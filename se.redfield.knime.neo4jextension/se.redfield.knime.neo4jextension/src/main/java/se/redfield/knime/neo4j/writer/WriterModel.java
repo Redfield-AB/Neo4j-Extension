@@ -177,8 +177,6 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
                         tx.close();
                         tx = null;
                     }
-
-                    results.put(row, runSingleScript(driver, script));
                 } catch (final Exception e) {
                     results.put(row, createErrorJson(e.getMessage()));
 
