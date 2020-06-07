@@ -490,9 +490,17 @@ public class WriterModelTest {
     private ConnectorSpec createConnectorSpec() {
         return new ConnectorSpec(Neo4jHelper.createConfig());
     }
+    /**
+     * @return connector port object.
+     */
     private ConnectorPortObject createConnectorPortObject() {
         return new ConnectorPortObject(Neo4jHelper.createConfig());
     }
+    /**
+     * @param label node label.
+     * @return script for create node and marked by 'junitest' attribute for found
+     * and cleanup this node after test finished.
+     */
     private String getCreateNode(final String label) {
         return "CREATE (n:" + label + " {junittest: true})";
     }
