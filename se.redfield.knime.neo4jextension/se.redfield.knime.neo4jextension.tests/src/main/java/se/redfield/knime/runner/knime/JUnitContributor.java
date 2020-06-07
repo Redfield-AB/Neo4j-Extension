@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.runner;
+package se.redfield.knime.runner.knime;
 
 import org.eclipse.core.runtime.IContributor;
 

@@ -22,7 +22,7 @@ import junit.framework.AssertionFailedError;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.table.Neo4jTableOutputSupport;
-import se.redfield.knime.runner.Neo4jHelper;
+import se.redfield.knime.neo4j.utils.Neo4jHelper;
 import se.redfield.knime.runner.KnimeTestRunner;
 
 /**

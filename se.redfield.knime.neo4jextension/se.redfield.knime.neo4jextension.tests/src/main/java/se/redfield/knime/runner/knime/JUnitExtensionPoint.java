@@ -1,23 +1,29 @@
 /**
  *
  */
-package se.redfield.knime.runner;
+package se.redfield.knime.runner.knime;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.eclipse.core.runtime.IContributor;
-import org.eclipse.core.runtime.IExtension;
+import org.eclipse.core.runtime.IExtensionPoint;
 import org.eclipse.core.runtime.InvalidRegistryObjectException;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-class JUnitExtension implements IExtension {
-    private List<JunitConfigurationElement> elements = new LinkedList<>();
+class JUnitExtensionPoint implements IExtensionPoint {
+    private final List<JunitConfigurationElement> elements = new LinkedList<>();
+    private final Map<String, JUnitExtension> extensions = new HashMap<>();
 
-    public JUnitExtension() {
+    /**
+     * Default constructor.
+     */
+    public JUnitExtensionPoint() {
         super();
     }
 
@@ -41,16 +47,33 @@ class JUnitExtension implements IExtension {
         return JUnitContributor.INSTANCE;
     }
     @Override
-    public String getExtensionPointUniqueIdentifier() throws InvalidRegistryObjectException {
-        return null;
+    public JUnitExtension getExtension(final String extensionId) throws InvalidRegistryObjectException {
+        return extensions.get(extensionId);
     }
+    @Override
+    public JUnitExtension[] getExtensions() throws InvalidRegistryObjectException {
+        final List<JUnitExtension> list = new LinkedList<>(extensions.values());
+        return list.toArray(new JUnitExtension[list.size()]);
+    }
+    /**
+     * @param id extension ID.
+     * @param ext extension.
+     */
+    public void addExtension(final String id, final JUnitExtension ext) {
+        extensions.put(id, ext);
+    }
+
     @Override
     public String getLabel() throws InvalidRegistryObjectException {
         return null;
     }
     @Override
     public String getLabel(final String locale) throws InvalidRegistryObjectException {
-        return getLabel();
+        return null;
+    }
+    @Override
+    public String getSchemaReference() throws InvalidRegistryObjectException {
+        return null;
     }
     @Override
     public String getSimpleIdentifier() throws InvalidRegistryObjectException {

@@ -8,10 +8,12 @@ import java.lang.reflect.Constructor;
 import org.junit.runners.BlockJUnit4ClassRunner;
 import org.junit.runners.model.InitializationError;
 
+import se.redfield.knime.runner.knime.KnimeInitializer;
+
 /**
  * Warning!!!
- * This test runner is in fact hacking. I know it, but it is better to use fast
- * unit test then use standard Eclipse Test runner. It saves your time.
+ * This test runner is hacking in fact? I know it! But it is better to use fast
+ * unit tests instead of standard Eclipse Test runner. It saves your time.
  * If anything did stop to work, please debug it and correct KNime initialization.
  *
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -24,8 +26,10 @@ public class KnimeTestRunner extends BlockJUnit4ClassRunner {
      * @param klass testing class.
      */
     public KnimeTestRunner(final Class<?> klass) throws InitializationError {
+        //load test class again by special class loader
         super(loadTestClass(klass.getName()));
-        final Runnable  init = loadRunnable(KnimeRuntimeInitializer.class.getName());
+        //load initializer by special class loader.
+        final Runnable  init = loadRunnable(KnimeInitializer.class.getName());
         init.run();
     }
     private Runnable loadRunnable(final String name) {

@@ -34,7 +34,7 @@ import org.osgi.framework.Version;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-class UnitTestBundle implements Bundle, BundleContext {
+public class UnitTestBundle implements Bundle, BundleContext {
     public static final UnitTestBundle INSTANCE = new UnitTestBundle();
     private Map<String, String> properties = new HashMap<>();
     private Dictionary<String, String> headers = new Hashtable<String, String>();

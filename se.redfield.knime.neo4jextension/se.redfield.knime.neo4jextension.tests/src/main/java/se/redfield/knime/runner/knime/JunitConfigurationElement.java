@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.runner;
+package se.redfield.knime.runner.knime;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -18,7 +18,7 @@ import org.eclipse.core.runtime.Status;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class JunitConfigurationElement implements IConfigurationElement {
+class JunitConfigurationElement implements IConfigurationElement {
     private final Map<String, String> attributes = new HashMap<>();
 
     /**

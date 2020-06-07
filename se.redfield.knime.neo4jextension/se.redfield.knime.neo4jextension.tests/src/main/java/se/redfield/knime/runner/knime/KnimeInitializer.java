@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.runner;
+package se.redfield.knime.runner.knime;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -16,25 +16,28 @@ import org.eclipse.osgi.internal.framework.EquinoxConfiguration.ConfigValues;
 import org.eclipse.osgi.internal.location.BasicLocation;
 import org.eclipse.osgi.service.datalocation.Location;
 import org.knime.core.data.container.DefaultTableStoreFormat;
+import org.knime.core.node.port.flowvariable.FlowVariablePortObject;
+import org.knime.core.node.port.flowvariable.FlowVariablePortObjectSpec;
 import org.osgi.util.tracker.ServiceTracker;
 
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorPortObjectSer;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.connector.ConnectorSpecSer;
+import se.redfield.knime.runner.UnitTestBundle;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
 @SuppressWarnings("restriction")
-class KnimeRuntimeInitializer implements Runnable {
+public class KnimeInitializer implements Runnable {
     private static final ConfigValues configVars = new ConfigValues(new HashMap<>());
 
     /**
      * Default constructor.
      */
-    public KnimeRuntimeInitializer() {
+    public KnimeInitializer() {
         super();
     }
     @Override
@@ -69,15 +72,16 @@ class KnimeRuntimeInitializer implements Runnable {
     private void initRegistries() throws CoreException {
         final JUnitExtensionRegistry reg = new JUnitExtensionRegistry();
 
-        //add connector port extension
-        final JUnitExtension connectorPort = new JUnitExtension();
-        addConnectorPortObject(connectorPort);
+        //add port object extensions.
+        final JUnitExtension portObjects = new JUnitExtension();
+        addConnectorPortObject(portObjects);
+        addFlowVariablesPortObject(portObjects);
 
         final JUnitExtension tableStoreFormat = new JUnitExtension();
         addDefaultFormat(tableStoreFormat);
 
         reg.getExtensionPoint(JUnitExtensionRegistry.PORT_TYPE).addExtension(
-                "neo4j-connector-port", connectorPort);
+                "neo4j-connector-port", portObjects);
         reg.getExtensionPoint(JUnitExtensionRegistry.TABLE_FORMAT).addExtension(
                 "table-store-format", tableStoreFormat);
 
@@ -100,6 +104,19 @@ class KnimeRuntimeInitializer implements Runnable {
         e.putAttribute("objectSerializer", ConnectorPortObjectSer.class.getName());
         e.putAttribute("specClass", ConnectorSpec.class.getName());
         e.putAttribute("specSerializer", ConnectorSpecSer.class.getName());
+
+        ext.addConfigurationElement(e);
+    }
+    private void addFlowVariablesPortObject(final JUnitExtension ext) {
+        // org.knime.core.node.port.flowvariable.FlowVariablePortObject
+        final JunitConfigurationElement e = new JunitConfigurationElement();
+        e.putAttribute("color", "red");
+        e.putAttribute("hidden", "false");
+        e.putAttribute("name", FlowVariablePortObject.class.getName());
+        e.putAttribute("objectClass", FlowVariablePortObject.class.getName());
+        e.putAttribute("objectSerializer", FlowVariablePortObject.Serializer.class.getName());
+        e.putAttribute("specClass", FlowVariablePortObjectSpec.class.getName());
+        e.putAttribute("specSerializer", FlowVariablePortObjectSpec.Serializer.class.getName());
 
         ext.addConfigurationElement(e);
     }

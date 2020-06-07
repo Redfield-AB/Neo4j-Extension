@@ -12,8 +12,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.neo4j.driver.Driver;
 
+import se.redfield.knime.neo4j.utils.Neo4jHelper;
 import se.redfield.knime.runner.KnimeTestRunner;
-import se.redfield.knime.runner.Neo4jHelper;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.runner;
+package se.redfield.knime.neo4j.utils;
 
 import java.net.URI;
 import java.net.URISyntaxException;

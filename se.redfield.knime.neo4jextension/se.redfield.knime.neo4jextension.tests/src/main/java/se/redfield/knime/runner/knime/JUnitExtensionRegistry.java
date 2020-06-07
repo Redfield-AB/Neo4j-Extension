@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.runner;
+package se.redfield.knime.runner.knime;
 
 import java.io.InputStream;
 import java.util.Arrays;
@@ -24,6 +24,8 @@ import org.eclipse.core.runtime.IRegistryEventListener;
  *
  */
 class JUnitExtensionRegistry implements IExtensionRegistry {
+    private static final String NODESETS = "org.knime.workbench.repository.nodesets";
+    private static final String NODES = "org.knime.workbench.repository.nodes";
     public static final String TABLE_FORMAT = "org.knime.core.TableFormat";
     public static final String COLUMN_META_DATA = "org.knime.core.DataColumnMetaDataType";
     public static final String PORT_TYPE = "org.knime.core.PortType";
@@ -39,6 +41,8 @@ class JUnitExtensionRegistry implements IExtensionRegistry {
         extensionPoints.put(PORT_TYPE, new JUnitExtensionPoint());
         extensionPoints.put(COLUMN_META_DATA, new JUnitExtensionPoint());
         extensionPoints.put(TABLE_FORMAT, new JUnitExtensionPoint());
+        extensionPoints.put(NODES, new JUnitExtensionPoint());
+        extensionPoints.put(NODESETS, new JUnitExtensionPoint());
     }
 
     @Override

@@ -36,9 +36,9 @@ import org.knime.core.node.port.PortObjectSpec;
 import junit.framework.AssertionFailedError;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
-import se.redfield.knime.runner.KNimeHelper;
+import se.redfield.knime.neo4j.utils.KNimeHelper;
+import se.redfield.knime.neo4j.utils.Neo4jHelper;
 import se.redfield.knime.runner.KnimeTestRunner;
-import se.redfield.knime.runner.Neo4jHelper;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

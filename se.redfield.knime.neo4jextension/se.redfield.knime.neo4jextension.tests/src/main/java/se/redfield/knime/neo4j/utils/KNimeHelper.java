@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.runner;
+package se.redfield.knime.neo4j.utils;
 
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.knime.core.data.filestore.internal.NotInWorkflowDataRepository;
