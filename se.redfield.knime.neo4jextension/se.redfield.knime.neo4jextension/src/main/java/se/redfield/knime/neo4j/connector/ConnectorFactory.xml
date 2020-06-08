@@ -1,19 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE knimeNode PUBLIC "-//UNIKN//DTD KNIME Node 2.0//EN" "http://www.knime.org/Node.dtd">
 <knimeNode icon="/icons/neo4j-16x16.png" type="Source">
-	<name>Neo4j Connector</name>
-	
+	<name>Neo4j Connection</name>
 	<shortDescription>
-	    Neo4j connector.
+	    Neo4j Connection
 	</shortDescription>
 	
 	<fullDescription>
 		<intro>
-		Configured connection to Neo4j data base
+		Node creates connection to a Neo4j instance via BOLT protocol.
 		</intro>
+		<option name="Neo4j URL">the hostname or URL of Neo4j server with port.</option>
+		<option name="Use authentication">checkbox that activates/deactivates authentication.</option>
+		<option name="Username and password">credentials for authentication.</option>
+		<option name="Max connection pool size">defines the maximum amount of connections.</option>
 	</fullDescription>
 	
 	<ports>
-	    <outPort index="0" name="Neo4j Connector">Connector with configured connection to Neo4j data base</outPort>
+	    <outPort index="0" name="Neo4j connection">Neo4j connection</outPort>
 	</ports>	
 </knimeNode>

@@ -129,7 +129,7 @@ public class WriterDialog extends DataAwareNodeDialogPane implements FlowVariabl
         cb.setModel(stopInQueryFailure);
         addLabeledComponent(parent, STOP_ON_QUERY_FAILURE, cb, 1);
 
-        addLabeledComponent(parent, "Use asynchronous script execution", this.useAsyncExe, 2);
+        addLabeledComponent(parent, "Use asynchronous query execution", this.useAsyncExe, 2);
 
         tab.add(wrapper, BorderLayout.CENTER);
         return tab;

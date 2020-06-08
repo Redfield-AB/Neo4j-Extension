@@ -30,7 +30,7 @@ public class AuthSchemeCellRenderer extends DefaultListCellRenderer {
     private String getAuthSchemeLabel(final AuthScheme scheme) {
         switch (scheme) {
         case flowCredentials:
-            return "flow credentianls (basic)";
+            return "credentials";
         default:
             return scheme.name();
         }

@@ -4,19 +4,33 @@
 	<name>Neo4j Reader</name>
 	
 	<shortDescription>
-	    Neo4j data reader.
+	    Neo4j Reader.
 	</shortDescription>
 
 	<fullDescription>
 		<intro>
-	    Neo4j data reader.
-		</intro>
+	    The node allows user to run queries for extracting data from Neo4j, any queries that change the state of DB will be rolled back. There are two modes available:
+	    <ul>
+	    	<li>Script - active when there is no input table connected. User can create a Cypher script with injections of labels for nodes and relationships, and available server functions to extract data from the database. Schema is fetched with functions db.labels, db.relationshipTypes, dbms.functions.</li>
+	    	<li>Query from table - if the table is connected, then the user can select the string column that contains Cypher queries.</li>
+	    </ul>
+	   	</intro>
+
+	   	<tab name="Script">
+			<option name="Use JSON output">if active the result will be returned as a JSON column. Otherwise the node will try to return a Knime table with best match for Knime types.</option>
+			<option name="Stop on query failure">if active the node will return an error and stop execution in case the query was not successfully executed. Otherwise node will produce an empty table and a warning message.</option>
+			<option name="Script body">the text box, where use can put Cypher query with nodes, relationship, function and flow variables injections.</option>
+	   	</tab>
+	   	<tab name="Query from table">
+	   		<option name="Column with query">queries from the selected string column will be executed. Results will be returned as a JSON column.</option>
+	   		<option name="Stop on query failure">if active the node will return an error and stop execution in case the query was not successfully executed. Otherwise node will produce an empty table and a warning message.</option>
+	   	</tab>
 	</fullDescription>
 
 	<ports>
-		<inPort index="0"  name="Input Table">One column table with Cypher script rows</inPort>
-		<inPort index="1"  name="Neo4j Connector">Neo4j Connector</inPort>
-	    <outPort index="0" name="Neo4j Output">Neo4j output as one row JSON table or as KNIME table</outPort>
-		<outPort index="1"  name="Neo4j Connector">Forwarded Neo4j Connector</outPort>
+		<inPort index="0" name="Input table" optional="true">Table with the Cypher query</inPort>
+		<inPort index="1" name="Neo4j connection">Neo4j connection</inPort>
+	    <outPort index="0" name="Neo4j output">Table/JSON response</outPort>
+		<outPort index="1" name="Neo4j connection">Neo4j connection</outPort>
 	</ports>
 </knimeNode>

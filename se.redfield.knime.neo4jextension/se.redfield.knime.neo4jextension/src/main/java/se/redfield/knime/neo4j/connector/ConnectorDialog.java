@@ -33,7 +33,6 @@ import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
-import org.neo4j.driver.Config.TrustStrategy.Strategy;
 
 import se.redfield.knime.neo4j.connector.cfg.AdvancedSettings;
 import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
@@ -58,36 +57,10 @@ public class ConnectorDialog extends NodeDialogPane {
     private final JComboBox<AuthScheme> scheme = new JComboBox<AuthScheme>();
     private final JTextField principal = new JTextField();
     private final JPasswordField credentials = new JPasswordField();
-    private final JTextField realm = new JTextField();
-    private final JTextField parameters = new JTextField();
     private final JComboBox<String> flowCredentials = new JComboBox<>();
 
     //config
-    private final JCheckBox logLeakedSessions = new JCheckBox();
     private final JFormattedTextField maxConnectionPoolSize = createIntValueEditor();
-
-    private final JFormattedTextField idleTimeBeforeConnectionTest = createIntValueEditor();
-    private final JFormattedTextField maxConnectionLifetimeMillis = createIntValueEditor();
-    private final JFormattedTextField connectionAcquisitionTimeoutMillis = createIntValueEditor();
-
-    private final JFormattedTextField routingFailureLimit = createIntValueEditor();
-    private final JFormattedTextField routingRetryDelayMillis = createIntValueEditor();
-    private final JFormattedTextField fetchSize = createIntValueEditor();
-    private final JFormattedTextField routingTablePurgeDelayMillis = createIntValueEditor();
-
-    private final JFormattedTextField connectionTimeoutMillis = createIntValueEditor();
-
-    //max retry time in milliseconds
-    private final JFormattedTextField retrySettings = createIntValueEditor();
-
-    private final JCheckBox isMetricsEnabled = new JCheckBox();
-    private final JFormattedTextField eventLoopThreads = createIntValueEditor();
-
-    //security settings
-    private final JComboBox<Strategy> strategy = new JComboBox<>();
-    private final JTextField certFile = new JTextField();
-    private final JCheckBox encrypted = new JCheckBox();
-    private final JCheckBox hostnameVerificationEnabled = new JCheckBox();
 
     /**
      * Default constructor.
@@ -95,8 +68,6 @@ public class ConnectorDialog extends NodeDialogPane {
     public ConnectorDialog() {
         super();
         addTab("Connection", createConnectionPage());
-        addTab("Advanced Settings", createAdvancedSettingsPage());
-
     }
 
     private JFormattedTextField createIntValueEditor() {
@@ -116,6 +87,7 @@ public class ConnectorDialog extends NodeDialogPane {
         p.add(north, BorderLayout.NORTH);
 
         addLabeledComponent(north, "Neo4j URL", url, 0);
+        addLabeledComponent(north, "Max connection pool size:", maxConnectionPoolSize, 1);
 
         //Authentication
         final JPanel center = new JPanel(new BorderLayout(5, 5));
@@ -135,74 +107,6 @@ public class ConnectorDialog extends NodeDialogPane {
 
         useAuthChanged(true);
         return p;
-    }
-
-    private JPanel createEncryptingPage() {
-        final JPanel p = new JPanel(new GridBagLayout());
-
-        this.encrypted.setSelected(true);
-        addLabeledComponent(p, "Use encryption", this.encrypted, 0);
-        addLabeledComponent(p, "Host name verification enabled",
-                this.hostnameVerificationEnabled, 1);
-
-        strategy.setEditable(false);
-        for (final Strategy s : Strategy.values()) {
-            strategy.addItem(s);
-        }
-        addLabeledComponent(p, "Trust strategy", this.strategy, 2);
-        addLabeledComponent(p, "Certificate file", this.certFile, 3);
-
-        strategy.addActionListener(e -> strategyChanged());
-        strategyChanged();
-
-        final JPanel wrapper = new JPanel(new BorderLayout());
-        wrapper.add(p, BorderLayout.NORTH);
-        return wrapper;
-    }
-    /**
-     * @return settings editor page.
-     */
-    private JPanel createAdvancedSettingsPage() {
-        final JPanel root = new JPanel(new BorderLayout());
-        root.setBorder(new EmptyBorder(5, 5, 5, 5));
-
-        //settings tab
-        final JPanel p = new JPanel(new GridBagLayout());
-        p.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Settings"));
-
-        addLabeledComponent(p, "Log leaked sessions:", logLeakedSessions, 0);
-        addLabeledComponent(p, "Max connection pool size:", maxConnectionPoolSize, 1);
-        addLabeledComponent(p, "Idle time before connection test:", idleTimeBeforeConnectionTest, 2);
-        addLabeledComponent(p, "Max connection life time (ms):", maxConnectionLifetimeMillis, 3);
-        addLabeledComponent(p, "Connection acquisition time out (ms):",
-                connectionAcquisitionTimeoutMillis, 4);
-        addLabeledComponent(p, "Routing failure limit (ms):", routingFailureLimit, 5);
-        addLabeledComponent(p, "Routing retry delay limit (ms):", routingRetryDelayMillis, 6);
-        addLabeledComponent(p, "Fetch size:", fetchSize, 7);
-        addLabeledComponent(p, "Routing table purge delay (ms):",
-                routingTablePurgeDelayMillis, 8);
-        addLabeledComponent(p, "Connection timeout (ms):", connectionTimeoutMillis, 9);
-        addLabeledComponent(p, "Max retry time in (ms):", retrySettings, 10);
-        addLabeledComponent(p, "Is metrics enabled:", isMetricsEnabled, 11);
-        addLabeledComponent(p, "Num event loop threads:", eventLoopThreads, 12);
-
-        final JPanel wrapper = new JPanel(new BorderLayout());
-        wrapper.add(p, BorderLayout.NORTH);
-
-        final JPanel encryption = createEncryptingPage();
-        encryption.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Encrypting"));
-        wrapper.add(encryption, BorderLayout.CENTER);
-
-        root.add(wrapper, BorderLayout.CENTER);
-        return root;
-    }
-
-    private void strategyChanged() {
-        final Strategy s = (Strategy) strategy.getSelectedItem();
-        final boolean certFileEnabled = s == Strategy.TRUST_CUSTOM_CA_SIGNED_CERTIFICATES;
-        certFile.setEnabled(certFileEnabled);
-        certFile.setEditable(certFileEnabled);
-        getPanel().repaint();
     }
 
     private void useAuthChanged(final boolean selected) {
@@ -253,14 +157,12 @@ public class ConnectorDialog extends NodeDialogPane {
     private void authSchemeChanged(final JPanel container, final AuthScheme s) {
         container.removeAll();
 
-        addLabeledComponent(container, "Scheme:", scheme, 0);
+        addLabeledComponent(container, "Authentication type:", scheme, 0);
         if (s == AuthScheme.flowCredentials) {
             addLabeledComponent(container, "Flow credentials:", flowCredentials, 1);
         } else {
-            addLabeledComponent(container, "Login:", principal, 1);
+            addLabeledComponent(container, "Username:", principal, 1);
             addLabeledComponent(container, "Password:", credentials, 2);
-            addLabeledComponent(container, "Realm:", realm, 3);
-            addLabeledComponent(container, "Parameters:", parameters, 4);
         }
         if (getPanel() != null) {
             getPanel().repaint();
@@ -352,24 +254,7 @@ public class ConnectorDialog extends NodeDialogPane {
 
         //setting
         final AdvancedSettings cfg = model.getAdvancedSettings();
-        logLeakedSessions.setSelected(cfg.isLogLeakedSessions());
         maxConnectionPoolSize.setValue(cfg.getMaxConnectionPoolSize());
-
-        idleTimeBeforeConnectionTest.setValue(cfg.getIdleTimeBeforeConnectionTest());
-        maxConnectionLifetimeMillis.setValue(cfg.getMaxConnectionLifetimeMillis());
-        connectionAcquisitionTimeoutMillis.setValue(cfg.getConnectionAcquisitionTimeoutMillis());
-
-        routingFailureLimit.setValue(cfg.getRoutingFailureLimit());
-        routingRetryDelayMillis.setValue(cfg.getRoutingRetryDelayMillis());
-        fetchSize.setValue(cfg.getFetchSize());
-        routingTablePurgeDelayMillis.setValue(cfg.getRoutingTablePurgeDelayMillis());
-
-        connectionTimeoutMillis.setValue(cfg.getConnectionTimeoutMillis());
-
-        //max retry time in milliseconds
-        retrySettings.setValue(cfg.getRetrySettings());
-
-        eventLoopThreads.setValue(cfg.getEventLoopThreads());
     }
     /**
      * @return
@@ -410,36 +295,11 @@ public class ConnectorDialog extends NodeDialogPane {
         //settings
         final AdvancedSettings cfg = new AdvancedSettings();
 
-        cfg.setLogLeakedSessions(logLeakedSessions.isSelected());
         cfg.setMaxConnectionPoolSize(getInt(maxConnectionPoolSize.getValue()));
-
-        cfg.setIdleTimeBeforeConnectionTest(getLong(idleTimeBeforeConnectionTest.getValue()));
-        cfg.setMaxConnectionLifetimeMillis(getLong(maxConnectionLifetimeMillis.getValue()));
-        cfg.setConnectionAcquisitionTimeoutMillis(getLong(connectionAcquisitionTimeoutMillis.getValue()));
-
-        cfg.setRoutingFailureLimit(getInt(routingFailureLimit.getValue()));
-        cfg.setRoutingRetryDelayMillis(getLong(routingRetryDelayMillis.getValue()));
-        cfg.setFetchSize(getInt(fetchSize.getValue()));
-        cfg.setRoutingTablePurgeDelayMillis(getLong(routingTablePurgeDelayMillis.getValue()));
-
-        cfg.setConnectionTimeoutMillis(getLong(connectionTimeoutMillis.getValue()));
-
-        //max retry time in milliseconds
-        cfg.setRetrySettings(getLong(retrySettings.getValue()));
-        cfg.setEventLoopThreads(getInt(eventLoopThreads.getValue()));
-
         config.setAdvancedSettings(cfg);
         return config;
     }
 
-    private long getLong(final Object value) {
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        } else if (value != null) {
-            return Long.parseLong(value.toString());
-        }
-        return 0;
-    }
     private static int getInt(final Object value) {
         if (value instanceof Number) {
             return ((Number) value).intValue();
