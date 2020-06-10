@@ -22,7 +22,7 @@
    <extension
          point="org.knime.workbench.repository.categories">
       <category
-            icon="icons/neo4j-16x16.png"
+            icon="icons/category.png"
             level-id="neo4j"
             locked="true"
             name="Neo4j"
