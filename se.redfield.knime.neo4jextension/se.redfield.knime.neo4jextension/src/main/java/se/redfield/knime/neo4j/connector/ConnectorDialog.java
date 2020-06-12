@@ -290,6 +290,8 @@ public class ConnectorDialog extends NodeDialogPane {
             }
 
             config.setAuth(auth);
+        } else {
+            config.setAuth(null);
         }
 
         //settings

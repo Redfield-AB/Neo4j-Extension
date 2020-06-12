@@ -54,6 +54,8 @@ public class ConnectorConfigSerializer {
         }
         if (settings.containsKey(S_AUTH)) {
             config.setAuth(loadAuth(settings.getConfig(S_AUTH)));
+        } else {
+            config.setAuth(null);
         }
         if (settings.containsKey(S_CONFIG)) {
             config.setAdvancedSettings(loadConfig(settings.getConfig(S_CONFIG)));
