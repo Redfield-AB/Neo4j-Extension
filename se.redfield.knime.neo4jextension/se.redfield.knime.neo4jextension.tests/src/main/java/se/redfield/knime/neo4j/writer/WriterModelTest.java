@@ -203,7 +203,7 @@ public class WriterModelTest {
     @Test
     public void testTableInputAsyncRowOrder() throws Exception {
         final String columnName = "in";
-        final int maxRows = 108;
+        final int maxRows = 1008;
 
         final String tpl = "RETURN '???'";
         //create list of scripts

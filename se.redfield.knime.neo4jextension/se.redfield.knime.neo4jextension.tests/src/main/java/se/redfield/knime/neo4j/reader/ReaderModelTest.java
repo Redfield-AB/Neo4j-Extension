@@ -225,7 +225,7 @@ public class ReaderModelTest {
 
         setConfigToModel(cfg);
 
-        final int max = 108;
+        final int max = 1008;
         final String prefix = "script-";
         final List<String> scripts = new LinkedList<String>();
         for (int i = 0; i < max; i++) {
