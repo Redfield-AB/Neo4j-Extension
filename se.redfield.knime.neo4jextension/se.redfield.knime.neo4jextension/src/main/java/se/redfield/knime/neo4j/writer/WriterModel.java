@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.json.Json;
 import javax.json.stream.JsonGenerator;
@@ -45,6 +46,7 @@ import org.neo4j.driver.Transaction;
 
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
+import se.redfield.knime.neo4j.db.AsyncRunner;
 import se.redfield.knime.neo4j.db.AsyncRunnerLauncher;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
@@ -52,7 +54,6 @@ import se.redfield.knime.neo4j.db.RunResult;
 import se.redfield.knime.neo4j.json.JsonBuilder;
 import se.redfield.knime.neo4j.utils.FlowVariablesProvider;
 import se.redfield.knime.neo4j.utils.ModelUtils;
-import se.redfield.knime.neo4j.utils.ThransactionWithSession;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -159,32 +160,21 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
         final Neo4jDataConverter converter = new Neo4jDataConverter(driver.defaultTypeSystem());
 
         final Session session = driver.session();
-        Transaction tx = null;
         try {
             long row = 0;
             for (final String script : scripts) {
-                if (tx == null) {
-                    tx = session.beginTransaction();
-                }
-
+                final Transaction tx = session.beginTransaction();
                 try {
                     final Result run = tx.run(script);
                     final List<Record> res = run.list();
                     results.put(row, createSuccessJson(res, converter));
 
-                    if (!config.isStopOnQueryFailure()) {
-                        tx.commit();
-                        tx.close();
-                        tx = null;
-                    }
+                    commitAndClose(tx);
                 } catch (final Exception e) {
+                    rollbackAndClose(tx);
                     results.put(row, createErrorJson(e.getMessage()));
 
-                    tx.rollback();
-                    tx.close();
-                    tx = null;
                     if (config.isStopOnQueryFailure()) {
-                        getLogger().error(SOME_QUERIES_ERROR);
                         throw new Exception(SOME_QUERIES_ERROR);
                     } else {
                         setWarningMessage(SOME_QUERIES_ERROR);
@@ -193,13 +183,6 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
                 row++;
             }
         } finally {
-            if (tx != null) {
-                try {
-                    tx.commit();
-                    tx.close();
-                } catch (final Throwable e) {
-                }
-            }
             session.close();
         }
 
@@ -209,33 +192,37 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
             final List<String> scripts, final Driver driver)
             throws Exception {
         //create thread ID to transaction map.
-        final Map<Long, ThransactionWithSession> transactions = new HashMap<>();
+        final Map<Long, Session> sessions = new ConcurrentHashMap<>();
 
-        final AsyncRunnerLauncher<String, String> runner = new AsyncRunnerLauncher<>(
-                s -> runScriptInAsyncContext(driver, s, transactions));
+        final AsyncRunner<String, String> r = new AsyncRunner<String, String>() {
+            @Override
+            public void workerStarted(final long threadId) {
+                sessions.put(threadId, driver.session());
+            }
+            @Override
+            public void workerStopped(final long threadId) {
+                final Session session = sessions.get(threadId);
+                if (session != null) {
+                    session.close();
+                }
+            }
+            @Override
+            public RunResult<String> run(final long threadId, final String script) throws Exception {
+                return runScriptInAsyncContext(driver, sessions.get(threadId), script);
+            }
+        };
+
+        final AsyncRunnerLauncher<String, String> runner = new AsyncRunnerLauncher<>(r);
         runner.setStopOnQueryFailure(config.isStopOnQueryFailure());
 
         final Map<Long, String> results = runner.run(scripts,
-                neo4j.getConfig().getAdvancedSettings().getMaxConnectionPoolSize());
+                neo4j.getConfig().getMaxConnectionPoolSize());
         if (runner.hasErrors()) {
             if (config.isStopOnQueryFailure()) {
-                //rollback all transactions
-                for (final ThransactionWithSession tr : transactions.values()) {
-                    tr.rollbackAndClose();
-                }
-
-                //log error
-                getLogger().error(SOME_QUERIES_ERROR);
-
                 throw new Exception(SOME_QUERIES_ERROR);
             } else {
                 setWarningMessage(SOME_QUERIES_ERROR);
             }
-        }
-
-        //commit all transactions
-        for (final ThransactionWithSession tr : transactions.values()) {
-            tr.commitAndClose();
         }
 
         return results;
@@ -247,42 +234,22 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
      * @param trs map of transactions.
      * @return
      */
-    private RunResult<String> runScriptInAsyncContext(final Driver driver, final String script,
-            final Map<Long, ThransactionWithSession> trs) {
-        //get ID of current worker thread
-        final long threadId = Thread.currentThread().getId();
-
-        ThransactionWithSession tr = trs.get(threadId);
-        if (tr == null) {
-            //create transaction for given worker thread
-            final Session s = driver.session();
-            final Transaction t = s.beginTransaction();
-            tr = new ThransactionWithSession(s, t);
-
-            //save transaction only for stop on failure mode, because
-            //in case of error all actions should be rolled back at the end
-            //of asynchronous execution of all scripts.
-            if (config.isStopOnQueryFailure()) {
-                trs.put(threadId, tr);
-            }
-        }
+    private RunResult<String> runScriptInAsyncContext(final Driver driver,
+            final Session session, final String script) {
+        final Transaction tr = session.beginTransaction();
 
         List<Record> records;
         try {
             //run script in given transaction context
-            final Result run = tr.getTransaction().run(script);
+            final Result run = tr.run(script);
             records = run.list();
 
             //if not in stop on query failure mode, then should commit result
             //immediately
-            if (!config.isStopOnQueryFailure()) {
-                tr.commitAndClose();
-            }
+            commitAndClose(tr);
         } catch (final RuntimeException e) {
-            //if not in stop on query failure mode, then should rollback result
-            //immediately because transaction is not supplied
+            rollbackAndClose(tr);
             if (!config.isStopOnQueryFailure()) {
-                tr.rollbackAndClose();
                 return new RunResult<String>(createErrorJson(e.getMessage()), e);
             } else {
                 throw e;
@@ -293,7 +260,32 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
         final String result = createSuccessJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
         return new RunResult<String>(result);
     }
-
+    /**
+     * @param tr transaction.
+     */
+    private void rollbackAndClose(final Transaction tr) {
+        try {
+            tr.rollback();
+        } catch (final Throwable e) {
+        }
+        try {
+            tr.close();
+        } catch (final Throwable e) {
+        }
+    }
+    /**
+     * @param tr transaction.
+     */
+    private void commitAndClose(final Transaction tr) {
+        try {
+            tr.commit();
+        } catch (final Throwable e) {
+        }
+        try {
+            tr.close();
+        } catch (final Throwable e) {
+        }
+    }
     private String runSingleScript(final Driver driver, final String script) {
         //run script in context of transaction.
         final List<Record> records = Neo4jSupport.runWithSession(driver, s -> s.writeTransaction(tx -> {

@@ -9,6 +9,7 @@ import java.util.Objects;
 
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.ICredentials;
+import org.neo4j.driver.internal.async.pool.PoolSettings;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -17,10 +18,11 @@ import org.knime.core.node.workflow.ICredentials;
 public class ConnectorConfig implements Cloneable {
     private URI location;
     private AuthConfig auth;
-    private AdvancedSettings advancedSettings = new AdvancedSettings();
+    private int maxConnectionPoolSize;
 
     public ConnectorConfig() {
         super();
+        maxConnectionPoolSize = PoolSettings.DEFAULT_MAX_CONNECTION_POOL_SIZE;
         try {
             this.location = new URI("bolt://localhost:7687");
         } catch (final URISyntaxException e) {
@@ -43,11 +45,11 @@ public class ConnectorConfig implements Cloneable {
     public void setAuth(final AuthConfig auth) {
         this.auth = auth;
     }
-    public AdvancedSettings getAdvancedSettings() {
-        return advancedSettings;
+    public int getMaxConnectionPoolSize() {
+        return maxConnectionPoolSize;
     }
-    public void setAdvancedSettings(final AdvancedSettings config) {
-        this.advancedSettings = config;
+    public void setMaxConnectionPoolSize(final int maxConnectionPoolSize) {
+        this.maxConnectionPoolSize = maxConnectionPoolSize;
     }
     @Override
     public boolean equals(final Object obj) {
@@ -58,7 +60,7 @@ public class ConnectorConfig implements Cloneable {
         final ConnectorConfig that = (ConnectorConfig) obj;
         return Objects.equals(this.location, that.location)
             && Objects.equals(this.auth, that.auth)
-            && Objects.equals(this.advancedSettings, that.advancedSettings);
+            && Objects.equals(this.maxConnectionPoolSize, that.maxConnectionPoolSize);
     }
 
     @Override
@@ -66,7 +68,7 @@ public class ConnectorConfig implements Cloneable {
         return Objects.hash(
                 this.location,
                 this.auth,
-                advancedSettings);
+                maxConnectionPoolSize);
     }
 
     @Override
@@ -79,7 +81,6 @@ public class ConnectorConfig implements Cloneable {
     public ConnectorConfig clone() {
         try {
             final ConnectorConfig clone = (ConnectorConfig) super.clone();
-            clone.advancedSettings = this.advancedSettings.clone();
             if (auth != null) {
                 clone.auth = auth.clone();
             }

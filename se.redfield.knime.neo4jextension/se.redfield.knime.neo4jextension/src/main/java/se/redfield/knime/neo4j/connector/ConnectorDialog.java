@@ -34,7 +34,6 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 
-import se.redfield.knime.neo4j.connector.cfg.AdvancedSettings;
 import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
 import se.redfield.knime.neo4j.connector.cfg.AuthScheme;
 import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
@@ -225,6 +224,8 @@ public class ConnectorDialog extends NodeDialogPane {
     private void init(final ConnectorConfig model) {
         this.url.setText(model.getLocation() == null
                 ? "" : model.getLocation().toASCIIString());
+        maxConnectionPoolSize.setValue(model.getMaxConnectionPoolSize());
+
         //authentication
         final AuthConfig auth = model.getAuth();
 
@@ -251,17 +252,14 @@ public class ConnectorDialog extends NodeDialogPane {
                 flowCredentials.setSelectedItem(auth.getPrincipal());
             }
         }
-
-        //setting
-        final AdvancedSettings cfg = model.getAdvancedSettings();
-        maxConnectionPoolSize.setValue(cfg.getMaxConnectionPoolSize());
     }
     /**
-     * @return
+     * @return connector config.
      */
     private ConnectorConfig buildConnector() throws InvalidSettingsException {
         final ConnectorConfig config = new ConnectorConfig();
         config.setLocation(buildUri());
+        config.setMaxConnectionPoolSize(getInt(maxConnectionPoolSize.getValue()));
 
         //authentication
         if (useAuth.isSelected()) {
@@ -294,11 +292,6 @@ public class ConnectorDialog extends NodeDialogPane {
             config.setAuth(null);
         }
 
-        //settings
-        final AdvancedSettings cfg = new AdvancedSettings();
-
-        cfg.setMaxConnectionPoolSize(getInt(maxConnectionPoolSize.getValue()));
-        config.setAdvancedSettings(cfg);
         return config;
     }
 

@@ -84,33 +84,63 @@ public class AsyncRunnerLauncher<R, A> {
     }
 
     private void runScripts(final Iterator<NumberedArgument<A>> source, final Map<Long, R> results) {
-        while (true) {
-            NumberedArgument<A> next;
-            synchronized (results) {
-                if (!source.hasNext()) {
-                    return;
+        boolean isStarted = false;
+        final long threadId = Thread.currentThread().getId();
+
+        try {
+            while (true) {
+                NumberedArgument<A> next;
+                synchronized (results) {
+                    if (!source.hasNext()) {
+                        return;
+                    }
+                    next = source.next();
                 }
-                next = source.next();
-            }
+                if (!isStarted) {
+                    isStarted = true;
+                    workerStarted(threadId);
+                }
 
-            final RunResult<R> result = runScript(next.getArgument());
+                final RunResult<R> result = runScript(next.getArgument(), threadId);
 
-            synchronized (results) {
-                results.put((long) next.getNumber(), result.getResult());
+                synchronized (results) {
+                    results.put((long) next.getNumber(), result.getResult());
 
-                if (result.getException() != null) {
-                    hasErrors = true;
-                    if (isStopOnQueryFailure()) {
-                        readToEnd(source);
+                    if (result.getException() != null) {
+                        hasErrors = true;
+                        if (isStopOnQueryFailure()) {
+                            readToEnd(source);
+                        }
                     }
                 }
             }
+        } finally {
+            workerStopped(threadId);
         }
     }
-
-    protected RunResult<R> runScript(final A script) {
+    /**
+     * @param threadId worker thread ID.
+     */
+    private void workerStarted(final long threadId) {
         try {
-            return runner.run(script);
+            runner.workerStarted(threadId);
+        } catch (final Throwable e) {
+            e.printStackTrace();
+        }
+    }
+    /**
+     * @param threadId worker thread ID.
+     */
+    private void workerStopped(final long threadId) {
+        try {
+            runner.workerStopped(threadId);
+        } catch (final Throwable e) {
+            e.printStackTrace();
+        }
+    }
+    protected RunResult<R> runScript(final A script, final long threadId) {
+        try {
+            return runner.run(threadId, script);
         } catch (final Throwable e) {
             final RunResult<R> res = new RunResult<>();
             res.setException(e);

@@ -13,8 +13,6 @@ public class AuthConfig implements Cloneable {
     private AuthScheme scheme;
     private String principal;
     private String credentials;
-    private String realm;
-    private String parameters;
 
     public AuthConfig() {
         super();
@@ -38,18 +36,6 @@ public class AuthConfig implements Cloneable {
     public void setCredentials(final String credentials) {
         this.credentials = credentials;
     }
-    public String getRealm() {
-        return realm;
-    }
-    public void setRealm(final String realm) {
-        this.realm = realm;
-    }
-    public String getParameters() {
-        return parameters;
-    }
-    public void setParameters(final String parameters) {
-        this.parameters = parameters;
-    }
     @Override
     public boolean equals(final Object obj) {
         if (!(obj instanceof AuthConfig)) {
@@ -59,18 +45,14 @@ public class AuthConfig implements Cloneable {
         final AuthConfig that = (AuthConfig) obj;
         return Objects.equals(scheme, that.scheme)
                 && Objects.equals(principal, that.principal)
-                && Objects.equals(credentials, that.credentials)
-                && Objects.equals(realm, that.realm)
-                && Objects.equals(parameters, that.parameters);
+                && Objects.equals(credentials, that.credentials);
     }
     @Override
     public int hashCode() {
         return Objects.hash(
                 scheme,
                 principal,
-                credentials,
-                realm,
-                parameters);
+                credentials);
     }
     @Override
     public AuthConfig clone() {

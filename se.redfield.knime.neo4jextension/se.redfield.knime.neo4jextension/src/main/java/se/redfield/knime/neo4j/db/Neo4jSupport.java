@@ -8,14 +8,11 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
-import org.knime.core.node.InvalidSettingsException;
 import org.neo4j.driver.AuthToken;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Config;
 import org.neo4j.driver.Config.ConfigBuilder;
-import org.neo4j.driver.Config.TrustStrategy;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Record;
@@ -26,10 +23,8 @@ import org.neo4j.driver.summary.ResultSummary;
 
 import se.redfield.knime.neo4j.connector.FunctionDesc;
 import se.redfield.knime.neo4j.connector.NamedWithProperties;
-import se.redfield.knime.neo4j.connector.cfg.AdvancedSettings;
 import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
 import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
-import se.redfield.knime.neo4j.connector.cfg.SslTrustStrategy;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -80,7 +75,7 @@ public class Neo4jSupport {
                 auth.getPrincipal(), auth.getCredentials(), null);
 
         final Driver d = GraphDatabase.driver(con.getLocation(), token,
-                createConfig(con.getAdvancedSettings()));
+                createConfig(con.getMaxConnectionPoolSize()));
         try {
             d.verifyConnectivity();
         } catch (final RuntimeException e) {
@@ -89,60 +84,10 @@ public class Neo4jSupport {
         }
         return d;
     }
-    private static Config createConfig(final AdvancedSettings as) {
+    private static Config createConfig(final int poolSize) {
         final ConfigBuilder cfg = Config.builder();
-
-        cfg.withConnectionAcquisitionTimeout(as.getConnectionAcquisitionTimeoutMillis(), TimeUnit.MICROSECONDS);
-        cfg.withConnectionTimeout(as.getConnectionTimeoutMillis(), TimeUnit.MILLISECONDS);
-        if (as.isEncrypted()) {
-            cfg.withEncryption();
-        } else {
-            cfg.withoutEncryption();
-        }
-        cfg.withEventLoopThreads(as.getEventLoopThreads());
-        cfg.withFetchSize(as.getFetchSize());
-        cfg.withConnectionLivenessCheckTimeout(
-                as.getIdleTimeBeforeConnectionTest(), TimeUnit.MILLISECONDS);
-        if (as.isMetricsEnabled()) {
-            cfg.withDriverMetrics();
-        } else {
-            cfg.withoutDriverMetrics();
-        }
-        if (as.isLogLeakedSessions()) {
-            cfg.withLeakedSessionsLogging();
-        }
-        cfg.withMaxConnectionLifetime(as.getMaxConnectionLifetimeMillis(),
-                TimeUnit.MILLISECONDS);
-        cfg.withMaxConnectionPoolSize(as.getMaxConnectionPoolSize());
-
-        if (as.getTrustStrategy() != null) {
-            cfg.withTrustStrategy(loadTrustStrategy(as.getTrustStrategy()));
-        }
-
+        cfg.withMaxConnectionPoolSize(poolSize);
         return cfg.build();
-    }
-    /**
-     * @param settings
-     * @return
-     * @throws InvalidSettingsException
-     */
-    private static TrustStrategy loadTrustStrategy(final SslTrustStrategy settings) {
-        final TrustStrategy.Strategy strategy = settings.getStrategy();
-
-        TrustStrategy s;
-        switch (strategy) {
-            case TRUST_ALL_CERTIFICATES:
-                s = TrustStrategy.trustAllCertificates();
-                break;
-            case TRUST_SYSTEM_CA_SIGNED_CERTIFICATES:
-                s = TrustStrategy.trustSystemCertificates();
-                break;
-            case  TRUST_CUSTOM_CA_SIGNED_CERTIFICATES:
-            default:
-                s = TrustStrategy.trustCustomCertificateSignedBy(settings.getCertFile());
-                break;
-        }
-        return s;
     }
     public LabelsAndFunctions loadLabesAndFunctions() throws Exception {
         final Map<String, NamedWithProperties> nodes = new HashMap<>();
@@ -158,7 +103,7 @@ public class Neo4jSupport {
             runs.add(s -> loadRelationshipProperties(s, relationships));
             runs.add(s -> loadFunctions(s, functions));
 
-            final AsyncRunnerLauncher<Void, WithSessionRunnable<Void>> runner = new AsyncRunnerLauncher<>(r -> {
+            final AsyncRunnerLauncher<Void, WithSessionRunnable<Void>> runner = new AsyncRunnerLauncher<>((workerId, r) -> {
                 runWithSession(driver, r);
                 //return empty result
                 return new RunResult<>();
