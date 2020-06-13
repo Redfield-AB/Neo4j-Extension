@@ -15,6 +15,7 @@ import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTable;
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.RowIterator;
 import org.knime.core.data.RowKey;
 import org.knime.core.data.def.DefaultRow;
 import org.knime.core.data.def.DefaultRowIterator;
@@ -44,7 +45,6 @@ import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.db.RunResult;
 import se.redfield.knime.neo4j.json.JsonBuilder;
-import se.redfield.knime.neo4j.table.DataTableImpl;
 import se.redfield.knime.neo4j.table.Neo4jTableOutputSupport;
 import se.redfield.knime.neo4j.utils.FlowVariablesProvider;
 import se.redfield.knime.neo4j.utils.ModelUtils;
@@ -211,9 +211,21 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
 
         return table;
     }
-
     private DataTable createEmptyTable() {
-        return new DataTableImpl(new DataTableSpec("Empty Result"), new DefaultRowIterator());
+        final DataTableSpec spec = new DataTableSpec("Empty Result");
+        final DefaultRowIterator rows = new DefaultRowIterator();
+        return new DataTable() {
+
+            @Override
+            public RowIterator iterator() {
+                return rows;
+            }
+
+            @Override
+            public DataTableSpec getDataTableSpec() {
+                return spec;
+            }
+        };
     }
     private DataTable createDataTable(final List<Record> records,
             final ExecutionContext exec, final Neo4jDataConverter converter) throws Exception {

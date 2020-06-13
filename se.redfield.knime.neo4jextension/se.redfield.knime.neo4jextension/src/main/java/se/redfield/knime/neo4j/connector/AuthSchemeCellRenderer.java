@@ -8,8 +8,6 @@ import java.awt.Component;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JList;
 
-import se.redfield.knime.neo4j.connector.cfg.AuthScheme;
-
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *

@@ -14,6 +14,10 @@ import org.junit.runner.RunWith;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
 
+import se.redfield.knime.neo4j.connector.AuthConfig;
+import se.redfield.knime.neo4j.connector.AuthScheme;
+import se.redfield.knime.neo4j.connector.ConnectorConfig;
+import se.redfield.knime.neo4j.connector.ConnectorConfigSerializer;
 import se.redfield.knime.runner.KnimeTestRunner;
 
 /**

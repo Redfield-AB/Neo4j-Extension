@@ -59,11 +59,11 @@ import org.knime.core.node.port.PortObject;
 import org.knime.core.node.util.FlowVariableListCellRenderer;
 import org.knime.core.node.workflow.FlowVariable;
 
+import se.redfield.knime.neo4j.connector.ConnectorConfig;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.FunctionDesc;
 import se.redfield.knime.neo4j.connector.Named;
 import se.redfield.knime.neo4j.connector.NamedWithProperties;
-import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
 import se.redfield.knime.neo4j.db.LabelsAndFunctions;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.ui.NamedValueRenderer;

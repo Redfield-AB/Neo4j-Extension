@@ -12,8 +12,8 @@ import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 
-import se.redfield.knime.neo4j.connector.cfg.AuthScheme;
-import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
+import se.redfield.knime.neo4j.connector.AuthScheme;
+import se.redfield.knime.neo4j.connector.ConnectorConfig;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 
 /**

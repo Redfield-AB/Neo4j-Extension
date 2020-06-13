@@ -13,9 +13,6 @@ import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.port.PortTypeRegistry;
 
-import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
-import se.redfield.knime.neo4j.connector.cfg.ConnectorConfigSerializer;
-
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *

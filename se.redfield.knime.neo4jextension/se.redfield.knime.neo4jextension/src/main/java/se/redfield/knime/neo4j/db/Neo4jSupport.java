@@ -21,10 +21,10 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.summary.QueryType;
 import org.neo4j.driver.summary.ResultSummary;
 
+import se.redfield.knime.neo4j.connector.AuthConfig;
+import se.redfield.knime.neo4j.connector.ConnectorConfig;
 import se.redfield.knime.neo4j.connector.FunctionDesc;
 import se.redfield.knime.neo4j.connector.NamedWithProperties;
-import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
-import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

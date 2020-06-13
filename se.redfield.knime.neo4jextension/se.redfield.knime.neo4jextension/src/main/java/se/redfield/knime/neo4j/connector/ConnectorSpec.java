@@ -8,11 +8,6 @@ import org.knime.core.node.ModelContentRO;
 import org.knime.core.node.ModelContentWO;
 import org.knime.core.node.port.AbstractSimplePortObjectSpec;
 
-import se.redfield.knime.neo4j.connector.cfg.AuthConfig;
-import se.redfield.knime.neo4j.connector.cfg.AuthScheme;
-import se.redfield.knime.neo4j.connector.cfg.ConnectorConfig;
-import se.redfield.knime.neo4j.connector.cfg.ConnectorConfigSerializer;
-
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
