@@ -90,7 +90,6 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         if (inSpecs.length < 2 || !(inSpecs[1] instanceof ConnectorSpec)) {
             throw new InvalidSettingsException("Not Neo4j input found");
         }
-        final ConnectorSpec connectorSpec = (ConnectorSpec) inSpecs[1];
 
         PortObjectSpec output = null;
         //if JSON output used it is possible to specify output.
@@ -102,7 +101,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
             output = ModelUtils.createOneColumnJsonTableSpec("json");
         }
 
-        return new PortObjectSpec[] {output, connectorSpec};
+        return new PortObjectSpec[] {output, inSpecs[1]};
     }
     @Override
     protected PortObject[] execute(final PortObject[] input, final ExecutionContext exec) throws Exception {
