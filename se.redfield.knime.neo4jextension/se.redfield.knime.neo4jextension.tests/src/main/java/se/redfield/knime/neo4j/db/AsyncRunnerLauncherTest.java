@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4j.reader.async;
+package se.redfield.knime.neo4j.db;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -15,18 +15,16 @@ import java.util.Map;
 import org.junit.Test;
 
 import junit.framework.AssertionFailedError;
-import se.redfield.knime.neo4j.db.AsyncRunnerLauncher;
-import se.redfield.knime.neo4j.db.RunResult;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class AsyncScriptRunnerTest extends AsyncRunnerLauncher<String, String> {
+public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String, String> {
     private final Map<String, String> results = new HashMap<>();
     private final Map<String, RuntimeException> errors = new HashMap<>();
 
-    public AsyncScriptRunnerTest() {
+    public AsyncRunnerLauncherTest() {
         super();
         setRunner((workerId, s) -> new RunResult<String>(runScriptImpl(s)));
     }
