@@ -35,6 +35,7 @@ import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
+import org.neo4j.driver.Session;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.util.Pair;
 
@@ -135,8 +136,13 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         final Map<Long, String> results;
 
         try {
-            final AsyncRunnerLauncher<String, String> runner = new AsyncRunnerLauncher<>(
-                    (workerId, r) -> new RunResult<String>(runSingleScript(driver, r)));
+            final AsyncRunnerWithSession<String, String> run = new AsyncRunnerWithSession<String, String>(driver) {
+                @Override
+                protected RunResult<String> run(final Session session, final String query) {
+                    return new RunResult<String>(runSingleScript(driver, session, query));
+                }
+            };
+            final AsyncRunnerLauncher<String, String> runner = new AsyncRunnerLauncher<>(run);
             runner.setStopOnQueryFailure(config.isStopOnQueryFailure());
             results = runner.run(scripts,
                     neo4j.getConfig().getMaxConnectionPoolSize());
@@ -164,8 +170,8 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
                 inputTable.getSpec(), config.getInputColumn()), rows);
     }
 
-    private String runSingleScript(final Driver driver, final String script) {
-        final List<Record> records = Neo4jSupport.runRead(driver, script, null);
+    private String runSingleScript(final Driver driver, final Session session, final String script) {
+        final List<Record> records = Neo4jSupport.runInReadOnlyTransaction(session, script, null);
         return buildJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
     }
     private DataTable executeFromScriptSource(final ExecutionContext exec, final Neo4jSupport neo4j)

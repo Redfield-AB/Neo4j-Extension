@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import javax.json.Json;
 import javax.json.stream.JsonGenerator;
@@ -46,12 +45,12 @@ import org.neo4j.driver.Transaction;
 
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
-import se.redfield.knime.neo4j.db.AsyncRunner;
 import se.redfield.knime.neo4j.db.AsyncRunnerLauncher;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.db.RunResult;
 import se.redfield.knime.neo4j.json.JsonBuilder;
+import se.redfield.knime.neo4j.reader.AsyncRunnerWithSession;
 import se.redfield.knime.neo4j.utils.FlowVariablesProvider;
 import se.redfield.knime.neo4j.utils.ModelUtils;
 
@@ -191,24 +190,10 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     private Map<Long, String> executeAsync(final Neo4jSupport neo4j,
             final List<String> scripts, final Driver driver)
             throws Exception {
-        //create thread ID to transaction map.
-        final Map<Long, Session> sessions = new ConcurrentHashMap<>();
-
-        final AsyncRunner<String, String> r = new AsyncRunner<String, String>() {
+        final AsyncRunnerWithSession<String, String> r = new AsyncRunnerWithSession<String, String>(driver) {
             @Override
-            public void workerStarted(final long threadId) {
-                sessions.put(threadId, driver.session());
-            }
-            @Override
-            public void workerStopped(final long threadId) {
-                final Session session = sessions.get(threadId);
-                if (session != null) {
-                    session.close();
-                }
-            }
-            @Override
-            public RunResult<String> run(final long threadId, final String script) throws Exception {
-                return runScriptInAsyncContext(driver, sessions.get(threadId), script);
+            protected RunResult<String> run(final Session session, final String script) {
+                return runScriptInAsyncContext(driver, session, script);
             }
         };
 

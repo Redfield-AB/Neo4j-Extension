@@ -18,6 +18,7 @@ import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
+import org.neo4j.driver.Transaction;
 import org.neo4j.driver.summary.QueryType;
 import org.neo4j.driver.summary.ResultSummary;
 
@@ -38,21 +39,32 @@ public class Neo4jSupport {
         this.config = config;
     }
     public static List<Record> runRead(final Driver driver, final String query, final RollbackListener l) {
-        return runWithSession(driver, s ->  {
-            return s.readTransaction(tx -> {
-                final Result run = tx.run(query);
-                final List<Record> list = run.list();
+        return runWithSession(driver, s ->  runInReadOnlyTransaction(s, query, l));
+    }
+    /**
+     * @param session session.
+     * @param query query.
+     * @param listener rollback listener.
+     * @return execution result.
+     */
+    public static List<Record> runInReadOnlyTransaction(final Session session, final String query,
+            final RollbackListener listener) {
+        final Transaction tx = session.beginTransaction();
+        try {
+            final Result run = tx.run(query);
+            final List<Record> list = run.list();
 
-                final ResultSummary summary = run.consume();
-                if (summary.queryType() != QueryType.READ_ONLY) {
-                    tx.rollback();
-                    if (l != null) {
-                        l.isRolledBack();
-                    }
+            final ResultSummary summary = run.consume();
+            if (summary.queryType() != QueryType.READ_ONLY) {
+                tx.rollback();
+                if (listener != null) {
+                    listener.isRolledBack();
                 }
-                return list;
-            });
-        });
+            }
+            return list;
+        } finally {
+            tx.close();
+        }
     }
     public static <R> R runWithSession(final Driver driver, final WithSessionRunnable<R> r) {
         final Session s = driver.session();
@@ -103,7 +115,7 @@ public class Neo4jSupport {
             runs.add(s -> loadRelationshipProperties(s, relationships));
             runs.add(s -> loadFunctions(s, functions));
 
-            final AsyncRunnerLauncher<Void, WithSessionRunnable<Void>> runner = new AsyncRunnerLauncher<>((workerId, r) -> {
+            final AsyncRunnerLauncher<Void, WithSessionRunnable<Void>> runner = new AsyncRunnerLauncher<>((r) -> {
                 runWithSession(driver, r);
                 //return empty result
                 return new RunResult<>();

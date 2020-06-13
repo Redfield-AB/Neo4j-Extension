@@ -123,7 +123,7 @@ public class AsyncRunnerLauncher<R, A> {
      */
     private void workerStarted(final long threadId) {
         try {
-            runner.workerStarted(threadId);
+            runner.workerStarted();
         } catch (final Throwable e) {
             e.printStackTrace();
         }
@@ -133,14 +133,14 @@ public class AsyncRunnerLauncher<R, A> {
      */
     private void workerStopped(final long threadId) {
         try {
-            runner.workerStopped(threadId);
+            runner.workerStopped();
         } catch (final Throwable e) {
             e.printStackTrace();
         }
     }
     protected RunResult<R> runScript(final A script, final long threadId) {
         try {
-            return runner.run(threadId, script);
+            return runner.run(script);
         } catch (final Throwable e) {
             final RunResult<R> res = new RunResult<>();
             res.setException(e);

@@ -26,7 +26,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String, String>
 
     public AsyncRunnerLauncherTest() {
         super();
-        setRunner((workerId, s) -> new RunResult<String>(runScriptImpl(s)));
+        setRunner((s) -> new RunResult<String>(runScriptImpl(s)));
     }
 
     @Test
