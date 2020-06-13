@@ -38,7 +38,7 @@ public class WriterConfigSerializer {
         super();
     }
 
-    public void write(final WriterConfig config, final NodeSettingsWO settings) {
+    public void save(final WriterConfig config, final NodeSettingsWO settings) {
         settings.addString(SCRIPT_KEY, config.getScript());
         settings.addBoolean(USE_ASYNC_KEY, config.isUseAsync());
         settings.addString(INPUT_COLUMN_KEY, config.getInputColumn());

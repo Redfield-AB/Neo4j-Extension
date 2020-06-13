@@ -79,7 +79,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
-        new WriterConfigSerializer().write(config, settings);
+        new WriterConfigSerializer().save(config, settings);
     }
     @Override
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {

@@ -74,7 +74,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
-        new ReaderConfigSerializer().write(config, settings);
+        new ReaderConfigSerializer().save(config, settings);
     }
     @Override
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {

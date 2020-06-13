@@ -38,7 +38,7 @@ public class ReaderConfigSerializer {
         super();
     }
 
-    public void write(final ReaderConfig config, final NodeSettingsWO settings) {
+    public void save(final ReaderConfig config, final NodeSettingsWO settings) {
         settings.addString(SCRIPT_KEY, config.getScript());
         settings.addBoolean(USE_JSON_KEY, config.isUseJson());
         settings.addString(INPUT_COLUMN_KEY, config.getInputColumn());

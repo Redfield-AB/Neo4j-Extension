@@ -437,7 +437,7 @@ public class WriterModelTest {
     }
     private void setConfigToModel(final WriterConfig cfg) throws InvalidSettingsException {
         final NodeSettings s = new NodeSettings("junit");
-        new WriterConfigSerializer().write(cfg, s);
+        new WriterConfigSerializer().save(cfg, s);
 
         model.loadValidatedSettingsFrom(s);
     }

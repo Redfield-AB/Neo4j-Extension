@@ -434,7 +434,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
         final ReaderConfig model = buildConfig();
-        new ReaderConfigSerializer().write(model, settings);
+        new ReaderConfigSerializer().save(model, settings);
     }
 
     @Override

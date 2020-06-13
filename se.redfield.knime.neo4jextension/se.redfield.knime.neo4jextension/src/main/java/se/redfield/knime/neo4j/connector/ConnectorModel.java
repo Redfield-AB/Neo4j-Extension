@@ -27,23 +27,23 @@ import se.redfield.knime.neo4j.db.Neo4jSupport;
  *
  */
 public class ConnectorModel extends NodeModel {
-    private ConnectorConfig data;
+    private ConnectorConfig config;
 
     /**
      * Default constructor.
      */
     public ConnectorModel() {
         super(new PortType[0], new PortType[] {ConnectorPortObject.TYPE});
-        this.data = new ConnectorConfig();
+        this.config = new ConnectorConfig();
     }
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
-        new ConnectorConfigSerializer().save(data, settings);
+        new ConnectorConfigSerializer().save(config, settings);
     }
     @Override
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        data = new ConnectorConfigSerializer().load(settings);
+        config = new ConnectorConfigSerializer().load(settings);
     }
     @Override
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
@@ -71,15 +71,15 @@ public class ConnectorModel extends NodeModel {
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
         //test connection
-        final ConnectorConfig cfg = data.createResolvedConfig(getCredentialsProvider());
+        final ConnectorConfig cfg = config.createResolvedConfig(getCredentialsProvider());
         final Neo4jSupport s = new Neo4jSupport(cfg);
         s.createDriver().closeAsync();
 
         //return port object
-        return new PortObject[]{new ConnectorPortObject(data)};
+        return new PortObject[]{new ConnectorPortObject(config)};
     }
 
     private PortObjectSpec[] configure() {
-        return new PortObjectSpec[] {new ConnectorSpec(data)};
+        return new PortObjectSpec[] {new ConnectorSpec(config)};
     }
 }

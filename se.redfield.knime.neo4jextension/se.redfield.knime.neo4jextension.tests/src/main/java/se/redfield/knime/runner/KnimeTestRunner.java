@@ -14,7 +14,7 @@ import se.redfield.knime.runner.knime.KnimeInitializer;
  * Warning!!!
  * This test runner is hacking in fact? I know it! But it is better to use fast
  * unit tests instead of standard Eclipse Test runner. It saves your time.
- * If anything did stop to work, please debug it and correct KNime initialization.
+ * If anything did stop to work, please debug it and correct KNime test initializer.
  *
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *

@@ -430,7 +430,7 @@ public class WriterDialog extends DataAwareNodeDialogPane implements FlowVariabl
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
         final WriterConfig model = buildConfig();
-        new WriterConfigSerializer().write(model, settings);
+        new WriterConfigSerializer().save(model, settings);
     }
 
     @Override
