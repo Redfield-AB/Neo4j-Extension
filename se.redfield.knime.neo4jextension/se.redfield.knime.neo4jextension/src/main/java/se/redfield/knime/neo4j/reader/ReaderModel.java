@@ -9,6 +9,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
@@ -41,7 +42,6 @@ import org.neo4j.driver.Value;
 import org.neo4j.driver.util.Pair;
 
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
-import se.redfield.knime.neo4j.async.RunResult;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
@@ -134,14 +134,15 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
             final BufferedDataTable inputTable, final Neo4jSupport neo4j) throws Exception {
         final Iterator<String> scripts = ModelUtils.getStringsFromTextColumn(inputTable, inputColumn, this);
         final Driver driver = neo4j.createDriver();
-        final Map<Long, String> results;
+        final Map<Long, String> results = new ConcurrentHashMap<>();
 
         try {
-            final AsyncRunnerLauncher<String, String> runner = Neo4jSupport.createAsyncLauncher(
+            final AsyncRunnerLauncher<String> runner = Neo4jSupport.createAsyncLauncher(
                     driver,
-                    (session, number, query) -> new RunResult<String>(runSingleScript(driver, session, query)));
+                    (session, number, query) -> runSingleScript(
+                            driver, session, number, query, results));
             runner.setStopOnFailure(config.isStopOnQueryFailure());
-            results = runner.run(scripts,
+            runner.run(scripts,
                     (int) Math.min(neo4j.getConfig().getMaxConnectionPoolSize(), inputTable.size()));
             if (runner.hasErrors()) {
                 if (config.isStopOnQueryFailure()) {
@@ -167,9 +168,10 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
                 inputTable.getSpec(), config.getInputColumn()), rows);
     }
 
-    private String runSingleScript(final Driver driver, final Session session, final String script) {
+    private void runSingleScript(final Driver driver, final Session session,
+            final long row, final String script, final Map<Long, String> results) {
         final List<Record> records = Neo4jSupport.runInReadOnlyTransaction(session, script, null);
-        return buildJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
+        results.put(row, buildJson(records, new Neo4jDataConverter(driver.defaultTypeSystem())));
     }
     private DataTable executeFromScriptSource(final ExecutionContext exec, final Neo4jSupport neo4j)
             throws Exception {

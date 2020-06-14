@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.neo4j.driver.AuthToken;
 import org.neo4j.driver.AuthTokens;
@@ -24,7 +25,6 @@ import org.neo4j.driver.summary.ResultSummary;
 
 import se.redfield.knime.neo4j.async.AsyncRunner;
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
-import se.redfield.knime.neo4j.async.RunResult;
 import se.redfield.knime.neo4j.connector.AuthConfig;
 import se.redfield.knime.neo4j.connector.ConnectorConfig;
 import se.redfield.knime.neo4j.connector.FunctionDesc;
@@ -44,14 +44,14 @@ public class Neo4jSupport {
     public static List<Record> runRead(final Driver driver, final String query, final RollbackListener l) {
         return runWithSession(driver, s ->  runInReadOnlyTransaction(s, query, l));
     }
-    public static <R, V> AsyncRunnerLauncher<R, V> createAsyncLauncher(
-            final Driver driver, final WithSessionAsyncRunner<R, V> r) {
-        final Map<Long, Session> sessions = new HashMap<>();
+    public static <V> AsyncRunnerLauncher<V> createAsyncLauncher(
+            final Driver driver, final WithSessionAsyncRunner<V> r) {
+        final Map<Long, Session> sessions = new ConcurrentHashMap<>();
 
-        final AsyncRunner<R, V> runner = new AsyncRunner<R, V>() {
+        final AsyncRunner<V> runner = new AsyncRunner<V>() {
             @Override
-            public RunResult<R> run(final int number, final V arg) throws Exception {
-                return r.run(sessions.get(Thread.currentThread().getId()), number, arg);
+            public void run(final int number, final V arg) throws Exception {
+                r.run(sessions.get(Thread.currentThread().getId()), number, arg);
             }
             @Override
             public void workerStarted() {
@@ -141,11 +141,8 @@ public class Neo4jSupport {
             runs.add(s -> loadRelationshipProperties(s, relationships));
             runs.add(s -> loadFunctions(s, functions));
 
-            final AsyncRunnerLauncher<Void, WithSessionRunnable<Void>> runner = new AsyncRunnerLauncher<>((number, r) -> {
-                runWithSession(driver, r);
-                //return empty result
-                return new RunResult<>();
-            });
+            final AsyncRunnerLauncher<WithSessionRunnable<Void>> runner
+                = new AsyncRunnerLauncher<>((number, r) -> runWithSession(driver, r));
             runner.setStopOnFailure(true);
             runner.run(runs.iterator(), runs.size());
 

@@ -6,11 +6,10 @@ package se.redfield.knime.neo4j.writer;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.json.Json;
 import javax.json.stream.JsonGenerator;
@@ -24,6 +23,7 @@ import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.RowKey;
 import org.knime.core.data.append.AppendedColumnRow;
 import org.knime.core.data.def.DefaultRow;
+import org.knime.core.data.def.StringCell;
 import org.knime.core.data.json.JSONCell;
 import org.knime.core.data.json.JSONCellFactory;
 import org.knime.core.node.BufferedDataContainer;
@@ -45,7 +45,6 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.Transaction;
 
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
-import se.redfield.knime.neo4j.async.RunResult;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
@@ -117,7 +116,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
 
         DataTable table;
         if (tableInput != null) {
-            table = executeFromTableSource(exec, config.getInputColumn(), tableInput, neo4j);
+            table = executeFromTableSource(exec, tableInput, neo4j);
         } else {
             table = executeFromScriptSource(exec, neo4j);
         }
@@ -128,52 +127,52 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     }
 
     private DataTable executeFromTableSource(
-            final ExecutionContext exec, final String inputColumn,
-            final BufferedDataTable inputTable, final Neo4jSupport neo4j) throws Exception {
-        final Iterator<String> scripts = ModelUtils.getStringsFromTextColumn(inputTable, inputColumn, this);
-        final Driver driver = neo4j.createDriver();
-
+            final ExecutionContext exec, final BufferedDataTable inputTable,
+            final Neo4jSupport neo4j) throws Exception {
+        final DataTableSpec tableSpec = ModelUtils.createSpecWithAddedJsonColumn(
+                inputTable.getSpec(), config.getInputColumn());
+        final BufferedDataContainer table = exec.createDataContainer(tableSpec);
         try {
-            final Map<Long, String> results = config.isUseAsync() ?
-                    executeAsync(neo4j, scripts, inputTable.size(), driver)
-                    : executeSync(neo4j, scripts, driver);
 
-            //build result
-            final List<DataRow> rows = new LinkedList<DataRow>();
-            long rowNum = 0;
-            for (final DataRow origin : inputTable) {
-                rows.add(createRow(origin, results.get(rowNum)));
-                rowNum++;
+            final Driver driver = neo4j.createDriver();
+
+            try {
+                if (config.isUseAsync()) {
+                    executeFromTableSourceAsync(inputTable, driver, neo4j, table);
+                } else {
+                    executeFromTableSourceSync(inputTable, driver, table);
+                }
+            } finally {
+                driver.closeAsync();
             }
-
-            return createTable(exec, ModelUtils.createSpecWithAddedJsonColumn(
-                    inputTable.getSpec(), config.getInputColumn()), rows);
         } finally {
-            driver.closeAsync();
+            table.close();
         }
+        return table.getTable();
     }
 
-    private Map<Long, String> executeSync(final Neo4jSupport neo4j,
-            final Iterator<String> scripts, final Driver driver) throws Exception {
-        final Map<Long, String> results = new HashMap<>();
-        final Neo4jDataConverter converter = new Neo4jDataConverter(driver.defaultTypeSystem());
+    private void executeFromTableSourceSync(final BufferedDataTable inputTable,
+            final Driver driver, final BufferedDataContainer output)
+            throws Exception {
 
         final Session session = driver.session();
         try {
-            long row = 0;
-            while (scripts.hasNext()) {
-                final String script = scripts.next();
+            final Neo4jDataConverter converter = new Neo4jDataConverter(driver.defaultTypeSystem());
+
+            //build result
+            for (final DataRow origin : inputTable) {
+                final String script = getScriptFromInputColumn(inputTable, origin);
 
                 final Transaction tx = session.beginTransaction();
                 try {
                     final Result run = tx.run(script);
                     final List<Record> res = run.list();
-                    results.put(row, createSuccessJson(res, converter));
+                    output.addRowToTable(createRow(origin, createSuccessJson(res, converter)));
 
                     commitAndClose(tx);
                 } catch (final Exception e) {
                     rollbackAndClose(tx);
-                    results.put(row, createErrorJson(e.getMessage()));
+                    output.addRowToTable(createRow(origin, createErrorJson(e.getMessage())));
 
                     if (config.isStopOnQueryFailure()) {
                         throw new Exception(SOME_QUERIES_ERROR);
@@ -181,24 +180,29 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
                         setWarningMessage(SOME_QUERIES_ERROR);
                     }
                 }
-                row++;
             }
         } finally {
             session.close();
         }
-
-        return results;
     }
-    private Map<Long, String> executeAsync(final Neo4jSupport neo4j,
-            final Iterator<String> scripts, final long tableSize, final Driver driver)
-            throws Exception {
-
-        final AsyncRunnerLauncher<String, String> runner = Neo4jSupport.createAsyncLauncher(
-                driver, (session, number, query) -> runScriptInAsyncContext(driver, session, query));
+    private String getScriptFromInputColumn(final BufferedDataTable inputTable, final DataRow origin) {
+        final int colIndex = inputTable.getDataTableSpec().findColumnIndex(config.getInputColumn());
+        final StringCell cell = (StringCell) origin.getCell(colIndex);
+        return ModelUtils.insertFlowVariables(cell.getStringValue(), this);
+    }
+    private void executeFromTableSourceAsync(final BufferedDataTable inputTable,
+            final Driver driver, final Neo4jSupport neo4j, final BufferedDataContainer output)
+            throws Exception, IOException {
+        final Iterator<DataRow> rows = inputTable.iterator();
+        final Map<Long, DataRow> results = new ConcurrentHashMap<Long, DataRow>();
+        final AsyncRunnerLauncher<DataRow> runner = Neo4jSupport.createAsyncLauncher(
+                driver, (session, number, query) -> runScriptInAsyncContext(
+                        driver, session, inputTable, number, query, results));
         runner.setStopOnFailure(config.isStopOnQueryFailure());
 
-        final Map<Long, String> results = runner.run(scripts,
-                (int) Math.min(neo4j.getConfig().getMaxConnectionPoolSize(), tableSize));
+        final int numThreads = (int) Math.min(neo4j.getConfig().getMaxConnectionPoolSize(),
+                inputTable.size());
+        runner.run(rows, numThreads);
         if (runner.hasErrors()) {
             if (config.isStopOnQueryFailure()) {
                 throw new Exception(SOME_QUERIES_ERROR);
@@ -207,24 +211,29 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
             }
         }
 
-        return results;
+        //build result
+        final int size = results.size();
+        for (int rowNum = 0; rowNum < size; rowNum++) {
+            output.addRowToTable(results.get((long) rowNum));
+        }
     }
 
-    /**
-     * @param driver Neo4j driver.
-     * @param script script to execute.
-     * @param trs map of transactions.
-     * @return
-     */
-    private RunResult<String> runScriptInAsyncContext(final Driver driver,
-            final Session session, final String script) {
+    private void runScriptInAsyncContext(final Driver driver,
+            final Session session, final BufferedDataTable inputTable,
+            final long rowNum, final DataRow row,
+            final Map<Long, DataRow> results)
+                    throws IOException {
         final Transaction tr = session.beginTransaction();
 
-        List<Record> records;
         try {
             //run script in given transaction context
-            final Result run = tr.run(script);
-            records = run.list();
+            final Result run = tr.run(getScriptFromInputColumn(inputTable, row));
+            final List<Record> records = run.list();
+
+            //build JSON result from records.
+            final String result = createSuccessJson(records,
+                    new Neo4jDataConverter(driver.defaultTypeSystem()));
+            results.put(rowNum, createRow(row, result));
 
             //if not in stop on query failure mode, then should commit result
             //immediately
@@ -232,15 +241,12 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
         } catch (final RuntimeException e) {
             rollbackAndClose(tr);
             if (!config.isStopOnQueryFailure()) {
-                return new RunResult<String>(createErrorJson(e.getMessage()), e);
+                final String error = createErrorJson(e.getMessage());
+                results.put(rowNum, createRow(row, error));
             } else {
                 throw e;
             }
         }
-
-        //build JSON result from records.
-        final String result = createSuccessJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
-        return new RunResult<String>(result);
     }
     /**
      * @param tr transaction.
@@ -362,18 +368,6 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
         gen.close();
 
         return wr.toString();
-    }
-    private DataTable createTable(final ExecutionContext exec, final DataTableSpec tableSpec,
-            final List<DataRow> rows) {
-        final BufferedDataContainer table = exec.createDataContainer(tableSpec);
-        try {
-            for (final DataRow row : rows) {
-                table.addRowToTable(row);
-            }
-        } finally {
-            table.close();
-        }
-        return table.getTable();
     }
     private DataTable createJsonTable(final String json, final ExecutionContext exec) throws IOException {
         final DataTableSpec tableSpec = createOneColumnSpec();

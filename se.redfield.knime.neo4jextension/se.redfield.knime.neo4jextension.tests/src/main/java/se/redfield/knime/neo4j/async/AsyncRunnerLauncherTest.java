@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.junit.Test;
 
@@ -20,13 +21,14 @@ import junit.framework.AssertionFailedError;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String, String> {
+public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
     private final Map<String, String> results = new HashMap<>();
     private final Map<String, RuntimeException> errors = new HashMap<>();
+    private final Map<Long, String> result = new ConcurrentHashMap<>();
 
     public AsyncRunnerLauncherTest() {
         super();
-        setRunner((number, s) -> new RunResult<String>(runScriptImpl(s)));
+        setRunner(this::runScriptImpl);
     }
 
     @Test
@@ -41,7 +43,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String, String>
             results.put(script, script);
         }
 
-        final Map<Long, String> result = run(scripts.iterator(), 3);
+        run(scripts.iterator(), 3);
 
         //check output has correct order
         for (int i = 0; i < numScripts; i++) {
@@ -79,7 +81,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String, String>
 
         //the number of threads should be same as num errors for be sure
         //all next result will not processed.
-        final Map<Long, String> result = run(scripts.iterator(), numErrors);
+        run(scripts.iterator(), numErrors);
 
         assertTrue(hasErrors());
         assertTrue(result.size() < firstGroup + numErrors + 1);
@@ -115,7 +117,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String, String>
 
         //the number of threads should be same as num errors for be sure
         //all next result will not processed.
-        final Map<Long, String> result = run(scripts.iterator(), numErrors);
+        run(scripts.iterator(), numErrors);
 
         assertTrue(hasErrors());
 
@@ -153,10 +155,13 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String, String>
         }
     }
 
-    private String runScriptImpl(final String script) {
+    private void runScriptImpl(final long num, final String script) {
+        System.out.println("Run script: " + script + "("
+                + num + ")");
+
         if (errors.containsKey(script)) {
             throw errors.get(script);
         }
-        return results.get(script);
+        result.put(num, script);
     }
 }
