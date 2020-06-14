@@ -22,9 +22,9 @@ import junit.framework.AssertionFailedError;
  *
  */
 public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
-    private final Map<String, String> results = new HashMap<>();
+    private final Map<String, String> runScriptResults = new HashMap<>();
     private final Map<String, RuntimeException> errors = new HashMap<>();
-    private final Map<Long, String> result = new ConcurrentHashMap<>();
+    private final Map<Long, String> output = new ConcurrentHashMap<>();
 
     public AsyncRunnerLauncherTest() {
         super();
@@ -40,7 +40,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
             final String script = "script-" + i;
 
             scripts.add(script);
-            results.put(script, script);
+            runScriptResults.put(script, script);
         }
 
         run(scripts.iterator(), 3);
@@ -48,7 +48,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
         //check output has correct order
         for (int i = 0; i < numScripts; i++) {
             final String script = "script-" + i;
-            assertEquals(script, result.get((long) i));
+            assertEquals(script, output.get((long) i));
         }
     }
     @Test
@@ -62,7 +62,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
         for (int i = 0; i < firstGroup; i++) {
             final String script = "script-" + i;
             scripts.add(script);
-            results.put(script, script);
+            runScriptResults.put(script, script);
         }
 
         final int numErrors = 3;
@@ -76,7 +76,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
         for (int i = 0; i < 1000; i++) {
             final String script = "script-" + (firstGroup + numErrors + i);
             scripts.add(script);
-            results.put(script, script);
+            runScriptResults.put(script, script);
         }
 
         //the number of threads should be same as num errors for be sure
@@ -84,7 +84,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
         run(scripts.iterator(), numErrors);
 
         assertTrue(hasErrors());
-        assertTrue(result.size() < firstGroup + numErrors + 1);
+        assertTrue(output.size() < firstGroup + numErrors + 1);
     }
     @Test
     public void testNotStopOnQueryFailure() {
@@ -97,7 +97,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
         for (int i = 0; i < firstGroup; i++) {
             final String script = "script-" + i;
             scripts.add(script);
-            results.put(script, script);
+            runScriptResults.put(script, script);
         }
 
         final int numErrors = 3;
@@ -112,7 +112,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
         for (int i = 0; i < secondGroup; i++) {
             final String script = "script-" + (firstGroup + numErrors + i);
             scripts.add(script);
-            results.put(script, script);
+            runScriptResults.put(script, script);
         }
 
         //the number of threads should be same as num errors for be sure
@@ -124,20 +124,20 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
         //test first group
         for (int i = 0; i < firstGroup; i++) {
             final String script = "script-" + i;
-            assertEquals(script, result.get((long) i));
+            assertEquals(script, output.get((long) i));
         }
 
         //test errors
         for (int i = 0; i < numErrors; i++) {
             final long offset = firstGroup + i;
-            assertNull(result.get(offset));
+            assertNull(output.get(offset));
         }
 
         //test second groups.
         for (int i = 0; i < secondGroup; i++) {
             final long offset = firstGroup + numErrors + i;
             final String script = "script-" + offset;
-            assertEquals(script, result.get(offset));
+            assertEquals(script, output.get(offset));
         }
     }
     @Test
@@ -156,12 +156,9 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
     }
 
     private void runScriptImpl(final long num, final String script) {
-        System.out.println("Run script: " + script + "("
-                + num + ")");
-
         if (errors.containsKey(script)) {
             throw errors.get(script);
         }
-        result.put(num, script);
+        output.put(num, script);
     }
 }

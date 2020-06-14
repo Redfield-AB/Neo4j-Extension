@@ -195,6 +195,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
             throws Exception, IOException {
         final Iterator<DataRow> rows = inputTable.iterator();
         final Map<Long, DataRow> results = new ConcurrentHashMap<Long, DataRow>();
+
         final AsyncRunnerLauncher<DataRow> runner = Neo4jSupport.createAsyncLauncher(
                 driver, (session, number, query) -> runScriptInAsyncContext(
                         driver, session, inputTable, number, query, results));

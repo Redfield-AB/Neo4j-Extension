@@ -8,14 +8,14 @@ package se.redfield.knime.neo4j.async;
  *
  */
 public class NumberedValue<A> {
-    private final int number;
+    private final long number;
     private final A value;
-    public NumberedValue(final int num, final A arg) {
+    public NumberedValue(final long num, final A arg) {
         super();
         this.number = num;
         this.value = arg;
     }
-    public int getNumber() {
+    public long getNumber() {
         return number;
     }
     public A getValue() {

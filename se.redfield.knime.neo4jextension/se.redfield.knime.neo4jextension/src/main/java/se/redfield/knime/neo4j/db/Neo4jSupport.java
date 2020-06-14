@@ -50,7 +50,7 @@ public class Neo4jSupport {
 
         final AsyncRunner<V> runner = new AsyncRunner<V>() {
             @Override
-            public void run(final int number, final V arg) throws Exception {
+            public void run(final long number, final V arg) throws Exception {
                 r.run(sessions.get(Thread.currentThread().getId()), number, arg);
             }
             @Override

@@ -17,7 +17,7 @@ public interface AsyncRunner<V> {
      * as simple throw it. It will correct catch and converted to script result with
      * exception and null result.
      */
-    void run(int number, V arg) throws Exception;
+    void run(long number, V arg) throws Exception;
     /**
      */
     default void workerStopped() {}
