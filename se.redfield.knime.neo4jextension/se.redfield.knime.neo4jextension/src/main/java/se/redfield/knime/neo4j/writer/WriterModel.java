@@ -50,7 +50,6 @@ import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.db.RunResult;
 import se.redfield.knime.neo4j.json.JsonBuilder;
-import se.redfield.knime.neo4j.reader.AsyncRunnerWithSession;
 import se.redfield.knime.neo4j.utils.FlowVariablesProvider;
 import se.redfield.knime.neo4j.utils.ModelUtils;
 
@@ -190,14 +189,9 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     private Map<Long, String> executeAsync(final Neo4jSupport neo4j,
             final List<String> scripts, final Driver driver)
             throws Exception {
-        final AsyncRunnerWithSession<String, String> r = new AsyncRunnerWithSession<String, String>(driver) {
-            @Override
-            protected RunResult<String> run(final Session session, final String script) {
-                return runScriptInAsyncContext(driver, session, script);
-            }
-        };
 
-        final AsyncRunnerLauncher<String, String> runner = new AsyncRunnerLauncher<>(r);
+        final AsyncRunnerLauncher<String, String> runner = Neo4jSupport.createAsyncLauncher(
+                driver, (session, query) -> runScriptInAsyncContext(driver, session, query));
         runner.setStopOnQueryFailure(config.isStopOnQueryFailure());
 
         final Map<Long, String> results = runner.run(scripts,

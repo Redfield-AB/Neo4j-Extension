@@ -136,13 +136,9 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         final Map<Long, String> results;
 
         try {
-            final AsyncRunnerWithSession<String, String> run = new AsyncRunnerWithSession<String, String>(driver) {
-                @Override
-                protected RunResult<String> run(final Session session, final String query) {
-                    return new RunResult<String>(runSingleScript(driver, session, query));
-                }
-            };
-            final AsyncRunnerLauncher<String, String> runner = new AsyncRunnerLauncher<>(run);
+            final AsyncRunnerLauncher<String, String> runner = Neo4jSupport.createAsyncLauncher(
+                    driver,
+                    (session, query) -> new RunResult<String>(runSingleScript(driver, session, query)));
             runner.setStopOnQueryFailure(config.isStopOnQueryFailure());
             results = runner.run(scripts,
                     neo4j.getConfig().getMaxConnectionPoolSize());

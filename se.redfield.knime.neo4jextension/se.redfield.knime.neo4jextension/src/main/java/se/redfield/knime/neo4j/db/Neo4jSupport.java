@@ -41,6 +41,29 @@ public class Neo4jSupport {
     public static List<Record> runRead(final Driver driver, final String query, final RollbackListener l) {
         return runWithSession(driver, s ->  runInReadOnlyTransaction(s, query, l));
     }
+    public static <R, V> AsyncRunnerLauncher<R, V> createAsyncLauncher(
+            final Driver driver, final WithSessionAsyncRunner<R, V> r) {
+        final Map<Long, Session> sessions = new HashMap<>();
+
+        final AsyncRunner<R, V> runner = new AsyncRunner<R, V>() {
+            @Override
+            public RunResult<R> run(final V arg) throws Exception {
+                return r.run(sessions.get(Thread.currentThread().getId()), arg);
+            }
+            @Override
+            public void workerStarted() {
+                sessions.put(Thread.currentThread().getId(), driver.session());
+            }
+            @Override
+            public void workerStopped() {
+                final Session s = sessions.remove(Thread.currentThread().getId());
+                if (s != null) { //if is started
+                    s.close();
+                }
+            }
+        };
+        return new AsyncRunnerLauncher<>(runner);
+    }
     /**
      * @param session session.
      * @param query query.
