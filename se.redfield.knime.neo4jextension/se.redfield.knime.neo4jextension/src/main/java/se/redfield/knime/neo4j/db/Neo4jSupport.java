@@ -22,6 +22,9 @@ import org.neo4j.driver.Transaction;
 import org.neo4j.driver.summary.QueryType;
 import org.neo4j.driver.summary.ResultSummary;
 
+import se.redfield.knime.neo4j.async.AsyncRunner;
+import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
+import se.redfield.knime.neo4j.async.RunResult;
 import se.redfield.knime.neo4j.connector.AuthConfig;
 import se.redfield.knime.neo4j.connector.ConnectorConfig;
 import se.redfield.knime.neo4j.connector.FunctionDesc;
@@ -47,8 +50,8 @@ public class Neo4jSupport {
 
         final AsyncRunner<R, V> runner = new AsyncRunner<R, V>() {
             @Override
-            public RunResult<R> run(final V arg) throws Exception {
-                return r.run(sessions.get(Thread.currentThread().getId()), arg);
+            public RunResult<R> run(int number, final V arg) throws Exception {
+                return r.run(sessions.get(Thread.currentThread().getId()), number, arg);
             }
             @Override
             public void workerStarted() {
@@ -138,12 +141,12 @@ public class Neo4jSupport {
             runs.add(s -> loadRelationshipProperties(s, relationships));
             runs.add(s -> loadFunctions(s, functions));
 
-            final AsyncRunnerLauncher<Void, WithSessionRunnable<Void>> runner = new AsyncRunnerLauncher<>((r) -> {
+            final AsyncRunnerLauncher<Void, WithSessionRunnable<Void>> runner = new AsyncRunnerLauncher<>((number, r) -> {
                 runWithSession(driver, r);
                 //return empty result
                 return new RunResult<>();
             });
-            runner.setStopOnQueryFailure(true);
+            runner.setStopOnFailure(true);
             runner.run(runs, runs.size());
 
             if (runner.hasErrors()) {

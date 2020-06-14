@@ -39,12 +39,12 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.util.Pair;
 
+import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
+import se.redfield.knime.neo4j.async.RunResult;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
-import se.redfield.knime.neo4j.db.AsyncRunnerLauncher;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
-import se.redfield.knime.neo4j.db.RunResult;
 import se.redfield.knime.neo4j.json.JsonBuilder;
 import se.redfield.knime.neo4j.table.Neo4jTableOutputSupport;
 import se.redfield.knime.neo4j.utils.FlowVariablesProvider;
@@ -138,8 +138,8 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         try {
             final AsyncRunnerLauncher<String, String> runner = Neo4jSupport.createAsyncLauncher(
                     driver,
-                    (session, query) -> new RunResult<String>(runSingleScript(driver, session, query)));
-            runner.setStopOnQueryFailure(config.isStopOnQueryFailure());
+                    (session, number, query) -> new RunResult<String>(runSingleScript(driver, session, query)));
+            runner.setStopOnFailure(config.isStopOnQueryFailure());
             results = runner.run(scripts,
                     neo4j.getConfig().getMaxConnectionPoolSize());
             if (runner.hasErrors()) {

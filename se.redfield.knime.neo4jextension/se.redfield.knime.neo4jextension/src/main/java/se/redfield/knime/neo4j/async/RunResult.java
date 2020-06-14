@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4j.db;
+package se.redfield.knime.neo4j.async;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

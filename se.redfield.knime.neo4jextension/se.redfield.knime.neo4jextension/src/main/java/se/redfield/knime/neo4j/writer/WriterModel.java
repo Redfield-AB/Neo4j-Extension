@@ -43,12 +43,12 @@ import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Transaction;
 
+import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
+import se.redfield.knime.neo4j.async.RunResult;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
-import se.redfield.knime.neo4j.db.AsyncRunnerLauncher;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
-import se.redfield.knime.neo4j.db.RunResult;
 import se.redfield.knime.neo4j.json.JsonBuilder;
 import se.redfield.knime.neo4j.utils.FlowVariablesProvider;
 import se.redfield.knime.neo4j.utils.ModelUtils;
@@ -191,8 +191,8 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
             throws Exception {
 
         final AsyncRunnerLauncher<String, String> runner = Neo4jSupport.createAsyncLauncher(
-                driver, (session, query) -> runScriptInAsyncContext(driver, session, query));
-        runner.setStopOnQueryFailure(config.isStopOnQueryFailure());
+                driver, (session, number, query) -> runScriptInAsyncContext(driver, session, query));
+        runner.setStopOnFailure(config.isStopOnQueryFailure());
 
         final Map<Long, String> results = runner.run(scripts,
                 neo4j.getConfig().getMaxConnectionPoolSize());

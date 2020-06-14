@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4j.db;
+package se.redfield.knime.neo4j.async;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -26,7 +26,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String, String>
 
     public AsyncRunnerLauncherTest() {
         super();
-        setRunner((s) -> new RunResult<String>(runScriptImpl(s)));
+        setRunner((number, s) -> new RunResult<String>(runScriptImpl(s)));
     }
 
     @Test
@@ -51,7 +51,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String, String>
     }
     @Test
     public void testStopOnQueryFailure() {
-        setStopOnQueryFailure(true);
+        setStopOnFailure(true);
 
         final List<String> scripts = new LinkedList<>();
 
@@ -86,7 +86,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String, String>
     }
     @Test
     public void testNotStopOnQueryFailure() {
-        setStopOnQueryFailure(false);
+        setStopOnFailure(false);
 
         final List<String> scripts = new LinkedList<>();
 
