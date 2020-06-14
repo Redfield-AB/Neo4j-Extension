@@ -50,7 +50,7 @@ public class Neo4jSupport {
 
         final AsyncRunner<R, V> runner = new AsyncRunner<R, V>() {
             @Override
-            public RunResult<R> run(int number, final V arg) throws Exception {
+            public RunResult<R> run(final int number, final V arg) throws Exception {
                 return r.run(sessions.get(Thread.currentThread().getId()), number, arg);
             }
             @Override
@@ -147,7 +147,7 @@ public class Neo4jSupport {
                 return new RunResult<>();
             });
             runner.setStopOnFailure(true);
-            runner.run(runs, runs.size());
+            runner.run(runs.iterator(), runs.size());
 
             if (runner.hasErrors()) {
                 throw new Exception("Failed to read Neo4j DB metadata");

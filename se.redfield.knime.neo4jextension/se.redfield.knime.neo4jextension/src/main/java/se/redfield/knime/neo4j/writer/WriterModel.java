@@ -194,8 +194,8 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
                 driver, (session, number, query) -> runScriptInAsyncContext(driver, session, query));
         runner.setStopOnFailure(config.isStopOnQueryFailure());
 
-        final Map<Long, String> results = runner.run(scripts,
-                neo4j.getConfig().getMaxConnectionPoolSize());
+        final Map<Long, String> results = runner.run(scripts.iterator(),
+                Math.min(neo4j.getConfig().getMaxConnectionPoolSize(), scripts.size()));
         if (runner.hasErrors()) {
             if (config.isStopOnQueryFailure()) {
                 throw new Exception(SOME_QUERIES_ERROR);

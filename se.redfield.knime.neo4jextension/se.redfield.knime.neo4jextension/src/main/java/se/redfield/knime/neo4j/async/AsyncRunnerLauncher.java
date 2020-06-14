@@ -5,8 +5,6 @@ package se.redfield.knime.neo4j.async;
 
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -39,21 +37,25 @@ public class AsyncRunnerLauncher<R, A> {
 
     /**
      * @param arguments list of arguments to execute.
-     * @param originMumThreads number of threads.
+     * @param numThreads number of threads.
      * @return map of execution results to its position in origin list.
      */
-    public Map<Long, R> run(final List<A> arguments, final int originMumThreads) {
-        if (arguments.isEmpty()) {
+    public Map<Long, R> run(final Iterator<A> arguments, final int numThreads) {
+        if (!arguments.hasNext()) {
             return new HashMap<>();
         }
-
-        final int numThreads = Math.min(arguments.size(), originMumThreads);
         if (numThreads < 1) {
             throw new IllegalArgumentException("Number of threads " + numThreads + " < 1");
         }
-
+        return doRun(new NumberedIterator<A>(arguments), numThreads);
+    }
+    /**
+     * @param iter
+     * @param numThreads
+     * @return
+     */
+    private Map<Long, R> doRun(final Iterator<NumberedValue<A>> iter, final int numThreads) {
         final int[] numThreadsHolder = {numThreads};
-        final Iterator<NumberedValue<A>> iter = createNumberedIterator(arguments);
         final Map<Long, R> result = new HashMap<>();
 
         synchronized (numThreadsHolder) {
@@ -71,16 +73,6 @@ public class AsyncRunnerLauncher<R, A> {
             }
         }
         return result;
-    }
-
-    private Iterator<NumberedValue<A>> createNumberedIterator(final List<A> args) {
-        int pos = 0;
-        final List<NumberedValue<A>> result = new LinkedList<>();
-        for (final A arg : args) {
-            result.add(new NumberedValue<A>(pos, arg));
-            pos++;
-        }
-        return result.iterator();
     }
 
     private void runScripts(final Iterator<NumberedValue<A>> source, final Map<Long, R> results) {
