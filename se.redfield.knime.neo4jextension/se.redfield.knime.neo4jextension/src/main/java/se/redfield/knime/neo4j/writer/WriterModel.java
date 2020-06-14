@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -129,12 +130,12 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     private DataTable executeFromTableSource(
             final ExecutionContext exec, final String inputColumn,
             final BufferedDataTable inputTable, final Neo4jSupport neo4j) throws Exception {
-        final List<String> scripts = ModelUtils.getStringsFromTextColumn(inputTable, inputColumn, this);
+        final Iterator<String> scripts = ModelUtils.getStringsFromTextColumn(inputTable, inputColumn, this);
         final Driver driver = neo4j.createDriver();
 
         try {
             final Map<Long, String> results = config.isUseAsync() ?
-                    executeAsync(neo4j, scripts, driver)
+                    executeAsync(neo4j, scripts, inputTable.size(), driver)
                     : executeSync(neo4j, scripts, driver);
 
             //build result
@@ -153,14 +154,16 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     }
 
     private Map<Long, String> executeSync(final Neo4jSupport neo4j,
-            final List<String> scripts, final Driver driver) throws Exception {
+            final Iterator<String> scripts, final Driver driver) throws Exception {
         final Map<Long, String> results = new HashMap<>();
         final Neo4jDataConverter converter = new Neo4jDataConverter(driver.defaultTypeSystem());
 
         final Session session = driver.session();
         try {
             long row = 0;
-            for (final String script : scripts) {
+            while (scripts.hasNext()) {
+                final String script = scripts.next();
+
                 final Transaction tx = session.beginTransaction();
                 try {
                     final Result run = tx.run(script);
@@ -187,15 +190,15 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
         return results;
     }
     private Map<Long, String> executeAsync(final Neo4jSupport neo4j,
-            final List<String> scripts, final Driver driver)
+            final Iterator<String> scripts, final long tableSize, final Driver driver)
             throws Exception {
 
         final AsyncRunnerLauncher<String, String> runner = Neo4jSupport.createAsyncLauncher(
                 driver, (session, number, query) -> runScriptInAsyncContext(driver, session, query));
         runner.setStopOnFailure(config.isStopOnQueryFailure());
 
-        final Map<Long, String> results = runner.run(scripts.iterator(),
-                Math.min(neo4j.getConfig().getMaxConnectionPoolSize(), scripts.size()));
+        final Map<Long, String> results = runner.run(scripts,
+                (int) Math.min(neo4j.getConfig().getMaxConnectionPoolSize(), tableSize));
         if (runner.hasErrors()) {
             if (config.isStopOnQueryFailure()) {
                 throw new Exception(SOME_QUERIES_ERROR);

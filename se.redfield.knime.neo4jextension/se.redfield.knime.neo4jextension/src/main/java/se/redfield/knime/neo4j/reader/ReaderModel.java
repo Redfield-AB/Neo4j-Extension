@@ -5,6 +5,7 @@ package se.redfield.knime.neo4j.reader;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -131,7 +132,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
     private DataTable executeFromTableSource(
             final ExecutionContext exec, final String inputColumn,
             final BufferedDataTable inputTable, final Neo4jSupport neo4j) throws Exception {
-        final List<String> scripts = ModelUtils.getStringsFromTextColumn(inputTable, inputColumn, this);
+        final Iterator<String> scripts = ModelUtils.getStringsFromTextColumn(inputTable, inputColumn, this);
         final Driver driver = neo4j.createDriver();
         final Map<Long, String> results;
 
@@ -140,7 +141,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
                     driver,
                     (session, number, query) -> new RunResult<String>(runSingleScript(driver, session, query)));
             runner.setStopOnFailure(config.isStopOnQueryFailure());
-            results = runner.run(scripts.iterator(),
+            results = runner.run(scripts,
                     (int) Math.min(neo4j.getConfig().getMaxConnectionPoolSize(), inputTable.size()));
             if (runner.hasErrors()) {
                 if (config.isStopOnQueryFailure()) {

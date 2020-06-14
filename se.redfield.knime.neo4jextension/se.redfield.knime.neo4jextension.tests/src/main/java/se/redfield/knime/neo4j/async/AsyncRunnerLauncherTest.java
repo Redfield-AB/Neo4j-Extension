@@ -41,7 +41,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String, String>
             results.put(script, script);
         }
 
-        final Map<Long, String> result = run(scripts, 3);
+        final Map<Long, String> result = run(scripts.iterator(), 3);
 
         //check output has correct order
         for (int i = 0; i < numScripts; i++) {
@@ -79,7 +79,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String, String>
 
         //the number of threads should be same as num errors for be sure
         //all next result will not processed.
-        final Map<Long, String> result = run(scripts, numErrors);
+        final Map<Long, String> result = run(scripts.iterator(), numErrors);
 
         assertTrue(hasErrors());
         assertTrue(result.size() < firstGroup + numErrors + 1);
@@ -115,7 +115,7 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String, String>
 
         //the number of threads should be same as num errors for be sure
         //all next result will not processed.
-        final Map<Long, String> result = run(scripts, numErrors);
+        final Map<Long, String> result = run(scripts.iterator(), numErrors);
 
         assertTrue(hasErrors());
 
@@ -142,11 +142,11 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String, String>
     public void testExceptionOnZeroThreadPool() {
         final List<String> scripts = new LinkedList<String>();
         //empty list should be ok
-        run(scripts, 0);
+        run(scripts.iterator(), 0);
 
         scripts.add("script");
         try {
-            run(scripts, 0);
+            run(scripts.iterator(), 0);
             throw new AssertionFailedError("Exception should be thrown");
         } catch (final Exception e) {
             //correct

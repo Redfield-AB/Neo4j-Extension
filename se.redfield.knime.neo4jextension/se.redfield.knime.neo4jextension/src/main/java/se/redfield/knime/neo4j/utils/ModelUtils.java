@@ -5,6 +5,7 @@ package se.redfield.knime.neo4j.utils;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -16,7 +17,6 @@ import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.MissingCell;
 import org.knime.core.data.append.AppendedColumnRow;
-import org.knime.core.data.def.StringCell;
 import org.knime.core.data.json.JSONCell;
 import org.knime.core.data.json.JSONCellFactory;
 import org.knime.core.node.BufferedDataTable;
@@ -53,21 +53,9 @@ public class ModelUtils {
             final FlowVariablesProvider varsProvider) {
         return varsProvider.getAvailableFlowVariables(getFlowVariableTypes());
     }
-    public static List<String> getStringsFromTextColumn(final BufferedDataTable inputTable,
+    public static Iterator<String> getStringsFromTextColumn(final BufferedDataTable inputTable,
             final String inputColumn, final FlowVariablesProvider varsProvider) {
-        final List<String> scripts = new LinkedList<>();
-        for (final DataRow row : inputTable) {
-            String script = null;
-            if (inputColumn != null) {
-                final int colIndex = inputTable.getDataTableSpec().findColumnIndex(inputColumn);
-                if (colIndex > -1) {
-                    final StringCell cell = (StringCell) row.getCell(colIndex);
-                    script = insertFlowVariables(cell.getStringValue(), varsProvider);
-                }
-            }
-            scripts.add(script);
-        }
-        return scripts;
+        return new ScriptColumnIterator(inputTable, inputColumn, varsProvider);
     }
 
     /**
