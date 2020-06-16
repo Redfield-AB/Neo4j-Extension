@@ -34,7 +34,7 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 
-import se.redfield.knime.neo4j.utils.HashGenerator;
+import se.redfield.knime.neo4j.model.HashGenerator;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

@@ -6,10 +6,7 @@ package se.redfield.knime.neo4j.writer;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import javax.json.Json;
 import javax.json.stream.JsonGenerator;
@@ -50,8 +47,8 @@ import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.json.JsonBuilder;
-import se.redfield.knime.neo4j.utils.FlowVariablesProvider;
-import se.redfield.knime.neo4j.utils.ModelUtils;
+import se.redfield.knime.neo4j.model.FlowVariablesProvider;
+import se.redfield.knime.neo4j.model.ModelUtils;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -133,7 +130,6 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
                 inputTable.getSpec(), config.getInputColumn());
         final BufferedDataContainer table = exec.createDataContainer(tableSpec);
         try {
-
             final Driver driver = neo4j.createDriver();
 
             try {
@@ -159,20 +155,20 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
         try {
             final Neo4jDataConverter converter = new Neo4jDataConverter(driver.defaultTypeSystem());
 
-            //build result
             for (final DataRow origin : inputTable) {
+                ScriptExecutionResult res;
+
                 final String script = getScriptFromInputColumn(inputTable, origin);
 
                 final Transaction tx = session.beginTransaction();
                 try {
                     final Result run = tx.run(script);
-                    final List<Record> res = run.list();
-                    output.addRowToTable(createRow(origin, createSuccessJson(res, converter)));
+                    res = new ScriptExecutionResult(origin, run.list(), null);
 
                     commitAndClose(tx);
                 } catch (final Exception e) {
+                    res = new ScriptExecutionResult(origin, null, e);
                     rollbackAndClose(tx);
-                    output.addRowToTable(createRow(origin, createErrorJson(e.getMessage())));
 
                     if (config.isStopOnQueryFailure()) {
                         throw new Exception(SOME_QUERIES_ERROR);
@@ -180,11 +176,34 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
                         setWarningMessage(SOME_QUERIES_ERROR);
                     }
                 }
+
+                //build result outside of Neo4j transaction.
+                addResultToOutput(res, output, converter);
             }
         } finally {
             session.close();
         }
     }
+    private void addResultToOutput(final ScriptExecutionResult res, final BufferedDataContainer output,
+            final Neo4jDataConverter converter) {
+        final List<Record> result = res.recors;
+        Throwable error = res.error;
+        if(error == null) {
+            try {
+                output.addRowToTable(createRow(res.row, createSuccessJson(result, converter)));
+            } catch (final IOException e) {
+                error = e;
+            }
+        }
+        if (error != null) {
+            try {
+                output.addRowToTable(createRow(res.row, createErrorJson(error.getMessage())));
+            } catch (final IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
     private String getScriptFromInputColumn(final BufferedDataTable inputTable, final DataRow origin) {
         final int colIndex = inputTable.getDataTableSpec().findColumnIndex(config.getInputColumn());
         final StringCell cell = (StringCell) origin.getCell(colIndex);
@@ -193,17 +212,23 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     private void executeFromTableSourceAsync(final BufferedDataTable inputTable,
             final Driver driver, final Neo4jSupport neo4j, final BufferedDataContainer output)
             throws Exception, IOException {
-        final Iterator<DataRow> rows = inputTable.iterator();
-        final Map<Long, DataRow> results = new ConcurrentHashMap<Long, DataRow>();
-
-        final AsyncRunnerLauncher<DataRow> runner = Neo4jSupport.createAsyncLauncher(
-                driver, (session, number, query) -> runScriptInAsyncContext(
-                        driver, session, inputTable, number, query, results));
-        runner.setStopOnFailure(config.isStopOnQueryFailure());
-
         final int numThreads = (int) Math.min(neo4j.getConfig().getMaxConnectionPoolSize(),
                 inputTable.size());
-        runner.run(rows, numThreads);
+
+        final Neo4jDataConverter converter = new Neo4jDataConverter(driver.defaultTypeSystem());
+        final KeepOrderSynchronizer<DataRow, ScriptExecutionResult> sync = new KeepOrderSynchronizer<>(
+                r -> addResultToOutput(r, output, converter),
+                inputTable.iterator());
+        final AsyncRunnerLauncher<DataRow> runner = Neo4jSupport.createAsyncLauncher(
+                driver,
+                (session, number, query) -> runScriptInAsyncContext(
+                        session, inputTable, number, query, sync),
+                sync.getSynchronizedIterator(),
+                numThreads);
+        runner.setStopOnFailure(config.isStopOnQueryFailure());
+        runner.setSyncObject(sync.getSynchronizedIterator());
+
+        runner.run();
         if (runner.hasErrors()) {
             if (config.isStopOnQueryFailure()) {
                 throw new Exception(SOME_QUERIES_ERROR);
@@ -211,30 +236,20 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
                 setWarningMessage(SOME_QUERIES_ERROR);
             }
         }
-
-        //build result
-        final int size = results.size();
-        for (int rowNum = 0; rowNum < size; rowNum++) {
-            output.addRowToTable(results.get((long) rowNum));
-        }
     }
 
-    private void runScriptInAsyncContext(final Driver driver,
-            final Session session, final BufferedDataTable inputTable,
-            final long rowNum, final DataRow row,
-            final Map<Long, DataRow> results)
-                    throws IOException {
+    private void runScriptInAsyncContext(final Session session,
+            final BufferedDataTable inputTable, final long rowNum,
+            final DataRow row, final KeepOrderSynchronizer<DataRow, ScriptExecutionResult> sync) throws IOException {
         final Transaction tr = session.beginTransaction();
-
+        ScriptExecutionResult res;
         try {
             //run script in given transaction context
             final Result run = tr.run(getScriptFromInputColumn(inputTable, row));
             final List<Record> records = run.list();
 
             //build JSON result from records.
-            final String result = createSuccessJson(records,
-                    new Neo4jDataConverter(driver.defaultTypeSystem()));
-            results.put(rowNum, createRow(row, result));
+            res = new ScriptExecutionResult(row, records, null);
 
             //if not in stop on query failure mode, then should commit result
             //immediately
@@ -242,12 +257,13 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
         } catch (final RuntimeException e) {
             rollbackAndClose(tr);
             if (!config.isStopOnQueryFailure()) {
-                final String error = createErrorJson(e.getMessage());
-                results.put(rowNum, createRow(row, error));
+                res = new ScriptExecutionResult(row, null, e);
             } else {
                 throw e;
             }
         }
+
+        sync.addToOutput(rowNum, res);
     }
     /**
      * @param tr transaction.

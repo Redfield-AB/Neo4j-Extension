@@ -25,9 +25,10 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
     private final Map<String, String> runScriptResults = new HashMap<>();
     private final Map<String, RuntimeException> errors = new HashMap<>();
     private final Map<Long, String> output = new ConcurrentHashMap<>();
+    private static final IteratorProxy<String> ITERATOR = new IteratorProxy<>();
 
     public AsyncRunnerLauncherTest() {
-        super();
+        super(ITERATOR, 20);
         setRunner(this::runScriptImpl);
     }
 
@@ -43,7 +44,9 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
             runScriptResults.put(script, script);
         }
 
-        run(scripts.iterator(), 3);
+        setNumThreads(3);
+        ITERATOR.setIterator(scripts.iterator());
+        run();
 
         //check output has correct order
         for (int i = 0; i < numScripts; i++) {
@@ -81,7 +84,9 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
 
         //the number of threads should be same as num errors for be sure
         //all next result will not processed.
-        run(scripts.iterator(), numErrors);
+        setNumThreads(numErrors);
+        ITERATOR.setIterator(scripts.iterator());
+        run();
 
         assertTrue(hasErrors());
         assertTrue(output.size() < firstGroup + numErrors + 1);
@@ -117,7 +122,9 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
 
         //the number of threads should be same as num errors for be sure
         //all next result will not processed.
-        run(scripts.iterator(), numErrors);
+        setNumThreads(numErrors);
+        ITERATOR.setIterator(scripts.iterator());
+        run();
 
         assertTrue(hasErrors());
 
@@ -144,11 +151,15 @@ public class AsyncRunnerLauncherTest extends AsyncRunnerLauncher<String> {
     public void testExceptionOnZeroThreadPool() {
         final List<String> scripts = new LinkedList<String>();
         //empty list should be ok
-        run(scripts.iterator(), 0);
+        setNumThreads(0);
+        ITERATOR.setIterator(scripts.iterator());
+
+        run();
 
         scripts.add("script");
+        ITERATOR.setIterator(scripts.iterator());
         try {
-            run(scripts.iterator(), 0);
+            run();
             throw new AssertionFailedError("Exception should be thrown");
         } catch (final Exception e) {
             //correct

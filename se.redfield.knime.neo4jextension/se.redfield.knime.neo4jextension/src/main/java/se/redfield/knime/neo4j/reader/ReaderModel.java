@@ -47,9 +47,9 @@ import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.json.JsonBuilder;
+import se.redfield.knime.neo4j.model.FlowVariablesProvider;
+import se.redfield.knime.neo4j.model.ModelUtils;
 import se.redfield.knime.neo4j.table.Neo4jTableOutputSupport;
-import se.redfield.knime.neo4j.utils.FlowVariablesProvider;
-import se.redfield.knime.neo4j.utils.ModelUtils;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -140,10 +140,11 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
             final AsyncRunnerLauncher<String> runner = Neo4jSupport.createAsyncLauncher(
                     driver,
                     (session, number, query) -> runSingleScript(
-                            driver, session, number, query, results));
-            runner.setStopOnFailure(config.isStopOnQueryFailure());
-            runner.run(scripts,
+                            driver, session, number, query, results),
+                    scripts,
                     (int) Math.min(neo4j.getConfig().getMaxConnectionPoolSize(), inputTable.size()));
+            runner.setStopOnFailure(config.isStopOnQueryFailure());
+            runner.run();
             if (runner.hasErrors()) {
                 if (config.isStopOnQueryFailure()) {
                     getLogger().error(SOME_QUERIES_ERROR);

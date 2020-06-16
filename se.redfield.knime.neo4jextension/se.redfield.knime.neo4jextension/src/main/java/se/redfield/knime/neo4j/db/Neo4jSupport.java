@@ -5,6 +5,7 @@ package se.redfield.knime.neo4j.db;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,7 @@ import org.neo4j.driver.summary.ResultSummary;
 
 import se.redfield.knime.neo4j.async.AsyncRunner;
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
+import se.redfield.knime.neo4j.async.WithSessionAsyncRunnable;
 import se.redfield.knime.neo4j.connector.AuthConfig;
 import se.redfield.knime.neo4j.connector.ConnectorConfig;
 import se.redfield.knime.neo4j.connector.FunctionDesc;
@@ -45,7 +47,8 @@ public class Neo4jSupport {
         return runWithSession(driver, s ->  runInReadOnlyTransaction(s, query, l));
     }
     public static <V> AsyncRunnerLauncher<V> createAsyncLauncher(
-            final Driver driver, final WithSessionAsyncRunner<V> r) {
+            final Driver driver, final WithSessionAsyncRunnable<V> r,
+            final Iterator<V> arguments, final int numThreads) {
         final Map<Long, Session> sessions = new ConcurrentHashMap<>();
 
         final AsyncRunner<V> runner = new AsyncRunner<V>() {
@@ -65,7 +68,7 @@ public class Neo4jSupport {
                 }
             }
         };
-        return new AsyncRunnerLauncher<>(runner);
+        return AsyncRunnerLauncher.createLauncher(runner, arguments, numThreads);
     }
     /**
      * @param session session.
@@ -142,9 +145,10 @@ public class Neo4jSupport {
             runs.add(s -> loadFunctions(s, functions));
 
             final AsyncRunnerLauncher<WithSessionRunnable<Void>> runner
-                = new AsyncRunnerLauncher<>((number, r) -> runWithSession(driver, r));
+                = AsyncRunnerLauncher.createLauncher((number, r) -> runWithSession(driver, r),
+                        runs.iterator(), runs.size());
             runner.setStopOnFailure(true);
-            runner.run(runs.iterator(), runs.size());
+            runner.run();
 
             if (runner.hasErrors()) {
                 throw new Exception("Failed to read Neo4j DB metadata");

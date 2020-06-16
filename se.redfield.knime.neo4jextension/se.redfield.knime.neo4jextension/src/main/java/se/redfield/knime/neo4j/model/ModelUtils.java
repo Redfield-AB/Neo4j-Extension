@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4j.utils;
+package se.redfield.knime.neo4j.model;
 
 import java.io.IOException;
 import java.util.HashSet;

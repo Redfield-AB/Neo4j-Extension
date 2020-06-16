@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4j.db;
+package se.redfield.knime.neo4j.async;
 
 import org.neo4j.driver.Session;
 
@@ -9,6 +9,6 @@ import org.neo4j.driver.Session;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public interface WithSessionAsyncRunner<V> {
+public interface WithSessionAsyncRunnable<V> {
     void run(Session session, long number, V arg) throws Exception;
 }

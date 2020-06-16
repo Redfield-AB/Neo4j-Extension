@@ -51,6 +51,7 @@ public final class Neo4jHelper {
         cfg.getAuth().setScheme(AuthScheme.basic);
         cfg.getAuth().setPrincipal(DBUSER);
         cfg.getAuth().setCredentials(PASSWORD);
+        cfg.setMaxConnectionPoolSize(4);
         return cfg;
     }
 

@@ -66,14 +66,14 @@ import se.redfield.knime.neo4j.connector.Named;
 import se.redfield.knime.neo4j.connector.NamedWithProperties;
 import se.redfield.knime.neo4j.db.LabelsAndFunctions;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
+import se.redfield.knime.neo4j.model.FlowVariablesProvider;
+import se.redfield.knime.neo4j.model.ModelUtils;
 import se.redfield.knime.neo4j.ui.NamedValueRenderer;
 import se.redfield.knime.neo4j.ui.OnClickInserter;
 import se.redfield.knime.neo4j.ui.SplitPanelExt;
 import se.redfield.knime.neo4j.ui.UiUtils;
 import se.redfield.knime.neo4j.ui.ValueInsertHandler;
 import se.redfield.knime.neo4j.ui.WithStringIconCellRenderer;
-import se.redfield.knime.neo4j.utils.FlowVariablesProvider;
-import se.redfield.knime.neo4j.utils.ModelUtils;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
