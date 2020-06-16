@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4j.writer;
+package se.redfield.knime.neo4j.db;
 
 import java.util.List;
 

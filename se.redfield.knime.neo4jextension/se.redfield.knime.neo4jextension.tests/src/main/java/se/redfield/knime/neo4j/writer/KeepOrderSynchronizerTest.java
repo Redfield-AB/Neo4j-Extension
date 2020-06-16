@@ -12,6 +12,7 @@ import java.util.Random;
 import org.junit.Test;
 
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
+import se.redfield.knime.neo4j.async.KeepOrderSynchronizer;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>

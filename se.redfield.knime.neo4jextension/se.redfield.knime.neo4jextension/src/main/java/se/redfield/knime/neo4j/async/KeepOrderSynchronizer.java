@@ -1,15 +1,13 @@
 /**
  *
  */
-package se.redfield.knime.neo4j.writer;
+package se.redfield.knime.neo4j.async;
 
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.TreeSet;
 import java.util.function.Consumer;
-
-import se.redfield.knime.neo4j.async.NumberedValue;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
