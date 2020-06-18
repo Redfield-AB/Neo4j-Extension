@@ -118,7 +118,7 @@ public class Neo4jSupport {
 
             final AsyncRunnerLauncher<WithSessionRunnable<Void>, Void> runner
                 = AsyncRunnerLauncher.Builder.<WithSessionRunnable<Void>, Void>newBuilder()
-                    .withRunner((number, r) -> runWithSession(driver, r))
+                    .withRunner((r) -> runWithSession(driver, r))
                     .withSource(runs.iterator())
                     .withNumThreads(runs.size())
                     .withStopOnFailure(true)

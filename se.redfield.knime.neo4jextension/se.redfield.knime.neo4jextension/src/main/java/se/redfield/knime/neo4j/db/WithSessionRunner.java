@@ -33,8 +33,8 @@ public final class WithSessionRunner<V, R> implements AsyncRunner<V, R> {
     }
 
     @Override
-    public R run(final long number, final V arg) throws Throwable {
-        return r.run(sessions.get(Thread.currentThread().getId()), number, arg);
+    public R run(final V arg) throws Throwable {
+        return r.run(sessions.get(Thread.currentThread().getId()), arg);
     }
     @Override
     public void workerStarted() {

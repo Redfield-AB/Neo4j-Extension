@@ -83,7 +83,7 @@ public class AsyncRunnerLauncherTest {
 
         //create 10 threads to process them
         builder
-            .withRunner((num, value) -> {
+            .withRunner((value) -> {
                 try {
                     //simulate the call to remote service.
                     Thread.sleep(1 + random.nextInt(30));
@@ -223,7 +223,7 @@ public class AsyncRunnerLauncherTest {
         }
     }
 
-    private String runScriptImpl(final long num, final String script) {
+    private String runScriptImpl(final String script) {
         if (errors.containsKey(script)) {
             throw errors.get(script);
         }

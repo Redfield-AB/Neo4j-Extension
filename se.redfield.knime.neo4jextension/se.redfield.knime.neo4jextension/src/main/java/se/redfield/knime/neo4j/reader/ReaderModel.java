@@ -141,7 +141,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         try {
             try {
                 final AsyncRunner<DataRow, DataRow> r = new WithSessionRunner<>(
-                        (session, number, row) -> runScriptFromColumn(session, driver, row, columnIndex),
+                        (session, row) -> runScriptFromColumn(session, driver, row, columnIndex),
                         driver);
                 final AsyncRunnerLauncher<DataRow, DataRow> runner = AsyncRunnerLauncher.Builder.newBuilder(r)
                     .withConsumer(row -> table.addRowToTable(row))

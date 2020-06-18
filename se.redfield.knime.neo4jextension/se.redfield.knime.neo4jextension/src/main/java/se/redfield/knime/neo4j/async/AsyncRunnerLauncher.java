@@ -114,7 +114,7 @@ public class AsyncRunnerLauncher<A, R> {
 
                 R result = null;
                 try {
-                    result = runner.run(next.getNumber(), next.getValue());
+                    result = runner.run(next.getValue());
                 } catch (final Throwable e) {
                     synchronized (source) {
                         hasErrors = true;

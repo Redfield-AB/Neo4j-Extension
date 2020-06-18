@@ -225,8 +225,8 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
 
         //create asynchronous scripts runner
         final AsyncRunner<DataRow, ScriptExecutionResult> r = new WithSessionRunner<>(
-                (session, number, query) -> runSingleScriptInAsyncContext(
-                        session, inputTable, number, query),
+                (session, query) -> runSingleScriptInAsyncContext(
+                        session, inputTable, query),
                 driver);
         final AsyncRunnerLauncher<DataRow, ScriptExecutionResult> runner
                 = AsyncRunnerLauncher.Builder.<DataRow, ScriptExecutionResult>newBuilder()
@@ -252,8 +252,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     }
 
     private ScriptExecutionResult runSingleScriptInAsyncContext(final Session session,
-            final BufferedDataTable inputTable, final long rowNum,
-            final DataRow row) throws IOException {
+            final BufferedDataTable inputTable, final DataRow row) throws IOException {
         final Transaction tr = session.beginTransaction();
         ScriptExecutionResult res;
         try {

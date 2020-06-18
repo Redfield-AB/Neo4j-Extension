@@ -10,5 +10,5 @@ import org.neo4j.driver.Session;
  *
  */
 public interface WithSessionAsyncRunnable<V, R> {
-    R run(Session session, long number, V arg) throws Throwable;
+    R run(Session session, V arg) throws Throwable;
 }
