@@ -1,7 +1,7 @@
 /**
  *
  */
-package se.redfield.knime.neo4j.reader;
+package se.redfield.knime.neo4j.writer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -23,17 +23,17 @@ import se.redfield.knime.runner.KnimeTestRunner;
  *
  */
 @RunWith(KnimeTestRunner.class)
-public class ReaderConfigSerializerTest {
+public class WriterConfigSerializerTest {
     /**
      * Default constructor.
      */
-    public ReaderConfigSerializerTest() {
+    public WriterConfigSerializerTest() {
         super();
     }
 
     @Test
     public void testSerialize() throws InvalidSettingsException {
-        ReaderConfig config = new ReaderConfig();
+        WriterConfig config = new WriterConfig();
 
         //functions
         final String funcName = "func-name";
@@ -74,7 +74,7 @@ public class ReaderConfigSerializerTest {
         final String inputColumn = "col2";
         final String script = "test-script";
         final boolean stopOnQueryFailure = true;
-        final boolean useJson = true;
+        final boolean useAsync = true;
         final boolean keepSourceOrder = !config.isKeepSourceOrder(); //not default value
 
         config.setFunctions(functions);
@@ -83,12 +83,12 @@ public class ReaderConfigSerializerTest {
         config.setRelationshipTypes(relationshipTypes);
         config.setScript(script);
         config.setStopOnQueryFailure(stopOnQueryFailure);
-        config.setUseJson(useJson);
+        config.setUseAsync(useAsync);
         config.setKeepSourceOrder(keepSourceOrder);
 
         final NodeSettings settings = new NodeSettings("junit");
 
-        final ReaderConfigSerializer ser = new ReaderConfigSerializer();
+        final WriterConfigSerializer ser = new WriterConfigSerializer();
         ser.save(config, settings);
         config = ser.read(settings);
 
@@ -114,7 +114,7 @@ public class ReaderConfigSerializerTest {
         assertEquals(inputColumn, config.getInputColumn());
         assertEquals(script, config.getScript());
         assertEquals(stopOnQueryFailure, config.isStopOnQueryFailure());
-        assertEquals(useJson, config.isUseJson());
+        assertEquals(useAsync, config.isUseAsync());
         assertEquals(keepSourceOrder, config.isKeepSourceOrder());
     }
 }

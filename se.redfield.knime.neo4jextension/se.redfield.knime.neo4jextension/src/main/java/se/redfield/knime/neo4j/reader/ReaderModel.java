@@ -145,7 +145,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
                         driver);
                 final AsyncRunnerLauncher<DataRow, DataRow> runner = AsyncRunnerLauncher.Builder.newBuilder(r)
                     .withConsumer(row -> table.addRowToTable(row))
-                    .withKeepSourceOrder(true)
+                    .withKeepSourceOrder(config.isKeepSourceOrder())
                     .withSource(inputTable.iterator())
                     .withNumThreads((int) Math.min(
                             neo4j.getConfig().getMaxConnectionPoolSize(), inputTable.size()))

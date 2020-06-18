@@ -19,6 +19,7 @@ public class WriterConfig implements Cloneable {
     private LabelsAndFunctions metaData = new LabelsAndFunctions();
     private boolean stopOnQueryFailure;
     private boolean useAsync;
+    private boolean keepSourceOrder = true;
 
     public WriterConfig() {
         super();
@@ -74,6 +75,12 @@ public class WriterConfig implements Cloneable {
     }
     public void setStopOnQueryFailure(final boolean stop) {
         this.stopOnQueryFailure = stop;
+    }
+    public void setKeepSourceOrder(final boolean keepSourceOrder) {
+        this.keepSourceOrder = keepSourceOrder;
+    }
+    public boolean isKeepSourceOrder() {
+        return keepSourceOrder;
     }
 
     @Override

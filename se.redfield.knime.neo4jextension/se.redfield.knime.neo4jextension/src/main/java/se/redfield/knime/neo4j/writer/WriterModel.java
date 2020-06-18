@@ -235,7 +235,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
             .withConsumer(res -> addResultToOutput(res, output, converter))
             .withNumThreads(numThreads)
             .withStopOnFailure(stopOnQueryFailure)
-            .withKeepSourceOrder(true)
+            .withKeepSourceOrder(config.isKeepSourceOrder())
             .withMaxBufferSize(maxConnectionPoolSize * 2)
             .build();
 

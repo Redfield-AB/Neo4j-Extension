@@ -21,6 +21,7 @@ import se.redfield.knime.neo4j.connector.NamedWithProperties;
  *
  */
 public class WriterConfigSerializer {
+    private static final String KEEP_SOURCE_ROWS_ORDER = "keepSourceRowsOrder";
     private static final String STOP_ON_QUERY_FAILURE_KEY = "stopOnQueryFailure";
     private static final String INPUT_COLUMN_KEY = "inputColumn";
     private static final String USE_ASYNC_KEY = "useAsyncExecution";
@@ -43,6 +44,7 @@ public class WriterConfigSerializer {
         settings.addBoolean(USE_ASYNC_KEY, config.isUseAsync());
         settings.addString(INPUT_COLUMN_KEY, config.getInputColumn());
         settings.addBoolean(STOP_ON_QUERY_FAILURE_KEY, config.isStopOnQueryFailure());
+        settings.addBoolean(KEEP_SOURCE_ROWS_ORDER, config.isKeepSourceOrder());
 
         saveNamedWithProperties(settings, NODE_LABELS_KEY, config.getNodeLabels());
         saveNamedWithProperties(settings, RELATIONSHIP_TYPES_KEY, config.getRelationshipTypes());
@@ -62,6 +64,9 @@ public class WriterConfigSerializer {
         }
         if (settings.containsKey(STOP_ON_QUERY_FAILURE_KEY)) {
             config.setStopOnQueryFailure(settings.getBoolean(STOP_ON_QUERY_FAILURE_KEY));
+        }
+        if (settings.containsKey(KEEP_SOURCE_ROWS_ORDER)) {
+            config.setKeepSourceOrder(settings.getBoolean(KEEP_SOURCE_ROWS_ORDER));
         }
 
         config.setNodeLabels(loadNamedWithPropertiesSafely(settings, NODE_LABELS_KEY));

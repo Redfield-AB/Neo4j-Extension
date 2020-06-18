@@ -19,6 +19,7 @@ public class ReaderConfig implements Cloneable {
     private String inputColumn;
     private LabelsAndFunctions metaData = new LabelsAndFunctions();
     private boolean stopOnQueryFailure;
+    private boolean keepSourceOrder = true;
 
     public ReaderConfig() {
         super();
@@ -41,6 +42,12 @@ public class ReaderConfig implements Cloneable {
     }
     public void setInputColumn(final String inputColumn) {
         this.inputColumn = inputColumn;
+    }
+    public void setKeepSourceOrder(final boolean keepSourceOrder) {
+        this.keepSourceOrder = keepSourceOrder;
+    }
+    public boolean isKeepSourceOrder() {
+        return keepSourceOrder;
     }
     public List<NamedWithProperties> getNodeLabels() {
         return metaData.getNodes();
