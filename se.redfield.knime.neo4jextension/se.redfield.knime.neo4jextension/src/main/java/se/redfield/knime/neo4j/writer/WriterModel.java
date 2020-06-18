@@ -41,13 +41,14 @@ import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Transaction;
 
+import se.redfield.knime.neo4j.async.AsyncRunner;
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
-import se.redfield.knime.neo4j.async.KeepOrderSynchronizer;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.db.ScriptExecutionResult;
+import se.redfield.knime.neo4j.db.WithSessionRunner;
 import se.redfield.knime.neo4j.json.JsonBuilder;
 import se.redfield.knime.neo4j.model.FlowVariablesProvider;
 import se.redfield.knime.neo4j.model.ModelUtils;
@@ -214,31 +215,35 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     private void executeFromTableSourceAsync(final BufferedDataTable inputTable,
             final Driver driver, final Neo4jSupport neo4j, final BufferedDataContainer output)
             throws Exception, IOException {
+        final int maxConnectionPoolSize = neo4j.getConfig().getMaxConnectionPoolSize();
+        final int numThreads = Math.max((int) Math.min(maxConnectionPoolSize,
+                inputTable.size()), 1);
+        final boolean stopOnQueryFailure = config.isStopOnQueryFailure();
+
         //create output synchronizer
         final Neo4jDataConverter converter = new Neo4jDataConverter(driver.defaultTypeSystem());
-        final KeepOrderSynchronizer<DataRow, ScriptExecutionResult> sync = new KeepOrderSynchronizer<>(
-                r -> addResultToOutput(r, output, converter),
-                inputTable.iterator());
-        sync.setMaxBufferSize(neo4j.getConfig().getMaxConnectionPoolSize() * 2);
 
         //create asynchronous scripts runner
-        final int numThreads = (int) Math.min(neo4j.getConfig().getMaxConnectionPoolSize(),
-                inputTable.size());
-        final AsyncRunnerLauncher<DataRow> runner = Neo4jSupport.createAsyncLauncher(
-                driver,
+        final AsyncRunner<DataRow, ScriptExecutionResult> r = new WithSessionRunner<>(
                 (session, number, query) -> runSingleScriptInAsyncContext(
-                        session, inputTable, number, query, sync),
-                sync.getSynchronizedIterator(),
-                numThreads);
-        runner.setStopOnFailure(config.isStopOnQueryFailure());
-        //prevent of deadlocks by using of one mutex for synchronizations.
-        runner.setSyncObject(sync.getSynchronizedIterator());
+                        session, inputTable, number, query),
+                driver);
+        final AsyncRunnerLauncher<DataRow, ScriptExecutionResult> runner
+                = AsyncRunnerLauncher.Builder.<DataRow, ScriptExecutionResult>newBuilder()
+            .withRunner(r)
+            .withSource(inputTable.iterator())
+            .withConsumer(res -> addResultToOutput(res, output, converter))
+            .withNumThreads(numThreads)
+            .withStopOnFailure(stopOnQueryFailure)
+            .withKeepSourceOrder(true)
+            .withMaxBufferSize(maxConnectionPoolSize * 2)
+            .build();
 
         //run scripts in parallel
         runner.run();
         //check errors
         if (runner.hasErrors()) {
-            if (config.isStopOnQueryFailure()) {
+            if (stopOnQueryFailure) {
                 throw new Exception(SOME_QUERIES_ERROR);
             } else {
                 setWarningMessage(SOME_QUERIES_ERROR);
@@ -246,9 +251,9 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
         }
     }
 
-    private void runSingleScriptInAsyncContext(final Session session,
+    private ScriptExecutionResult runSingleScriptInAsyncContext(final Session session,
             final BufferedDataTable inputTable, final long rowNum,
-            final DataRow row, final KeepOrderSynchronizer<DataRow, ScriptExecutionResult> sync) throws IOException {
+            final DataRow row) throws IOException {
         final Transaction tr = session.beginTransaction();
         ScriptExecutionResult res;
         try {
@@ -271,9 +276,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
             }
         }
 
-        //add to output outside of transaction, because
-        //during the add to output the result is converting to JSON
-        sync.addToOutput(rowNum, res);
+        return res;
     }
     /**
      * @param tr transaction.

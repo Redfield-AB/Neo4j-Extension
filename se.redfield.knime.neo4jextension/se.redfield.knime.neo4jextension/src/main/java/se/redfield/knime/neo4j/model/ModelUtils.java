@@ -5,7 +5,6 @@ package se.redfield.knime.neo4j.model;
 
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +18,6 @@ import org.knime.core.data.MissingCell;
 import org.knime.core.data.append.AppendedColumnRow;
 import org.knime.core.data.json.JSONCell;
 import org.knime.core.data.json.JSONCellFactory;
-import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.core.node.workflow.VariableType;
 
@@ -52,10 +50,6 @@ public class ModelUtils {
     public static Map<String, FlowVariable> getAvailableFlowVariables(
             final FlowVariablesProvider varsProvider) {
         return varsProvider.getAvailableFlowVariables(getFlowVariableTypes());
-    }
-    public static Iterator<String> getStringsFromTextColumn(final BufferedDataTable inputTable,
-            final String inputColumn, final FlowVariablesProvider varsProvider) {
-        return new ScriptColumnIterator(inputTable, inputColumn, varsProvider);
     }
 
     /**

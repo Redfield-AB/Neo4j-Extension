@@ -9,27 +9,29 @@ import java.util.Iterator;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class NumberedIterator<E> implements Iterator<NumberedValue<E>> {
-    private final Iterator<E> iter;
+class NumberedSource<E> implements Iterator<NumberedValue<E>> {
+    protected final Iterator<E> iterator;
     private int counter;
 
     /**
      * @param iter iterator.
      */
-    public NumberedIterator(final Iterator<E> iter) {
+    public NumberedSource(final Iterator<E> iter) {
         super();
-        this.iter = iter;
+        this.iterator = iter;
     }
 
     @Override
     public boolean hasNext() {
-        return iter.hasNext();
+        return iterator.hasNext();
     }
-
     @Override
     public NumberedValue<E> next() {
-        final NumberedValue<E> value = new NumberedValue<E>(counter, iter.next());
+        final NumberedValue<E> value = new NumberedValue<E>(counter, iterator.next());
         counter++;
         return value;
+    }
+    public Iterator<E> getOriginIterator() {
+        return iterator;
     }
 }

@@ -9,6 +9,6 @@ import org.neo4j.driver.Session;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public interface WithSessionAsyncRunnable<V> {
-    void run(Session session, long number, V arg) throws Exception;
+public interface WithSessionAsyncRunnable<V, R> {
+    R run(Session session, long number, V arg) throws Throwable;
 }

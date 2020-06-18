@@ -8,7 +8,7 @@ package se.redfield.knime.neo4j.async;
  *
  */
 @FunctionalInterface
-public interface AsyncRunner<V> {
+public interface AsyncRunner<V, R> {
     /**
      * @param number argument number in the incoming argument list.
      * @param arg argument.
@@ -16,8 +16,9 @@ public interface AsyncRunner<V> {
      * @throws Exception in case of error. The method can as return result with exception
      * as simple throw it. It will correct catch and converted to script result with
      * exception and null result.
+     * @throws Throwable
      */
-    void run(long number, V arg) throws Exception;
+    R run(long number, V arg) throws Throwable;
     /**
      */
     default void workerStopped() {}

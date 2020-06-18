@@ -5,11 +5,9 @@ package se.redfield.knime.neo4j.db;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.neo4j.driver.AuthToken;
 import org.neo4j.driver.AuthTokens;
@@ -24,9 +22,7 @@ import org.neo4j.driver.Transaction;
 import org.neo4j.driver.summary.QueryType;
 import org.neo4j.driver.summary.ResultSummary;
 
-import se.redfield.knime.neo4j.async.AsyncRunner;
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
-import se.redfield.knime.neo4j.async.WithSessionAsyncRunnable;
 import se.redfield.knime.neo4j.connector.AuthConfig;
 import se.redfield.knime.neo4j.connector.ConnectorConfig;
 import se.redfield.knime.neo4j.connector.FunctionDesc;
@@ -45,30 +41,6 @@ public class Neo4jSupport {
     }
     public static List<Record> runRead(final Driver driver, final String query, final RollbackListener l) {
         return runWithSession(driver, s ->  runInReadOnlyTransaction(s, query, l));
-    }
-    public static <V> AsyncRunnerLauncher<V> createAsyncLauncher(
-            final Driver driver, final WithSessionAsyncRunnable<V> r,
-            final Iterator<V> arguments, final int numThreads) {
-        final Map<Long, Session> sessions = new ConcurrentHashMap<>();
-
-        final AsyncRunner<V> runner = new AsyncRunner<V>() {
-            @Override
-            public void run(final long number, final V arg) throws Exception {
-                r.run(sessions.get(Thread.currentThread().getId()), number, arg);
-            }
-            @Override
-            public void workerStarted() {
-                sessions.put(Thread.currentThread().getId(), driver.session());
-            }
-            @Override
-            public void workerStopped() {
-                final Session s = sessions.remove(Thread.currentThread().getId());
-                if (s != null) { //if is started
-                    s.close();
-                }
-            }
-        };
-        return AsyncRunnerLauncher.createLauncher(runner, arguments, numThreads);
     }
     /**
      * @param session session.
@@ -144,10 +116,13 @@ public class Neo4jSupport {
             runs.add(s -> loadRelationshipProperties(s, relationships));
             runs.add(s -> loadFunctions(s, functions));
 
-            final AsyncRunnerLauncher<WithSessionRunnable<Void>> runner
-                = AsyncRunnerLauncher.createLauncher((number, r) -> runWithSession(driver, r),
-                        runs.iterator(), runs.size());
-            runner.setStopOnFailure(true);
+            final AsyncRunnerLauncher<WithSessionRunnable<Void>, Void> runner
+                = AsyncRunnerLauncher.Builder.<WithSessionRunnable<Void>, Void>newBuilder()
+                    .withRunner((number, r) -> runWithSession(driver, r))
+                    .withSource(runs.iterator())
+                    .withNumThreads(runs.size())
+                    .withStopOnFailure(true)
+                    .build();
             runner.run();
 
             if (runner.hasErrors()) {
