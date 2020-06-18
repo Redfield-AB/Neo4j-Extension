@@ -80,10 +80,12 @@ import se.redfield.knime.neo4j.ui.WithStringIconCellRenderer;
  *
  */
 public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariablesProvider {
+    private static final String KEEP_ORIGIN_SOURCE_ROWS_ORDER = "keep origin source rows order";
     private static final String STOP_ON_QUERY_FAILURE = "Stop on query failure";
     private static final String INPUT_COLUMN_TAB = "Query from table";
     private static final String SCRIPT_TAB = "Script";
 
+    private final JCheckBox keepSourceOrder = new JCheckBox();
     private final JCheckBox useJsonOutput = new JCheckBox();
     private final JComboBox<String> inputColumn = new JComboBox<>(new DefaultComboBoxModel<>());
     private final ToggleButtonModel stopInQueryFailure = new ToggleButtonModel();
@@ -128,6 +130,8 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
         final JCheckBox cb = new JCheckBox();
         cb.setModel(stopInQueryFailure);
         addLabeledComponent(parent, STOP_ON_QUERY_FAILURE, cb, 1);
+
+        addLabeledComponent(parent, KEEP_ORIGIN_SOURCE_ROWS_ORDER, keepSourceOrder, 2);
 
         tab.add(wrapper, BorderLayout.CENTER);
         return tab;
@@ -534,6 +538,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
             }
         }
         stopInQueryFailure.setSelected(model.isStopOnQueryFailure());
+        keepSourceOrder.setSelected(model.isKeepSourceOrder());
     }
 
     private void reloadMetadata() {
@@ -607,6 +612,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
             model.setUseJson(this.useJsonOutput.isSelected());
         }
         model.setStopOnQueryFailure(stopInQueryFailure.isSelected());
+        model.setKeepSourceOrder(keepSourceOrder.isSelected());
         return model;
     }
 

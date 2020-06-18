@@ -80,12 +80,14 @@ import se.redfield.knime.neo4j.ui.WithStringIconCellRenderer;
  *
  */
 public class WriterDialog extends DataAwareNodeDialogPane implements FlowVariablesProvider {
+    private static final String KEEP_ORIGIN_SOURCE_ROWS_ORDER = "keep origin source rows order";
     private static final String STOP_ON_QUERY_FAILURE = "Stop on query failure";
     private static final String INPUT_COLUMN_TAB = "Query from table";
     private static final String SCRIPT_TAB = "Script";
 
     private final JCheckBox useAsyncExe = new JCheckBox();
     private final JComboBox<String> inputColumn = new JComboBox<>(new DefaultComboBoxModel<>());
+    private final JCheckBox keepSourceOrder = new JCheckBox();
     private final ToggleButtonModel stopInQueryFailure = new ToggleButtonModel();
 
     private JTextArea scriptEditor;
@@ -130,6 +132,9 @@ public class WriterDialog extends DataAwareNodeDialogPane implements FlowVariabl
         addLabeledComponent(parent, STOP_ON_QUERY_FAILURE, cb, 1);
 
         addLabeledComponent(parent, "Use asynchronous query execution", this.useAsyncExe, 2);
+        useAsyncExe.addChangeListener(e -> keepSourceOrder.setEnabled(useAsyncExe.isSelected()));
+
+        addLabeledComponent(parent, KEEP_ORIGIN_SOURCE_ROWS_ORDER, this.keepSourceOrder, 3);
 
         tab.add(wrapper, BorderLayout.CENTER);
         return tab;
@@ -521,6 +526,7 @@ public class WriterDialog extends DataAwareNodeDialogPane implements FlowVariabl
                 inputColumn.setSelectedItem(model.getInputColumn());
             }
             useAsyncExe.setSelected(model.isUseAsync());
+            keepSourceOrder.setEnabled(useAsyncExe.isSelected());
         } else {
             reloadMetadata();
 
@@ -531,6 +537,7 @@ public class WriterDialog extends DataAwareNodeDialogPane implements FlowVariabl
             }
         }
         stopInQueryFailure.setSelected(model.isStopOnQueryFailure());
+        keepSourceOrder.setSelected(model.isKeepSourceOrder());
     }
 
     private void reloadMetadata() {
@@ -604,6 +611,7 @@ public class WriterDialog extends DataAwareNodeDialogPane implements FlowVariabl
             model.setScript(script);
         }
         model.setStopOnQueryFailure(stopInQueryFailure.isSelected());
+        model.setKeepSourceOrder(keepSourceOrder.isSelected());
         return model;
     }
 
