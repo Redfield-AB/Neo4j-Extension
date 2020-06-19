@@ -251,12 +251,12 @@ public class WriterDialog extends DataAwareNodeDialogPane implements FlowVariabl
     }
     private JSplitPane createNodes() {
         return createNamedWithPropertiesComponent(nodes, nodeProperties, "Node labels",
-                "Node type properties",
+                "Node properties",
                 v -> insertToScript("(:" + v.getName() + ")"));
     }
     private JSplitPane createRelationships() {
         return createNamedWithPropertiesComponent(relationships, relationshipsProperties,
-                "Relationship types", "Relationship type properties",
+                "Relationship labels", "Relationship properties",
                 v -> insertToScript("-[:" + v.getName() + "]-"));
     }
 
