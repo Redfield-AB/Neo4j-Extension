@@ -22,7 +22,7 @@ public class AsyncRunnerLauncher<A, R> {
     private final Consumer<R> consumer;
     private final boolean keepOrder;
 
-    private final TreeSet<NumberedValue<R>> buffer = new TreeSet<>();
+    private final TreeSet<RunResult<R>> buffer = new TreeSet<>();
     private boolean hasErrors;
     private int nextIndex;
 
@@ -114,8 +114,9 @@ public class AsyncRunnerLauncher<A, R> {
 
                 try {
                     final R result = runner.run(next.getValue());
-                    addToOutput(new NumberedValue<>(next.getNumber(), result));
+                    addToOutput(new RunResult<>(next.getNumber(), result, false));
                 } catch (final Throwable e) {
+                    addToOutput(new RunResult<>(next.getNumber(), null, true));
                     synchronized (source) {
                         hasErrors = true;
                         if (stopOnFailure) {
@@ -128,12 +129,12 @@ public class AsyncRunnerLauncher<A, R> {
             workerStopped();
         }
     }
-    private void addToOutput(final NumberedValue<R> value) {
+    private void addToOutput(final RunResult<R> value) {
         if (consumer == null) {
             return;
         }
 
-        final List<R> toFlush = new LinkedList<>();
+        final List<RunResult<R>> toFlush = new LinkedList<>();
         synchronized (buffer) {
             if (keepOrder) {
                 synchronized (source) {
@@ -143,7 +144,7 @@ public class AsyncRunnerLauncher<A, R> {
                         if (buffer.first().getNumber() != nextIndex) {
                             break;
                         }
-                        toFlush.add(buffer.pollFirst().getValue());
+                        toFlush.add(buffer.pollFirst());
                         nextIndex++;
                     }
 
@@ -154,14 +155,16 @@ public class AsyncRunnerLauncher<A, R> {
                     }
                 }
 
-                for (final R r : toFlush) {
-                    try {
-                        consumer.accept(r);
-                    } catch (final Throwable e) {
-                        e.printStackTrace();
+                for (final RunResult<R> r : toFlush) {
+                    if (!r.isError()) {
+                        try {
+                            consumer.accept(r.getValue());
+                        } catch (final Throwable e) {
+                            e.printStackTrace();
+                        }
                     }
                 }
-            } else {
+            } else if (!value.isError()){
                 consumer.accept(value.getValue());
             }
         }
