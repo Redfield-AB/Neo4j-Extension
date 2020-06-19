@@ -277,7 +277,7 @@ public class ConnectorDialog extends NodeDialogPane {
             } else {
                 final String c = (String) this.flowCredentials.getSelectedItem();
                 if (c == null) {
-                    throw new InvalidSettingsException("Empty flow credentials");
+                    throw new InvalidSettingsException("Empty credentials");
                 }
                 auth.setPrincipal(c);
                 auth.setCredentials(null);
