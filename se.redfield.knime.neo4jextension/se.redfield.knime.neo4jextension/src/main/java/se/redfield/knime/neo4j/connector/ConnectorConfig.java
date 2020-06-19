@@ -9,7 +9,6 @@ import java.util.Objects;
 
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.ICredentials;
-import org.neo4j.driver.internal.async.pool.PoolSettings;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -22,7 +21,7 @@ public class ConnectorConfig implements Cloneable {
 
     public ConnectorConfig() {
         super();
-        maxConnectionPoolSize = PoolSettings.DEFAULT_MAX_CONNECTION_POOL_SIZE;
+        maxConnectionPoolSize = Math.max(Runtime.getRuntime().availableProcessors(), 1);
         try {
             this.location = new URI("bolt://localhost:7687");
         } catch (final URISyntaxException e) {
