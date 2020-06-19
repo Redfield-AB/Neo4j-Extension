@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
@@ -44,6 +45,7 @@ import se.redfield.knime.neo4j.async.AsyncRunner;
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
+import se.redfield.knime.neo4j.db.ContextListeningDriver;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.db.WithSessionRunner;
@@ -133,7 +135,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
     private DataTable executeFromTableSource(
             final ExecutionContext exec, final String inputColumn,
             final BufferedDataTable inputTable, final Neo4jSupport neo4j) throws Exception {
-        final Driver driver = neo4j.createDriver();
+        final ContextListeningDriver driver = neo4j.createDriver(exec);
         final int columnIndex = inputTable.getDataTableSpec().findColumnIndex(inputColumn);
 
         final BufferedDataContainer table = exec.createDataContainer(ModelUtils.createSpecWithAddedJsonColumn(
@@ -141,14 +143,22 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         try {
             try {
                 final AsyncRunner<DataRow, DataRow> r = new WithSessionRunner<>(
-                        (session, row) -> runScriptFromColumn(session, driver, row, columnIndex),
-                        driver);
+                        (session, row) -> runScriptFromColumn(session, driver.getDriver(), row, columnIndex),
+                        driver.getDriver());
+                final long tableSize = inputTable.size();
+                final AtomicLong counter = new AtomicLong();
+                driver.setProgress(0.);
+
                 final AsyncRunnerLauncher<DataRow, DataRow> runner = AsyncRunnerLauncher.Builder.newBuilder(r)
-                    .withConsumer(row -> table.addRowToTable(row))
+                    .withConsumer(row -> {
+                        table.addRowToTable(row);
+                        final double p = counter.getAndIncrement() / (double) tableSize;
+                        driver.setProgress(p);
+                    })
                     .withKeepSourceOrder(config.isKeepSourceOrder())
                     .withSource(inputTable.iterator())
                     .withNumThreads((int) Math.min(
-                            neo4j.getConfig().getMaxConnectionPoolSize(), inputTable.size()))
+                            neo4j.getConfig().getMaxConnectionPoolSize(), tableSize))
                     .withStopOnFailure(config.isStopOnQueryFailure())
                     .build();
 
@@ -162,7 +172,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
                     }
                 }
             } finally {
-                driver.closeAsync();
+                driver.close();
             }
         } finally {
             table.close();

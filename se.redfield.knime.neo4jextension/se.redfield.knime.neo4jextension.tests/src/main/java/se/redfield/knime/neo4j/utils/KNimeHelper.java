@@ -3,6 +3,9 @@
  */
 package se.redfield.knime.neo4j.utils;
 
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.knime.core.data.filestore.internal.NotInWorkflowDataRepository;
 import org.knime.core.node.ExecutionContext;
@@ -124,6 +127,17 @@ public final class KNimeHelper {
      * @return node progress monitor.
      */
     public static NodeProgressMonitor createProgressMonitor() {
-        return new ProgressMonitorAdapter(new NullProgressMonitor());
+        final AtomicInteger counter = new AtomicInteger();
+        return new ProgressMonitorAdapter(new NullProgressMonitor() {
+            @Override
+            public void worked(final int work) {
+                final int curr = counter.getAndIncrement() / 2;
+                if (curr > 0) {
+                    final char[] chars = new char[curr];
+                    Arrays.fill(chars, 'X');
+                    System.out.println(new String(chars));
+                }
+            }
+        });
     }
 }

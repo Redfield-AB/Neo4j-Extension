@@ -112,9 +112,9 @@ public class AsyncRunnerLauncher<A, R> {
                     workerStarted();
                 }
 
-                R result = null;
                 try {
-                    result = runner.run(next.getValue());
+                    final R result = runner.run(next.getValue());
+                    addToOutput(new NumberedValue<>(next.getNumber(), result));
                 } catch (final Throwable e) {
                     synchronized (source) {
                         hasErrors = true;
@@ -123,8 +123,6 @@ public class AsyncRunnerLauncher<A, R> {
                         }
                     }
                 }
-
-                addToOutput(new NumberedValue<>(next.getNumber(), result));
             }
         } finally {
             workerStopped();

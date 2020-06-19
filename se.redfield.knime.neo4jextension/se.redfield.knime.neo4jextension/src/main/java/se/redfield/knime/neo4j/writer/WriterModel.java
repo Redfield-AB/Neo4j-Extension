@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.json.Json;
 import javax.json.stream.JsonGenerator;
@@ -45,6 +46,7 @@ import se.redfield.knime.neo4j.async.AsyncRunner;
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
+import se.redfield.knime.neo4j.db.ContextListeningDriver;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.db.ScriptExecutionResult;
@@ -133,7 +135,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
                 inputTable.getSpec(), config.getInputColumn());
         final BufferedDataContainer table = exec.createDataContainer(tableSpec);
         try {
-            final Driver driver = neo4j.createDriver();
+            final ContextListeningDriver driver = neo4j.createDriver(exec);
 
             try {
                 if (config.isUseAsync()) {
@@ -142,7 +144,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
                     executeFromTableSourceSync(inputTable, driver, table);
                 }
             } finally {
-                driver.closeAsync();
+                driver.close();
             }
         } finally {
             table.close();
@@ -151,13 +153,17 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     }
 
     private void executeFromTableSourceSync(final BufferedDataTable inputTable,
-            final Driver driver, final BufferedDataContainer output)
+            final ContextListeningDriver driver, final BufferedDataContainer output)
             throws Exception {
 
-        final Session session = driver.session();
+        driver.setProgress(0.);
+        final Session session = driver.getDriver().session();
         try {
-            final Neo4jDataConverter converter = new Neo4jDataConverter(driver.defaultTypeSystem());
+            final Neo4jDataConverter converter = new Neo4jDataConverter(
+                    driver.getDriver().defaultTypeSystem());
 
+            long pos = 0;
+            final long size = inputTable.size();
             for (final DataRow origin : inputTable) {
                 ScriptExecutionResult res;
 
@@ -180,6 +186,8 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
                     }
                 }
 
+                driver.setProgress((double) pos / size);
+                pos++;
                 //build result outside of Neo4j transaction.
                 addResultToOutput(res, output, converter);
             }
@@ -213,26 +221,33 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     }
 
     private void executeFromTableSourceAsync(final BufferedDataTable inputTable,
-            final Driver driver, final Neo4jSupport neo4j, final BufferedDataContainer output)
+            final ContextListeningDriver driver, final Neo4jSupport neo4j, final BufferedDataContainer output)
             throws Exception, IOException {
         final int maxConnectionPoolSize = neo4j.getConfig().getMaxConnectionPoolSize();
-        final int numThreads = Math.max((int) Math.min(maxConnectionPoolSize,
-                inputTable.size()), 1);
+        final long tableSize = inputTable.size();
+        final int numThreads = Math.max((int) Math.min(maxConnectionPoolSize, tableSize), 1);
         final boolean stopOnQueryFailure = config.isStopOnQueryFailure();
 
         //create output synchronizer
-        final Neo4jDataConverter converter = new Neo4jDataConverter(driver.defaultTypeSystem());
+        final Neo4jDataConverter converter = new Neo4jDataConverter(driver.getDriver().defaultTypeSystem());
 
         //create asynchronous scripts runner
         final AsyncRunner<DataRow, ScriptExecutionResult> r = new WithSessionRunner<>(
                 (session, query) -> runSingleScriptInAsyncContext(
                         session, inputTable, query),
-                driver);
+                driver.getDriver());
+
+        driver.setProgress(0.);
+        final AtomicLong counter = new AtomicLong();
         final AsyncRunnerLauncher<DataRow, ScriptExecutionResult> runner
                 = AsyncRunnerLauncher.Builder.<DataRow, ScriptExecutionResult>newBuilder()
             .withRunner(r)
             .withSource(inputTable.iterator())
-            .withConsumer(res -> addResultToOutput(res, output, converter))
+            .withConsumer(res -> {
+                final long num = counter.getAndIncrement();
+                driver.setProgress((double) num / tableSize);
+                addResultToOutput(res, output, converter);
+            })
             .withNumThreads(numThreads)
             .withStopOnFailure(stopOnQueryFailure)
             .withKeepSourceOrder(config.isKeepSourceOrder())

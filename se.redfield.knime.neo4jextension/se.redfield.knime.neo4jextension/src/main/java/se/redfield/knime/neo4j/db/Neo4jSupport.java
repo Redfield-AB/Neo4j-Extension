@@ -9,6 +9,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import org.knime.core.node.ExecutionContext;
 import org.neo4j.driver.AuthToken;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Config;
@@ -77,6 +78,10 @@ public class Neo4jSupport {
     }
     public Driver createDriver() {
         return createDriver(config);
+    }
+    public ContextListeningDriver createDriver(final ExecutionContext context) {
+        final Driver d = createDriver(config);
+        return new ContextListeningDriver(d, context);
     }
     /**
      * @param con Neo4J configuration.
