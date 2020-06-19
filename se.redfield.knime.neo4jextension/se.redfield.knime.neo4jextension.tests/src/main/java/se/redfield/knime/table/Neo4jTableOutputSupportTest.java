@@ -14,6 +14,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataType;
+import org.knime.core.data.collection.ListCell;
+import org.knime.core.data.def.StringCell;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
@@ -97,6 +99,34 @@ public class Neo4jTableOutputSupportTest {
     @Test
     public void testDateTime() {
         throw new AssertionFailedError("TODO");
+    }
+    @Test
+    public void testCollections() {
+        final String query = "UNWIND [\n" +
+                "    { title: \"Cypher Basics I\",\n" +
+                "      created: datetime(\"2019-06-01T18:40:32.142+0100\"),\n" +
+                "      datePublished: date(\"2019-06-01\"),\n" +
+                "      readingTime: duration({minutes: 2, seconds: 15})  },\n" +
+                "    { title: \"Cypher Basics II\",\n" +
+                "      created: datetime(\"2019-06-02T10:23:32.122+0100\"),\n" +
+                "      datePublished: date(\"2019-06-02\"),\n" +
+                "      readingTime: duration({minutes: 2, seconds: 30}) },\n" +
+                "    { title: \"Dates, Datetimes, and Durations in Neo4j\",\n" +
+                "      created: datetime(),\n" +
+                "      datePublished: date(),\n" +
+                "      readingTime: duration({minutes: 3, seconds: 30}) }\n" +
+                "] AS t\n" +
+                "return collect(t.title)";
+
+        final List<Record> res = run(query);
+        assertEquals(1, res.size());
+
+        final Record r = res.get(0);
+        assertEquals(1,  r.size());
+
+        final Value v = r.get(0);
+        final DataType t = support.getCompatibleCellType(v);
+        assertEquals(ListCell.getCollectionType(StringCell.TYPE), t);
     }
 
     private List<Record> run(final String query) {

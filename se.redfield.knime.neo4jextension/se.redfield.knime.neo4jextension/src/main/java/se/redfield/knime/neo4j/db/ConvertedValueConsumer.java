@@ -74,6 +74,8 @@ public interface ConvertedValueConsumer {
                 acceptInteger(((Number) value).longValue());
             } else if (value instanceof Number) {
                 acceptNumber((Number) value);
+            } else if (value instanceof String) {
+                acceptString((String) value);
             } else if (value instanceof List) {
                 acceptList((List<Object>) value);
             } else if (value instanceof Map) {
