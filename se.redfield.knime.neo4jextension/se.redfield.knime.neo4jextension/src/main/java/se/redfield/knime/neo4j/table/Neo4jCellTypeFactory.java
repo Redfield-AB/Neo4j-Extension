@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -30,64 +31,73 @@ import org.neo4j.driver.types.Relationship;
 import se.redfield.knime.neo4j.db.ConvertedValueConsumer;
 
 /**
+ * Warning: Not thread safe
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public interface Neo4jCellTypeFactory extends ConvertedValueConsumer {
+public abstract class Neo4jCellTypeFactory implements ConvertedValueConsumer {
+    private List<DataType> currentListTypes;
+
     @Override
-    default void acceptBoolean(final boolean b) {
-        acceptCellType(BooleanCell.TYPE);
+    public void acceptBoolean(final boolean b) {
+        acceptCellTypeInternal(BooleanCell.TYPE);
     }
     @Override
-    default void acceptBytes(final byte[] bytes) {
-        acceptCellType(BinaryObjectDataCell.TYPE);
+    public void acceptBytes(final byte[] bytes) {
+        acceptCellTypeInternal(BinaryObjectDataCell.TYPE);
     }
     @Override
-    default void acceptString(final String str) {
-        acceptCellType( StringCell.TYPE);
+    public void acceptString(final String str) {
+        acceptCellTypeInternal(StringCell.TYPE);
     }
     @Override
-    default void acceptNumber(final Number num) {
-        acceptCellType(DoubleCell.TYPE);
+    public void acceptNumber(final Number num) {
+        acceptCellTypeInternal(DoubleCell.TYPE);
     }
     @Override
-    default void acceptInteger(final long value) {
-        acceptCellType(LongCell.TYPE);
+    public void acceptInteger(final long value) {
+        acceptCellTypeInternal(LongCell.TYPE);
     }
     @Override
-    default void acceptFloat(final double value) {
-        acceptCellType(DoubleCell.TYPE);
+    public void acceptFloat(final double value) {
+        acceptCellTypeInternal(DoubleCell.TYPE);
     }
     @Override
-    default void acceptList(final List<Object> list) {
+    public void acceptList(final List<Object> list) {
+        if (isInList()) {
+            acceptCellTypeInternal(JSONCell.TYPE);
+            return;
+        }
+        currentListTypes = new LinkedList<>();
         if (!list.isEmpty()) {
             for (final Object obj : list) {
                 if (obj != null) {
                     acceptObject(obj);
-                    return;
+                    break;
                 }
             }
         }
-        acceptNull();
+        acceptCellType(new DataTypeDetection(true, currentListTypes));
+        currentListTypes = null;
     }
     @Override
-    default void acceptMap(final Map<String, Object> map) {
-        acceptCellType(JSONCell.TYPE);
+    public void acceptMap(final Map<String, Object> map) {
+        acceptCellTypeInternal(JSONCell.TYPE);
     }
     @Override
-    default void acceptNode(final Node node) {
+    public void acceptNode(final Node node) {
         acceptMap(node.asMap());
     }
     @Override
-    default void acceptRelationship(final Relationship rel) {
+    public void acceptRelationship(final Relationship rel) {
         acceptMap(rel.asMap());
     }
     @Override
-    default void acceptPath(final Path path) {
-        acceptCellType(StringCell.TYPE);
+    public void acceptPath(final Path path) {
+        acceptCellTypeInternal(StringCell.TYPE);
     }
     @Override
-    default void acceptPoint(final Point p) {
+    public void acceptPoint(final Point p) {
         final Map<String, Object> map = new HashMap<>();
         map.put("x", p.x());
         map.put("y", p.y());
@@ -96,32 +106,44 @@ public interface Neo4jCellTypeFactory extends ConvertedValueConsumer {
         acceptMap(map);
     }
     @Override
-    default void acceptDate(final LocalDate d) {
-        acceptCellType(LocalDateCellFactory.TYPE);
+    public void acceptDate(final LocalDate d) {
+        acceptCellTypeInternal(LocalDateCellFactory.TYPE);
     }
     @Override
-    default void acceptLocalTime(final LocalTime time) {
-        acceptCellType(LocalTimeCellFactory.TYPE);
+    public void acceptLocalTime(final LocalTime time) {
+        acceptCellTypeInternal(LocalTimeCellFactory.TYPE);
     }
     @Override
-    default void acceptLocalDateTime(final LocalDateTime time) {
-        acceptCellType(LocalDateTimeCellFactory.TYPE);
+    public void acceptLocalDateTime(final LocalDateTime time) {
+        acceptCellTypeInternal(LocalDateTimeCellFactory.TYPE);
     }
     @Override
-    default void acceptDuration(final IsoDuration d) {
-        acceptCellType(DurationCellFactory.TYPE);
+    public void acceptDuration(final IsoDuration d) {
+        acceptCellTypeInternal(DurationCellFactory.TYPE);
     }
     @Override
-    default void acceptDurationMilliseconds(final long duration) {
+    public void acceptDurationMilliseconds(final long duration) {
         throw new RuntimeException("use method acceptDuration(IsoDuration d) instead");
     }
     @Override
-    default void acceptNull() {
-        acceptCellType(null);
+    public void acceptNull() {
+        acceptCellTypeInternal(null);
     }
-    void acceptCellType(DataType type);
+    private void acceptCellTypeInternal(final DataType type) {
+        if (isInList()) {
+            if (type != null) {
+                currentListTypes.add(type);
+            }
+        } else {
+            acceptCellType(new DataTypeDetection(type));
+        }
+    }
+    private boolean isInList() {
+        return currentListTypes != null;
+    }
+    protected abstract void acceptCellType(DataTypeDetection detection);
     @Override
-    default void acceptUndefined(final Object value) {
-        acceptCellType(JSONCell.TYPE);
+    public void acceptUndefined(final Object value) {
+        acceptString(String.valueOf(value));
     }
 }

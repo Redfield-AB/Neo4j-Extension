@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +20,7 @@ import javax.json.stream.JsonGenerator;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.MissingCell;
 import org.knime.core.data.blob.BinaryObjectCellFactory;
+import org.knime.core.data.collection.CollectionCellFactory;
 import org.knime.core.data.def.BooleanCell;
 import org.knime.core.data.def.DoubleCell;
 import org.knime.core.data.def.LongCell;
@@ -40,67 +42,73 @@ import se.redfield.knime.neo4j.json.Neo4jValueWriter;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public interface Neo4jCellFactory extends ConvertedValueConsumer {
+public abstract class Neo4jCellFactory implements ConvertedValueConsumer {
+    private List<DataCell> currentListTypes;
+
     @Override
-    default void acceptBoolean(final boolean b) {
-        acceptCell(b ? BooleanCell.TRUE : BooleanCell.FALSE);
+    public void acceptBoolean(final boolean b) {
+        acceptCellInternal(b ? BooleanCell.TRUE : BooleanCell.FALSE);
     }
     @Override
-    default void acceptBytes(final byte[] bytes) {
+    public void acceptBytes(final byte[] bytes) {
         DataCell cell;
         try {
             cell = new BinaryObjectCellFactory().create(bytes);
         } catch (final IOException e) {
             throw new RuntimeException(e);
         }
-        acceptCell(cell);
+        acceptCellInternal(cell);
     }
     @Override
-    default void acceptString(final String str) {
-        acceptCell(new StringCell(str));
+    public void acceptString(final String str) {
+        acceptCellInternal(new StringCell(str));
     }
     @Override
-    default void acceptNumber(final Number num) {
-        acceptCell(new DoubleCell(num.doubleValue()));
+    public void acceptNumber(final Number num) {
+        acceptCellInternal(new DoubleCell(num.doubleValue()));
     }
     @Override
-    default void acceptInteger(final long value) {
-        acceptCell(new LongCell(value));
+    public void acceptInteger(final long value) {
+        acceptCellInternal(new LongCell(value));
     }
     @Override
-    default void acceptFloat(final double value) {
-        acceptCell(new DoubleCell(value));
+    public void acceptFloat(final double value) {
+        acceptCellInternal(new DoubleCell(value));
     }
     @Override
-    default void acceptList(final List<Object> list) {
+    public void acceptList(final List<Object> list) {
+        if (isInList()) {
+            acceptCell(createJson(list));
+            return;
+        }
+        currentListTypes = new LinkedList<>();
         if (!list.isEmpty()) {
             for (final Object obj : list) {
-                if (obj != null) {
-                    acceptObject(obj);
-                    return;
-                }
+                acceptObject(obj);
             }
         }
-        acceptNull();
+
+        acceptCell(CollectionCellFactory.createListCell(currentListTypes));
+        currentListTypes = null;
     }
     @Override
-    default void acceptMap(final Map<String, Object> map) {
-        acceptCell(createJson(map));
+    public void acceptMap(final Map<String, Object> map) {
+        acceptCellInternal(createJson(map));
     }
     @Override
-    default void acceptNode(final Node node) {
+    public void acceptNode(final Node node) {
         acceptMap(node.asMap());
     }
     @Override
-    default void acceptRelationship(final Relationship rel) {
+    public void acceptRelationship(final Relationship rel) {
         acceptMap(rel.asMap());
     }
     @Override
-    default void acceptPath(final Path path) {
+    public void acceptPath(final Path path) {
         acceptString(String.valueOf(path));
     }
     @Override
-    default void acceptPoint(final Point p) {
+    public void acceptPoint(final Point p) {
         final Map<String, Object> map = new HashMap<>();
         map.put("x", p.x());
         map.put("y", p.y());
@@ -109,31 +117,41 @@ public interface Neo4jCellFactory extends ConvertedValueConsumer {
         acceptMap(map);
     }
     @Override
-    default void acceptDate(final LocalDate d) {
-        acceptCell(LocalDateCellFactory.create(d));
+    public void acceptDate(final LocalDate d) {
+        acceptCellInternal(LocalDateCellFactory.create(d));
     }
     @Override
-    default void acceptLocalTime(final LocalTime time) {
-        acceptCell(LocalTimeCellFactory.create(time));
+    public void acceptLocalTime(final LocalTime time) {
+        acceptCellInternal(LocalTimeCellFactory.create(time));
     }
     @Override
-    default void acceptLocalDateTime(final LocalDateTime time) {
-        acceptCell(LocalDateTimeCellFactory.create(time));
+    public void acceptLocalDateTime(final LocalDateTime time) {
+        acceptCellInternal(LocalDateTimeCellFactory.create(time));
     }
     @Override
-    default void acceptDurationMilliseconds(final long duration) {
-        acceptCell(DurationCellFactory.create(Duration.ofMillis(duration)));
+    public void acceptDurationMilliseconds(final long duration) {
+        acceptCellInternal(DurationCellFactory.create(Duration.ofMillis(duration)));
     }
     @Override
-    default void acceptNull() {
-        acceptCell(new MissingCell("null"));
+    public void acceptNull() {
+        acceptCellInternal(new MissingCell("null"));
     }
-    void acceptCell(DataCell type);
+    private void acceptCellInternal(final DataCell cell) {
+        if (isInList()) {
+            currentListTypes.add(cell);
+        } else {
+            acceptCell(cell);
+        }
+    }
+    private boolean isInList() {
+        return currentListTypes != null;
+    }
+    protected abstract void acceptCell(DataCell cell);
     @Override
-    default void acceptUndefined(final Object value) {
-        acceptCell(createJson(value));
+    public void acceptUndefined(final Object value) {
+        acceptString(String.valueOf(value));
     }
-    default DataCell createJson(final Object value) {
+    public DataCell createJson(final Object value) {
         final StringWriter sw = new StringWriter();
         final JsonGenerator gen = Json.createGenerator(sw);
 

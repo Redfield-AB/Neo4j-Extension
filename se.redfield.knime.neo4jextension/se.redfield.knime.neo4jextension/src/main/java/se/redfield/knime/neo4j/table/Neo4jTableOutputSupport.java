@@ -4,8 +4,6 @@
 package se.redfield.knime.neo4j.table;
 
 import org.knime.core.data.DataCell;
-import org.knime.core.data.DataType;
-import org.knime.core.data.def.StringCell;
 import org.neo4j.driver.Value;
 
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
@@ -26,11 +24,11 @@ public class Neo4jTableOutputSupport {
      * @param v value.
      * @return compatible data type.
      */
-    public DataType getCompatibleCellType(final Value v) {
-        final DataType[] ref = {null};
+    public DataTypeDetection getCompatibleCellType(final Value v) {
+        final DataTypeDetection[] ref = {null};
         final Neo4jCellTypeFactory f = new Neo4jCellTypeFactory() {
             @Override
-            public void acceptCellType(final DataType type) {
+            public void acceptCellType(final DataTypeDetection type) {
                 ref[0] = type;
             }
             @Override
@@ -39,8 +37,7 @@ public class Neo4jTableOutputSupport {
             }
         };
         converter.convert(v, f);
-        final DataType type = ref[0];
-        return type == null ? StringCell.TYPE : type;
+        return ref[0];
     }
     /**
      * @param value value.

@@ -15,10 +15,12 @@ import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTable;
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.DataType;
 import org.knime.core.data.MissingCell;
 import org.knime.core.data.RowIterator;
 import org.knime.core.data.RowKey;
 import org.knime.core.data.append.AppendedColumnRow;
+import org.knime.core.data.collection.ListCell;
 import org.knime.core.data.def.DefaultRow;
 import org.knime.core.data.def.DefaultRowIterator;
 import org.knime.core.data.def.StringCell;
@@ -52,6 +54,7 @@ import se.redfield.knime.neo4j.db.WithSessionRunner;
 import se.redfield.knime.neo4j.json.JsonBuilder;
 import se.redfield.knime.neo4j.model.FlowVariablesProvider;
 import se.redfield.knime.neo4j.model.ModelUtils;
+import se.redfield.knime.neo4j.table.DataTypeDetection;
 import se.redfield.knime.neo4j.table.Neo4jTableOutputSupport;
 
 /**
@@ -294,33 +297,25 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         return new JsonBuilder(adapter).buildJson(records);
     }
     private DataTableSpec createTableSpec(final Neo4jTableOutputSupport support, final List<Record> records) {
-        DataColumnSpec[] columns = null;
-        boolean hasNull = false;
+        DataTypeDetection[] detections = null;
+        boolean hasNull;
 
         //attempt to populate with best types
         for (final Record record : records) {
             final List<Pair<String, Value>> fields = record.fields();
 
             //create specs array
-            if (columns == null) {
-                columns = new DataColumnSpec[fields.size()];
+            if (detections == null) {
+                detections = new DataTypeDetection[fields.size()];
             }
 
+            hasNull = false;
             int i = 0;
             for (final Pair<String,Value> pair : fields) {
-                hasNull = false;
-                if (columns[i] == null) {
-                    final String name = pair.key();
-                    final Value v = pair.value();
-                    if (v.isNull()) {
-                        hasNull = true;
-                    } else {
-                        final DataColumnSpecCreator creator = new DataColumnSpecCreator(name,
-                                support.getCompatibleCellType(v));
-                        columns[i] = creator.createSpec();
-                    }
+                if (detections[i] == null || !detections[i].isDetected()) {
+                    detections[i] = support.getCompatibleCellType(pair.value());
+                    hasNull = hasNull || !detections[i].isDetected();
                 }
-
                 i++;
             }
 
@@ -329,18 +324,31 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
             }
         }
 
-        if (hasNull) {
-            //set values for nulls
-            int i = 0;
-            for (final Pair<String,Value> pair : records.get(0).fields()) {
-                if (columns[i] == null) {
-                    final String name = pair.key();
-                    //set string as default for null value
-                    final DataColumnSpecCreator creator = new DataColumnSpecCreator(name, StringCell.TYPE);
-                    columns[i] = creator.createSpec();
+        //create types from detections
+        final DataColumnSpec[] columns = new DataColumnSpec[detections.length];
+        int i = 0;
+        for (final Pair<String,Value> pair : records.get(0).fields()) {
+            final DataTypeDetection det = detections[i];
+            final String name = pair.key();
+            final DataType type;
+
+            if (det.isDetected()) {
+                if (det.isList()) {
+                    type = ListCell.getCollectionType(det.getListType());
+                } else {
+                    type = det.getType();
                 }
-                i++;
+            } else {
+                if (det.isList()) {
+                    type = ListCell.getCollectionType(StringCell.TYPE);
+                } else {
+                    type = StringCell.TYPE;
+                }
             }
+
+            final DataColumnSpecCreator creator = new DataColumnSpecCreator(name, type);
+            columns[i] = creator.createSpec();
+            i++;
         }
 
         return new DataTableSpec(columns);

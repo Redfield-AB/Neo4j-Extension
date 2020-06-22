@@ -101,7 +101,7 @@ public final class KNimeHelper {
             }
             @Override
             public String getInportName(final int index) {
-                return "out-" + index;
+                return "in-" + index;
             }
             @Override
             public String getInportDescription(final int index) {
