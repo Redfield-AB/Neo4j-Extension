@@ -4,6 +4,7 @@
 package se.redfield.knime.neo4j.reader;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -27,6 +28,7 @@ import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
+import org.knime.core.node.context.ModifiableNodeCreationConfiguration;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 
@@ -43,7 +45,7 @@ import se.redfield.knime.runner.KnimeTestRunner;
  */
 @RunWith(KnimeTestRunner.class)
 public class ReaderModelTest {
-    private ReaderModel model;
+    private AccessibleReaderModel model;
 
     /**
      * Default constructor.
@@ -54,7 +56,8 @@ public class ReaderModelTest {
 
     @Before
     public void setUp() {
-        model = new ReaderModel();
+        final ModifiableNodeCreationConfiguration cfg = new ReaderFactory().createNodeCreationConfig();
+        model = new AccessibleReaderModel(cfg);
     }
 
     @Test
@@ -72,6 +75,36 @@ public class ReaderModelTest {
         //table format is undefined because is depended from
         //script output
         assertNull(out[0]);
+    }
+    @Test
+    public void testConfigureTableOutputSpecAbsent() throws InvalidSettingsException {
+        final ReaderConfig cfg = new ReaderConfig();
+        cfg.setScript("return 1");
+
+        cfg.setUseJson(false);
+        setConfigToModel(cfg);
+
+        final PortObjectSpec[] input = {createConnectorSpec()};
+
+        final PortObjectSpec[] out = model.configure(input);
+        assertTrue(out[1] instanceof ConnectorSpec);
+        //table format is undefined because is depended from
+        //script output
+        assertNull(out[0]);
+    }
+    @Test
+    public void testConfigureJsonOutputSpecAbsent() throws InvalidSettingsException {
+        final ReaderConfig cfg = new ReaderConfig();
+        cfg.setScript("return 1");
+
+        cfg.setUseJson(true);
+        setConfigToModel(cfg);
+
+        final PortObjectSpec[] input = {createConnectorSpec()};
+
+        final PortObjectSpec[] out = model.configure(input);
+        assertTrue(out[1] instanceof ConnectorSpec);
+        assertNotNull(out[0]);
     }
     @Test
     public void testConfigureUsingTableInput() throws InvalidSettingsException {
@@ -261,6 +294,7 @@ public class ReaderModelTest {
         setConfigToModel(cfg);
         //should not throw exception
         model.execute(input, KNimeHelper.createExecutionContext(model));
+        assertNotNull(model.getWarning());
 
         cfg.setStopOnQueryFailure(true);
         setConfigToModel(cfg);
@@ -290,6 +324,7 @@ public class ReaderModelTest {
         setConfigToModel(cfg);
         //should not throw exception
         model.execute(input, KNimeHelper.createExecutionContext(model));
+        assertEquals(ReaderModel.SOME_QUERIES_ERROR, model.getWarning());
 
         cfg.setStopOnQueryFailure(true);
         setConfigToModel(cfg);

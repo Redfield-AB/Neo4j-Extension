@@ -443,11 +443,22 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
 
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObject[] input) throws NotConfigurableException {
+        BufferedDataTable tableInput = null;
+        final ConnectorPortObject connectorPort;
+
+        if (input.length > 1) {
+            connectorPort = (ConnectorPortObject) input[1];
+            tableInput = (BufferedDataTable) input[0];
+        } else {
+            connectorPort = (ConnectorPortObject) input[0];
+        }
+        if (connectorPort == null) {
+            throw new NotConfigurableException("Not connected to Neo4j connection");
+        }
+
         try {
             final ReaderConfig model = new ReaderConfigSerializer().read(settings);
-            initFromModel(model,
-                    ((ConnectorPortObject) input[1]).getPortData(),
-                    getStringColumns((BufferedDataTable) input[0]));
+            initFromModel(model, connectorPort.getPortData(), getStringColumns(tableInput));
         } catch (final Exception e) {
             getLogger().error(e);
             throw new NotConfigurableException(e.getMessage(), e);

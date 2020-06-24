@@ -22,6 +22,7 @@ import org.knime.core.data.json.JSONCell;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
+import org.knime.core.node.context.ModifiableNodeCreationConfiguration;
 import org.knime.core.node.port.PortObject;
 
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
@@ -46,7 +47,8 @@ public class ReaderModelDataTypesTest {
 
     @Before
     public void setUp() {
-        model = new ReaderModel();
+        final ModifiableNodeCreationConfiguration cfg = new ReaderFactory().createNodeCreationConfig();
+        model = new ReaderModel(cfg);
     }
 
     @Test
