@@ -5,7 +5,6 @@ package se.redfield.knime.table;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
@@ -86,11 +85,11 @@ public class Neo4jTableOutputSupportTest {
         final Value v = rec.get(0);
 
         //test type
-        final DataTypeDetection t = support.getCompatibleCellType(v);
-        assertNotNull(t.getType());
+        final DataTypeDetection t = support.detectCompatibleCellType(v);
+        assertNotNull(t.calculateType());
 
         //test value
-        final DataCell cell = support.createCell(v);
+        final DataCell cell = support.createCell(t.calculateType(), v);
         assertNotNull(cell);
     }
     @Test
@@ -126,12 +125,11 @@ public class Neo4jTableOutputSupportTest {
         assertEquals(1,  r.size());
 
         final Value v = r.get(0);
-        final DataTypeDetection t = support.getCompatibleCellType(v);
+        final DataTypeDetection t = support.detectCompatibleCellType(v);
 
         assertTrue(t.isDetected());
         assertTrue(t.isList());
-        assertNull(t.getType());
-        assertEquals(StringCell.TYPE, t.getListType());
+        assertEquals(StringCell.TYPE, t.calculateType());
     }
 
     private List<Record> run(final String query) {

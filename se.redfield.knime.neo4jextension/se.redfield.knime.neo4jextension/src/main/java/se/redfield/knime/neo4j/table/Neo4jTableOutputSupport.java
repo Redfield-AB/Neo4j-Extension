@@ -4,6 +4,8 @@
 package se.redfield.knime.neo4j.table;
 
 import org.knime.core.data.DataCell;
+import org.knime.core.data.DataType;
+import org.knime.core.data.json.JSONCell;
 import org.neo4j.driver.Value;
 
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
@@ -24,7 +26,7 @@ public class Neo4jTableOutputSupport {
      * @param v value.
      * @return compatible data type.
      */
-    public DataTypeDetection getCompatibleCellType(final Value v) {
+    public DataTypeDetection detectCompatibleCellType(final Value v) {
         final DataTypeDetection[] ref = {null};
         final Neo4jCellTypeFactory f = new Neo4jCellTypeFactory() {
             @Override
@@ -40,12 +42,18 @@ public class Neo4jTableOutputSupport {
         return ref[0];
     }
     /**
+     * @param dataType cell data type.
      * @param value value.
      * @return compatible cell.
      */
-    public DataCell createCell(final Value value) {
+    public DataCell createCell(final DataType dataType, final Value value) {
+        if (dataType == JSONCell.TYPE) {
+            return Neo4jCellFactory.createJson(converter, value);
+        }
+
         final DataCell[] ref = {null};
-        final Neo4jCellFactory f = new Neo4jCellFactory() {
+        final boolean useJsonForList = dataType.getCollectionElementType() == JSONCell.TYPE;
+        final Neo4jCellFactory f = new Neo4jCellFactory(useJsonForList) {
             @Override
             public Neo4jDataConverter getConverter() {
                 return converter;

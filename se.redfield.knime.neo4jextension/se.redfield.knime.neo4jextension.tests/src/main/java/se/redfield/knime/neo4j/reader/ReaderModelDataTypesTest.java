@@ -18,6 +18,7 @@ import org.knime.core.data.MissingCell;
 import org.knime.core.data.collection.ListCell;
 import org.knime.core.data.def.LongCell;
 import org.knime.core.data.def.StringCell;
+import org.knime.core.data.json.JSONCell;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
@@ -127,6 +128,66 @@ public class ReaderModelDataTypesTest {
         assertTrue(cell.get(0) instanceof MissingCell);
         assertTrue(cell.get(1) instanceof MissingCell);
         assertTrue(cell.get(2) instanceof MissingCell);
+    }
+    @Test
+    public void testCollectionCombinedTypes() throws Exception {
+        final String query = "return [1, \"string\", null] as list";
+        setScript(query);
+
+        final BufferedDataTable out = execute();
+
+        final List<DataRow> rows = getAllRows(out);
+        assertEquals(1, rows.size());
+
+        final DataRow row = rows.get(0);
+        assertEquals(1, rows.size());
+
+        final ListCell cell = (ListCell) row.getCell(0);
+
+        assertTrue(cell.get(0) instanceof JSONCell);
+        assertTrue(cell.get(1) instanceof JSONCell);
+        assertTrue(cell.get(2) instanceof MissingCell);
+    }
+    @Test
+    public void testMultipleRows() throws Exception {
+        final StringBuilder query = new StringBuilder();
+        query.append("UNWIND [1, 2, 'val', NULL] AS x\n");
+        query.append("RETURN x AS y");
+        setScript(query.toString());
+
+        final BufferedDataTable out = execute();
+
+        final List<DataRow> rows = getAllRows(out);
+        assertEquals(4, rows.size());
+
+        final DataRow row = rows.get(0);
+        assertEquals(1, row.getNumCells());
+
+        assertTrue(rows.get(0).getCell(0) instanceof JSONCell);
+        assertTrue(rows.get(1).getCell(0) instanceof JSONCell);
+        assertTrue(rows.get(2).getCell(0) instanceof JSONCell);
+        assertTrue(rows.get(3).getCell(0) instanceof MissingCell);
+    }
+    @Test
+    public void testListMultipleRows() throws Exception {
+        final StringBuilder query = new StringBuilder();
+        query.append("UNWIND [[null, null, null], [1, 2, 'val1'], ['val1', 2, NULL]] AS x\n");
+        query.append("RETURN x AS y");
+        setScript(query.toString());
+
+        final BufferedDataTable out = execute();
+
+        final List<DataRow> rows = getAllRows(out);
+        assertEquals(3, rows.size());
+
+        final DataRow row = rows.get(2);
+        assertEquals(1, row.getNumCells());
+
+        final ListCell list = (ListCell) row.getCell(0);
+
+        assertTrue(list.get(0) instanceof JSONCell);
+        assertTrue(list.get(1) instanceof JSONCell);
+        assertTrue(list.get(2) instanceof MissingCell);
     }
 
     /**

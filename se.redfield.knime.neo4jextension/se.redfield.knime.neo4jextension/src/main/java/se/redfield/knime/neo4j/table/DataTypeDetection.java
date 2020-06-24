@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.knime.core.data.DataType;
+import org.knime.core.data.json.JSONCell;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -16,8 +17,7 @@ import org.knime.core.data.DataType;
  */
 public class DataTypeDetection {
     private boolean isList;
-    private DataType type;
-    private final Set<DataType> listTypes = new HashSet<>();
+    private final Set<DataType> types = new HashSet<>();
 
     /**
      * Default constructor.
@@ -28,7 +28,7 @@ public class DataTypeDetection {
 
     public DataTypeDetection(final DataType t) {
         super();
-        this.type = t;
+        types.add(t);
     }
     public DataTypeDetection(final boolean b, final List<DataType> listTypes) {
         super();
@@ -43,25 +43,40 @@ public class DataTypeDetection {
         return isList;
     }
     public void setType(final DataType type) {
-        this.type = type;
-    }
-    public DataType getType() {
-        return type;
+        if (type != null) {
+            types.add(type);
+        }
     }
     public void addListTypes(final Collection<DataType> types) {
-        this.listTypes.addAll(types);
+        this.types.addAll(types);
     }
-    public Set<DataType> getListTypes() {
-        return listTypes;
+    public Set<DataType> getTypes() {
+        return types;
     }
-
     public boolean isDetected() {
-        return getType() != null || isList() && !getListTypes().isEmpty();
+        return !getTypes().isEmpty();
     }
-    public DataType getListType() {
-        if (!listTypes.isEmpty()) {
-            return listTypes.iterator().next();
+    public DataType calculateType() {
+        DataType curr = null;
+        for (final DataType t : types) {
+            if (curr == null) {
+                curr = t;
+            } else if (curr.getCellClass().isAssignableFrom(t.getCellClass())){
+                //if new type is superclass for current type
+                //should use new type
+                curr = t;
+            } else if (!curr.getCellClass().isAssignableFrom(t.getCellClass())) {
+                //if both types is not inherited one from other
+                //should use JSON type
+                return JSONCell.TYPE;
+            }
         }
-        return null;
+        return curr;
+    }
+    public void update(final DataTypeDetection dt) {
+        if (dt.isList()) {
+            this.isList = true;
+        }
+        types.addAll(dt.getTypes());
     }
 }

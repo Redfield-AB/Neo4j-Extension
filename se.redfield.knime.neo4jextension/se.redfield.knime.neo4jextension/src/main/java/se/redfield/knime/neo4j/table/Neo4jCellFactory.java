@@ -30,12 +30,14 @@ import org.knime.core.data.time.duration.DurationCellFactory;
 import org.knime.core.data.time.localdate.LocalDateCellFactory;
 import org.knime.core.data.time.localdatetime.LocalDateTimeCellFactory;
 import org.knime.core.data.time.localtime.LocalTimeCellFactory;
+import org.neo4j.driver.Value;
 import org.neo4j.driver.types.Node;
 import org.neo4j.driver.types.Path;
 import org.neo4j.driver.types.Point;
 import org.neo4j.driver.types.Relationship;
 
 import se.redfield.knime.neo4j.db.ConvertedValueConsumer;
+import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.json.Neo4jValueWriter;
 
 /**
@@ -44,6 +46,12 @@ import se.redfield.knime.neo4j.json.Neo4jValueWriter;
  */
 public abstract class Neo4jCellFactory implements ConvertedValueConsumer {
     private List<DataCell> currentListTypes;
+    private final boolean useJson;
+
+    public Neo4jCellFactory(final boolean useJson) {
+        super();
+        this.useJson = useJson;
+    }
 
     @Override
     public void acceptBoolean(final boolean b) {
@@ -84,7 +92,11 @@ public abstract class Neo4jCellFactory implements ConvertedValueConsumer {
         currentListTypes = new LinkedList<>();
         if (!list.isEmpty()) {
             for (final Object obj : list) {
-                acceptObject(obj);
+                if (useJson) {
+                    acceptCellInternal(createJson(obj));
+                } else {
+                    acceptObject(obj);
+                }
             }
         }
 
@@ -151,11 +163,23 @@ public abstract class Neo4jCellFactory implements ConvertedValueConsumer {
     public void acceptUndefined(final Object value) {
         acceptString(String.valueOf(value));
     }
-    public DataCell createJson(final Object value) {
+    protected DataCell createJson(final Object value) {
+        return createJson(getConverter(), value);
+    }
+    /**
+     * @param converter converter.
+     * @param value value to create data cell.
+     * @return data cell.
+     */
+    public static DataCell createJson(final Neo4jDataConverter converter, final Object value) {
+        if (value == null || (value instanceof Value
+                && ((Value) value).isNull())) {
+            return new MissingCell("null JSON");
+        }
         final StringWriter sw = new StringWriter();
         final JsonGenerator gen = Json.createGenerator(sw);
 
-        final Neo4jValueWriter wr = new Neo4jValueWriter(gen, getConverter());
+        final Neo4jValueWriter wr = new Neo4jValueWriter(gen, converter);
         wr.acceptObject(value);
         gen.flush();
 

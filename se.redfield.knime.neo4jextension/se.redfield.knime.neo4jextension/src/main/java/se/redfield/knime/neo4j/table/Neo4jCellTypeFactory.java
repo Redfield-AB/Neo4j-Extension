@@ -69,12 +69,9 @@ public abstract class Neo4jCellTypeFactory implements ConvertedValueConsumer {
             return;
         }
         currentListTypes = new LinkedList<>();
-        if (!list.isEmpty()) {
-            for (final Object obj : list) {
-                if (obj != null) {
-                    acceptObject(obj);
-                    break;
-                }
+        for (final Object obj : list) {
+            if (obj != null) {
+                acceptObject(obj);
             }
         }
         acceptCellType(new DataTypeDetection(true, currentListTypes));

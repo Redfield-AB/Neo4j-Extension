@@ -24,6 +24,7 @@ import org.knime.core.data.collection.ListCell;
 import org.knime.core.data.def.DefaultRow;
 import org.knime.core.data.def.DefaultRowIterator;
 import org.knime.core.data.def.StringCell;
+import org.knime.core.data.json.JSONCell;
 import org.knime.core.data.json.JSONCellFactory;
 import org.knime.core.node.BufferedDataContainer;
 import org.knime.core.node.BufferedDataTable;
@@ -263,8 +264,8 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
             final ExecutionContext exec, final Neo4jDataConverter converter) throws Exception {
         final Neo4jTableOutputSupport support = new Neo4jTableOutputSupport(converter);
 
-        final DataTableSpec tableSpec = createTableSpec(support,  records);
-        final List<DataRow> rows = createDataRows(support, records);
+        final DataTableSpec tableSpec = createTableSpec(support, records);
+        final List<DataRow> rows = createDataRows(support, tableSpec, records);
         return createTable(exec, tableSpec, rows);
     }
     private DataTable createTable(final ExecutionContext exec, final DataTableSpec tableSpec,
@@ -298,7 +299,6 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
     }
     private DataTableSpec createTableSpec(final Neo4jTableOutputSupport support, final List<Record> records) {
         DataTypeDetection[] detections = null;
-        boolean hasNull;
 
         //attempt to populate with best types
         for (final Record record : records) {
@@ -309,18 +309,15 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
                 detections = new DataTypeDetection[fields.size()];
             }
 
-            hasNull = false;
             int i = 0;
             for (final Pair<String,Value> pair : fields) {
-                if (detections[i] == null || !detections[i].isDetected()) {
-                    detections[i] = support.getCompatibleCellType(pair.value());
-                    hasNull = hasNull || !detections[i].isDetected();
+                final DataTypeDetection dt = support.detectCompatibleCellType(pair.value());
+                if (detections[i] == null) {
+                    detections[i] = dt;
+                } else {
+                    detections[i].update(dt);
                 }
                 i++;
-            }
-
-            if (!hasNull) {
-                break;
             }
         }
 
@@ -330,17 +327,19 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
         for (final Pair<String,Value> pair : records.get(0).fields()) {
             final DataTypeDetection det = detections[i];
             final String name = pair.key();
-            final DataType type;
+            DataType type = null;
 
             if (det.isDetected()) {
                 if (det.isList()) {
-                    type = ListCell.getCollectionType(det.getListType());
+                    type = ListCell.getCollectionType(det.calculateType());
                 } else {
-                    type = det.getType();
+                    type = det.calculateType();
                 }
-            } else {
+            }
+
+            if (type == null) {
                 if (det.isList()) {
-                    type = ListCell.getCollectionType(StringCell.TYPE);
+                    type = ListCell.getCollectionType(JSONCell.TYPE);
                 } else {
                     type = StringCell.TYPE;
                 }
@@ -355,32 +354,35 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
     }
     /**
      * @param support type system.
+     * @param tableSpec table specification.
      * @param records record list.
      * @return list of data rows.
      * @throws Exception
      */
     private List<DataRow> createDataRows(final Neo4jTableOutputSupport support,
-            final List<Record> records) throws Exception {
+            final DataTableSpec tableSpec, final List<Record> records) throws Exception {
         int index = 0;
         final List<DataRow> rows = new LinkedList<DataRow>();
         for (final Record r : records) {
-            rows.add(createDataRow(r, support, index));
+            rows.add(createDataRow(support, tableSpec, index, r));
             index++;
         }
         return rows;
     }
     /**
-     * @param r record.
      * @param adapter data adapter.
+     * @param columnSpec column specification.
      * @param index row index.
+     * @param r record.
      * @return data row.
      * @throws Exception
      */
-    private DataRow createDataRow(final Record r,
-            final Neo4jTableOutputSupport adapter, final int index) throws Exception {
+    private DataRow createDataRow(final Neo4jTableOutputSupport adapter,
+            final DataTableSpec tableSpec, final int index, final Record r) throws Exception {
         final DataCell[] cells = new DataCell[r.size()];
         for (int i = 0; i < cells.length; i++) {
-            cells[i] = adapter.createCell(r.get(i));
+            final DataColumnSpec columnSpec = tableSpec.getColumnSpec(i);
+            cells[i] = adapter.createCell(columnSpec.getType(), r.get(i));
         }
         return new DefaultRow(new RowKey("r-" + index), cells);
     }
