@@ -235,8 +235,12 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     private void executeFromTableSourceAsync(final BufferedDataTable inputTable,
             final ContextListeningDriver driver, final Neo4jSupport neo4j, final BufferedDataContainer output)
             throws Exception, IOException {
-        final int maxConnectionPoolSize = neo4j.getConfig().getMaxConnectionPoolSize();
         final long tableSize = inputTable.size();
+        if (tableSize == 0) {
+            return;
+        }
+
+        final int maxConnectionPoolSize = neo4j.getConfig().getMaxConnectionPoolSize();
         final int numThreads = Math.max((int) Math.min(maxConnectionPoolSize, tableSize), 1);
         final boolean stopOnQueryFailure = config.isStopOnQueryFailure();
 

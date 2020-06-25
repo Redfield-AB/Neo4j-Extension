@@ -264,6 +264,31 @@ public class ReaderModelTest {
         assertTrue(json.getStringValue().contains("string from table input"));
     }
     @Test
+    public void testTableInputEmptyTable() throws Exception {
+        final String columnName = "input";
+
+        final ReaderConfig cfg = new ReaderConfig();
+        cfg.setInputColumn(columnName);
+        setConfigToModel(cfg);
+
+        final List<String> scripts = new LinkedList<String>();
+        final PortObject[] input = {
+                createTable(scripts, columnName),
+                createConnectorPortObject()};
+        final PortObject[] out = model.execute(input, KNimeHelper.createExecutionContext(model));
+
+        assertTrue(out[1] instanceof ConnectorPortObject);
+        assertTrue(out[0] instanceof BufferedDataTable);
+
+        final BufferedDataTable table = (BufferedDataTable) out[0];
+
+        assertEquals(2, table.getSpec().getNumColumns());
+        assertEquals(StringCell.TYPE, table.getSpec().getColumnSpec(0).getType());
+        assertEquals(JSONCell.TYPE, table.getSpec().getColumnSpec(1).getType());
+
+        assertEquals(0, table.size());
+    }
+    @Test
     public void testOutputRowsOrderUsingTableInput() throws Exception {
         final String columnName = "input";
 

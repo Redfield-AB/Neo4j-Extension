@@ -148,44 +148,49 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider {
     private DataTable executeFromTableSource(
             final ExecutionContext exec, final String inputColumn,
             final BufferedDataTable inputTable, final Neo4jSupport neo4j) throws Exception {
-        final ContextListeningDriver driver = neo4j.createDriver(exec);
         final int columnIndex = inputTable.getDataTableSpec().findColumnIndex(inputColumn);
 
         final BufferedDataContainer table = exec.createDataContainer(ModelUtils.createSpecWithAddedJsonColumn(
                 inputTable.getSpec(), config.getInputColumn()));
+
         try {
-            try {
-                final AsyncRunner<DataRow, DataRow> r = new WithSessionRunner<>(
-                        (session, row) -> runScriptFromColumn(session, driver.getDriver(), row, columnIndex),
-                        driver.getDriver());
-                final long tableSize = inputTable.size();
-                final AtomicLong counter = new AtomicLong();
-                driver.setProgress(0.);
+            if (inputTable.size() > 0) {
+                final ContextListeningDriver driver = neo4j.createDriver(exec);
+                try {
+                    final AsyncRunner<DataRow, DataRow> r = new WithSessionRunner<>(
+                            (session, row) -> runScriptFromColumn(session, driver.getDriver(), row, columnIndex),
+                            driver.getDriver());
+                    final long tableSize = inputTable.size();
+                    final AtomicLong counter = new AtomicLong();
+                    driver.setProgress(0.);
 
-                final AsyncRunnerLauncher<DataRow, DataRow> runner = AsyncRunnerLauncher.Builder.newBuilder(r)
-                    .withConsumer(row -> {
-                        table.addRowToTable(row);
-                        final double p = counter.getAndIncrement() / (double) tableSize;
-                        driver.setProgress(p);
-                    })
-                    .withKeepSourceOrder(config.isKeepSourceOrder())
-                    .withSource(inputTable.iterator())
-                    .withNumThreads((int) Math.min(
-                            neo4j.getConfig().getMaxConnectionPoolSize(), tableSize))
-                    .withStopOnFailure(config.isStopOnQueryFailure())
-                    .build();
+                    //build runner.
+                    final AsyncRunnerLauncher<DataRow, DataRow> runner = AsyncRunnerLauncher.Builder.newBuilder(r)
+                        .withConsumer(row -> {
+                            table.addRowToTable(row);
+                            final double p = counter.getAndIncrement() / (double) tableSize;
+                            driver.setProgress(p);
+                        })
+                        .withKeepSourceOrder(config.isKeepSourceOrder())
+                        .withSource(inputTable.iterator())
+                        .withNumThreads((int) Math.min(
+                                neo4j.getConfig().getMaxConnectionPoolSize(), tableSize))
+                        .withStopOnFailure(config.isStopOnQueryFailure())
+                        .build();
 
-                runner.run();
-                if (runner.hasErrors()) {
-                    if (config.isStopOnQueryFailure()) {
-                        getLogger().error(SOME_QUERIES_ERROR);
-                        throw new Exception(SOME_QUERIES_ERROR);
-                    } else {
-                        setWarningMessage(SOME_QUERIES_ERROR);
+                    //run asynchronously
+                    runner.run();
+                    if (runner.hasErrors()) {
+                        if (config.isStopOnQueryFailure()) {
+                            getLogger().error(SOME_QUERIES_ERROR);
+                            throw new Exception(SOME_QUERIES_ERROR);
+                        } else {
+                            setWarningMessage(SOME_QUERIES_ERROR);
+                        }
                     }
+                } finally {
+                    driver.close();
                 }
-            } finally {
-                driver.close();
             }
         } finally {
             table.close();

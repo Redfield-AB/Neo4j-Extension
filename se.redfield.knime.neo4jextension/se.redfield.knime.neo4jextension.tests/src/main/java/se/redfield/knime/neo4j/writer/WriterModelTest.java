@@ -125,6 +125,18 @@ public class WriterModelTest {
         assertEquals(JSONCell.TYPE, jsonColumn.getType());
     }
     @Test
+    public void testConfigureJsonOutputSpecAbsent() throws InvalidSettingsException {
+        final WriterConfig cfg = new WriterConfig();
+        cfg.setScript("return 1");
+        setConfigToModel(cfg);
+
+        final PortObjectSpec[] input = {createConnectorSpec()};
+
+        final PortObjectSpec[] out = model.configure(input);
+        assertTrue(out[1] instanceof ConnectorSpec);
+        assertNotNull(out[0]);
+    }
+    @Test
     public void testScript() throws Exception {
         final String script = getCreateNode("n1");
         final WriterConfig cfg = new WriterConfig();
@@ -181,6 +193,7 @@ public class WriterModelTest {
         final PortObject[] input = {null, connector};
         //should not throw exception
         final PortObject[] out = model.execute(input, createExecutionContext());
+        assertNotNull(model.getWarning());
 
         assertEquals(connector, out[1]);
         assertTrue(out[0] instanceof DataTable);
@@ -287,6 +300,20 @@ public class WriterModelTest {
         }
     }
     @Test
+    public void testRunUsingScriptOneInputPort() throws Exception {
+        final WriterConfig cfg = new WriterConfig();
+        cfg.setScript("return 'string output'");
+        cfg.setStopOnQueryFailure(true);
+
+        setConfigToModel(cfg);
+
+        final PortObject[] input = {createConnectorPortObject()};
+        final PortObject[] out = model.execute(input, KNimeHelper.createExecutionContext(model));
+
+        assertTrue(out[1] instanceof ConnectorPortObject);
+        assertTrue(out[0] instanceof BufferedDataTable);
+    }
+    @Test
     public void testTableInputByStopOnQueryFailureRunSync() throws InvalidSettingsException {
         final String columnName = "in";
 
@@ -336,6 +363,7 @@ public class WriterModelTest {
         };
 
         final PortObject[] out = model.execute(input, createExecutionContext());
+        assertNotNull(model.getWarning());
 
         //test result table
         final List<DataRow> rows = read((DataTable) out[0]);
@@ -369,6 +397,38 @@ public class WriterModelTest {
             // correct
         }
     }
+    @Test
+    public void testTableInputEmptyTable() throws Exception {
+        final String columnName = "in";
+        //create list of scripts
+        final List<String> scripts = new LinkedList<>();
+
+        final WriterConfig cfg = new WriterConfig();
+        cfg.setUseAsync(true);
+        cfg.setInputColumn(columnName);
+        cfg.setStopOnQueryFailure(true);
+
+        setConfigToModel(cfg);
+
+        final ConnectorPortObject connector = createConnectorPortObject();
+        final PortObject[] input = {
+            createTable(scripts, columnName),
+            connector
+        };
+        final PortObject[] out = model.execute(input, createExecutionContext());
+
+        assertTrue(out[1] instanceof ConnectorPortObject);
+        assertTrue(out[0] instanceof BufferedDataTable);
+
+        final BufferedDataTable table = (BufferedDataTable) out[0];
+
+        assertEquals(2, table.getSpec().getNumColumns());
+        assertEquals(StringCell.TYPE, table.getSpec().getColumnSpec(0).getType());
+        assertEquals(JSONCell.TYPE, table.getSpec().getColumnSpec(1).getType());
+
+        assertEquals(0, table.size());
+    }
+
     @Test
     public void testTableInputNotStopOnQueryFailureRunAsync() throws Exception {
         final String columnName = "in";
