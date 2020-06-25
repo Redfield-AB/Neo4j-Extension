@@ -4,17 +4,17 @@
    <extension
          point="org.knime.workbench.repository.nodes">
       <node
-            category-path="/neo4j"
+            category-path="/community/neo4j"
             deprecated="false"
             factory-class="se.redfield.knime.neo4j.reader.ReaderFactory">
       </node>
       <node
-            category-path="/neo4j"
+            category-path="/community/neo4j"
             deprecated="false"
             factory-class="se.redfield.knime.neo4j.connector.ConnectorFactory">
       </node>
       <node
-            category-path="/neo4j"
+            category-path="/community/neo4j"
             deprecated="false"
             factory-class="se.redfield.knime.neo4j.writer.WriterFactory">
       </node>
@@ -26,7 +26,7 @@
             level-id="neo4j"
             locked="true"
             name="Neo4j"
-            path="/">
+            path="/community">
       </category>
    </extension>
    <extension
