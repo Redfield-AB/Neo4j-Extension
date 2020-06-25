@@ -208,6 +208,20 @@ public class ReaderModelTest {
         assertTrue(json.getStringValue().contains("string output"));
     }
     @Test
+    public void testRunUsingScriptOneInputPort() throws Exception {
+        final ReaderConfig cfg = new ReaderConfig();
+        cfg.setScript("return 'string output'");
+        cfg.setStopOnQueryFailure(true);
+
+        setConfigToModel(cfg);
+
+        final PortObject[] input = {createConnectorPortObject()};
+        final PortObject[] out = model.execute(input, KNimeHelper.createExecutionContext(model));
+
+        assertTrue(out[1] instanceof ConnectorPortObject);
+        assertTrue(out[0] instanceof BufferedDataTable);
+    }
+    @Test
     public void testRunUsingTableInput() throws Exception {
         final String columnName = "input";
 

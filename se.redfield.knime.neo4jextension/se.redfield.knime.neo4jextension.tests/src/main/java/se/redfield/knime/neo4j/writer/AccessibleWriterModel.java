@@ -6,6 +6,7 @@ package se.redfield.knime.neo4j.writer;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 
@@ -17,8 +18,8 @@ public class AccessibleWriterModel extends WriterModel {
     /**
      * Default constructor.
      */
-    public AccessibleWriterModel() {
-        super();
+    public AccessibleWriterModel(final NodeCreationConfiguration creationConfig) {
+        super(creationConfig);
     }
 
     @Override
@@ -32,5 +33,8 @@ public class AccessibleWriterModel extends WriterModel {
     @Override
     public void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         super.loadValidatedSettingsFrom(settings);
+    }
+    public String getWarning() {
+        return getWarningMessage();
     }
 }

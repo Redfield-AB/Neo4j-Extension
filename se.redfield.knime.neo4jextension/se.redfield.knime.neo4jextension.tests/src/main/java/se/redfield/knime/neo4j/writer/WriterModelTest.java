@@ -30,6 +30,7 @@ import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
+import org.knime.core.node.context.ModifiableNodeCreationConfiguration;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 
@@ -57,7 +58,8 @@ public class WriterModelTest {
 
     @Before
     public void setUp() {
-        model = new AccessibleWriterModel();
+        final ModifiableNodeCreationConfiguration cfg = new WriterFactory().createNodeCreationConfig();
+        model = new AccessibleWriterModel(cfg);
     }
     @After
     public void tearDown() {

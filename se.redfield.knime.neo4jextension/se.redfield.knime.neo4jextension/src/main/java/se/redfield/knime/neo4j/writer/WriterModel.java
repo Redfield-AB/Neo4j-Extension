@@ -33,9 +33,9 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.core.node.port.PortType;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
@@ -45,7 +45,6 @@ import org.neo4j.driver.Transaction;
 import se.redfield.knime.neo4j.async.AsyncRunner;
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
-import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.db.ContextListeningDriver;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
@@ -63,9 +62,9 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     public static final String SOME_QUERIES_ERROR = "Some queries were not successfully executed.";
     private WriterConfig config;
 
-    public WriterModel() {
-        super(new PortType[] {BufferedDataTable.TYPE_OPTIONAL, ConnectorPortObject.TYPE},
-                new PortType[] {BufferedDataTable.TYPE, ConnectorPortObject.TYPE});
+    public WriterModel(final NodeCreationConfiguration creationConfig) {
+        super(creationConfig.getPortConfig().get().getInputPorts(),
+                creationConfig.getPortConfig().get().getOutputPorts());
         this.config = new WriterConfig();
     }
 
@@ -92,11 +91,15 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     }
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        if (inSpecs.length < 2 || !(inSpecs[1] instanceof ConnectorSpec)) {
-            throw new InvalidSettingsException("Not Neo4j input found");
-        }
+        PortObjectSpec conSpec;
+        DataTableSpec inputTableSpec = null;
 
-        final DataTableSpec inputTableSpec = (DataTableSpec) inSpecs[0];
+        if (inSpecs.length > 1) {
+            conSpec = inSpecs[1];
+            inputTableSpec = (DataTableSpec) inSpecs[0];
+        } else {
+            conSpec = inSpecs[0];
+        }
 
         final DataTableSpec spec;
         if (inputTableSpec != null) {
@@ -106,12 +109,19 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
             spec = createOneColumnSpec();
         }
 
-        return new PortObjectSpec[] {spec, inSpecs[1]};
+        return new PortObjectSpec[] {spec, conSpec};
     }
     @Override
     protected PortObject[] execute(final PortObject[] input, final ExecutionContext exec) throws Exception {
-        final BufferedDataTable tableInput = (BufferedDataTable) input[0];
-        final ConnectorPortObject connectorPort = (ConnectorPortObject) input[1];
+        BufferedDataTable tableInput = null;
+        final ConnectorPortObject connectorPort;
+
+        if (input.length > 1) {
+            connectorPort = (ConnectorPortObject) input[1];
+            tableInput = (BufferedDataTable) input[0];
+        } else {
+            connectorPort = (ConnectorPortObject) input[0];
+        }
 
         final Neo4jSupport neo4j = new Neo4jSupport(connectorPort.getPortData().createResolvedConfig(
                 getCredentialsProvider()));
@@ -209,7 +219,9 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
         if (error != null) {
             try {
                 output.addRowToTable(createRow(res.row, createErrorJson(error.getMessage())));
+                setWarningMessage(SOME_QUERIES_ERROR);
             } catch (final IOException e) {
+                setWarningMessage(SOME_QUERIES_ERROR);
                 throw new RuntimeException(e);
             }
         }
