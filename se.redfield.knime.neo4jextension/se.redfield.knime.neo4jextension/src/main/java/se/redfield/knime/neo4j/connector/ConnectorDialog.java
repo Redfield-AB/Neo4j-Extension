@@ -12,27 +12,24 @@ import java.net.URISyntaxException;
 import java.text.NumberFormat;
 
 import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JFormattedTextField;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
-import javax.swing.border.BevelBorder;
-import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
-import javax.swing.text.JTextComponent;
 
+import org.knime.base.node.io.database.connection.util.DBAuthenticationPanel;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.port.database.DatabaseConnectionSettings;
 
 import se.redfield.knime.neo4j.model.HashGenerator;
 
@@ -49,10 +46,10 @@ public class ConnectorDialog extends NodeDialogPane {
 
     //authentication
     private final JCheckBox useAuth = new JCheckBox();
-    private final JComboBox<AuthScheme> scheme = new JComboBox<AuthScheme>();
-    private final JTextField principal = new JTextField();
-    private final JPasswordField credentials = new JPasswordField();
-    private final JComboBox<String> flowCredentials = new JComboBox<>();
+
+    private final DatabaseConnectionSettings authSettings = new DatabaseConnectionSettings();
+    private final DBAuthenticationPanel<DatabaseConnectionSettings> authPanel
+        = new DBAuthenticationPanel<>(authSettings, false);
 
     //config
     private final JFormattedTextField maxConnectionPoolSize = createIntValueEditor();
@@ -115,24 +112,8 @@ public class ConnectorDialog extends NodeDialogPane {
             }
         } else {
             if (wrapper == null) {
-                final JPanel container = new JPanel(new GridBagLayout());
-                container.setBorder(new CompoundBorder(
-                        new EtchedBorder(BevelBorder.RAISED),
-                        new EmptyBorder(5, 5, 5, 5)));
-
-                scheme.setRenderer(new AuthSchemeCellRenderer());
-                //scheme
-                for (final AuthScheme s : AuthScheme.values()) {
-                    scheme.addItem(s);
-                }
-
-                scheme.setSelectedItem(AuthScheme.basic);
-                authSchemeChanged(container, AuthScheme.basic);
-                scheme.addActionListener(e -> authSchemeChanged(
-                        container, (AuthScheme) scheme.getSelectedItem()));
-
                 wrapper = new JPanel(new BorderLayout());
-                wrapper.add(container, BorderLayout.NORTH);
+                wrapper.add(authPanel, BorderLayout.NORTH);
 
                 useAuth.putClientProperty(authFieldsContainer, wrapper);
             }
@@ -140,25 +121,6 @@ public class ConnectorDialog extends NodeDialogPane {
             parent.add(wrapper, BorderLayout.CENTER);
         }
 
-        if (getPanel() != null) {
-            getPanel().repaint();
-        }
-    }
-
-    /**
-     * @param container
-     * @param s
-     */
-    private void authSchemeChanged(final JPanel container, final AuthScheme s) {
-        container.removeAll();
-
-        addLabeledComponent(container, "Authentication type:", scheme, 0);
-        if (s == AuthScheme.flowCredentials) {
-            addLabeledComponent(container, "Flow credentials:", flowCredentials, 1);
-        } else {
-            addLabeledComponent(container, "Username:", principal, 1);
-            addLabeledComponent(container, "Password:", credentials, 2);
-        }
         if (getPanel() != null) {
             getPanel().repaint();
         }
@@ -216,8 +178,9 @@ public class ConnectorDialog extends NodeDialogPane {
 
     /**
      * @param model
+     * @throws NotConfigurableException
      */
-    private void init(final ConnectorConfig model) {
+    private void init(final ConnectorConfig model) throws NotConfigurableException {
         this.url.setText(model.getLocation() == null
                 ? "" : model.getLocation().toASCIIString());
         maxConnectionPoolSize.setValue(model.getMaxConnectionPoolSize());
@@ -229,25 +192,24 @@ public class ConnectorDialog extends NodeDialogPane {
         useAuth.setSelected(shouldUseAuth);
         useAuthChanged(shouldUseAuth);
 
-        //reload and setup flow credentials
-        flowCredentials.removeAllItems();
-        for (final String cr : getCredentialsNames()) {
-            flowCredentials.addItem(cr);
-        }
-        if (shouldUseAuth) {
-            final AuthScheme authScheme = auth.getScheme();
-            this.scheme.setSelectedItem(authScheme);
+        if (!shouldUseAuth) {
+            authSettings.setCredentialName(null);
+            authSettings.setUserName(null);
+            authSettings.setPassword(null);
+        } else if (auth.getScheme() == AuthScheme.flowCredentials) {
+            authSettings.setCredentialName(auth.getPrincipal());
+            authSettings.setUserName(null);
+            authSettings.setPassword(null);
+        } else {
+            authSettings.setCredentialName(null);
+            authSettings.setUserName(auth.getPrincipal());
 
-            if (authScheme != AuthScheme.flowCredentials) {
-                principal.setText(auth.getPrincipal());
-
-                final String password = auth.getCredentials();
-                credentials.putClientProperty(OLD_PASSWORD, password);
-                credentials.setText(createPasswordHash(password));
-            } else {
-                flowCredentials.setSelectedItem(auth.getPrincipal());
-            }
+            final String password = auth.getCredentials();
+            useAuth.putClientProperty(OLD_PASSWORD, password);
+            authSettings.setPassword(createPasswordHash(auth.getCredentials()));
         }
+
+        authPanel.loadSettings(null, getCredentialsProvider());
     }
     /**
      * @return connector config.
@@ -258,39 +220,30 @@ public class ConnectorDialog extends NodeDialogPane {
         config.setMaxConnectionPoolSize(getInt(maxConnectionPoolSize.getValue()));
 
         //authentication
+        authPanel.saveSettings();
+
+        AuthConfig auth = null;
         if (useAuth.isSelected()) {
-            final AuthConfig auth = new AuthConfig();
+            if (authSettings.getCredentialName() != null) {
+                auth = new AuthConfig();
+                auth.setScheme(AuthScheme.flowCredentials);
+            } else if (authSettings.getUserName(getCredentialsProvider()) != null) {
+                auth = new AuthConfig();
+                auth.setScheme(AuthScheme.basic);
+                auth.setPrincipal(authSettings.getUserName(getCredentialsProvider()));
 
-            final AuthScheme authScheme = (AuthScheme) scheme.getSelectedItem();
-            auth.setScheme(authScheme);
-
-            if (authScheme != AuthScheme.flowCredentials) {
-                auth.setPrincipal(getNotEmpty("user name", this.principal));
-
-                String password = getNotEmpty("password", this.credentials);
-                final String oldPassword = (String) credentials.getClientProperty(OLD_PASSWORD);
+                String password = authSettings.getPassword(getCredentialsProvider());
+                final String oldPassword = (String) useAuth.getClientProperty(OLD_PASSWORD);
                 //if password not changed save old password
                 if (oldPassword != null && createPasswordHash(oldPassword).equals(password)) {
                     password = oldPassword;
                 }
                 auth.setCredentials(password);
-            } else {
-                final String c = (String) this.flowCredentials.getSelectedItem();
-                if (c == null) {
-                    throw new InvalidSettingsException("Empty credentials");
-                }
-                auth.setPrincipal(c);
-                auth.setCredentials(null);
-            }
-
-            config.setAuth(auth);
-        } else {
-            config.setAuth(null);
+            } //else live as null
         }
-
+        config.setAuth(auth);
         return config;
     }
-
     private static int getInt(final Object value) {
         if (value instanceof Number) {
             return ((Number) value).intValue();
@@ -298,20 +251,6 @@ public class ConnectorDialog extends NodeDialogPane {
             return Integer.parseInt(value.toString());
         }
         return 0;
-    }
-    /**
-     * @param name
-     * @param comp
-     * @return
-     * @throws InvalidSettingsException
-     */
-    private String getNotEmpty(final String name, final JTextComponent comp)
-            throws InvalidSettingsException {
-        final String text = comp.getText();
-        if (text == null || text.trim().isEmpty()) {
-            throw new InvalidSettingsException("Invalid " + name + ": " + text);
-        }
-        return text;
     }
 
     private URI buildUri() throws InvalidSettingsException {
