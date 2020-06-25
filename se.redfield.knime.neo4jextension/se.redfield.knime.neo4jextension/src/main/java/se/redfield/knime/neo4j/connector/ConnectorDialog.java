@@ -19,8 +19,6 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.EtchedBorder;
-import javax.swing.border.TitledBorder;
 
 import org.knime.base.node.io.database.connection.util.DBAuthenticationPanel;
 import org.knime.core.data.DataTableSpec;
@@ -83,7 +81,6 @@ public class ConnectorDialog extends NodeDialogPane {
 
         //Authentication
         final JPanel center = new JPanel(new BorderLayout(5, 5));
-        center.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Authentication:"));
         p.add(center, BorderLayout.CENTER);
 
         //use auth checkbox
@@ -227,6 +224,7 @@ public class ConnectorDialog extends NodeDialogPane {
             if (authSettings.getCredentialName() != null) {
                 auth = new AuthConfig();
                 auth.setScheme(AuthScheme.flowCredentials);
+                auth.setPrincipal(authSettings.getCredentialName());
             } else if (authSettings.getUserName(getCredentialsProvider()) != null) {
                 auth = new AuthConfig();
                 auth.setScheme(AuthScheme.basic);
