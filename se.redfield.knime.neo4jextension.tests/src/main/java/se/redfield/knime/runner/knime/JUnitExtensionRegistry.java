@@ -24,6 +24,7 @@ import org.eclipse.core.runtime.IRegistryEventListener;
  *
  */
 class JUnitExtensionRegistry implements IExtensionRegistry {
+    public static final String ROW_CONTAINER = "org.knime.core.RowContainer";
     private static final String NODESETS = "org.knime.workbench.repository.nodesets";
     private static final String NODES = "org.knime.workbench.repository.nodes";
     public static final String TABLE_FORMAT = "org.knime.core.TableFormat";
@@ -43,6 +44,7 @@ class JUnitExtensionRegistry implements IExtensionRegistry {
         extensionPoints.put(TABLE_FORMAT, new JUnitExtensionPoint());
         extensionPoints.put(NODES, new JUnitExtensionPoint());
         extensionPoints.put(NODESETS, new JUnitExtensionPoint());
+        extensionPoints.put(ROW_CONTAINER, new JUnitExtensionPoint());
     }
 
     @Override

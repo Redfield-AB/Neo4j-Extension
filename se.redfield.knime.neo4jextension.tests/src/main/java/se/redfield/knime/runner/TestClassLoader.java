@@ -55,6 +55,7 @@ class TestClassLoader extends URLClassLoader implements BundleReference {
     private boolean shouldProcess(final String name) {
         final Set<String> prefixes = new HashSet<String>();
         prefixes.add("org.osgi.framework");
+        prefixes.add("org.osgi.resource");
         prefixes.add("org.junit.");
         prefixes.add("junit.");
         prefixes.add("org.apache.log4j");

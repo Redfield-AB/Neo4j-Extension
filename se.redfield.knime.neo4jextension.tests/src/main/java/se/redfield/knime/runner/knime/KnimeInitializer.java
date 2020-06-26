@@ -24,6 +24,7 @@ import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorPortObjectSer;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.connector.ConnectorSpecSer;
+import se.redfield.knime.runner.JunitFrameworkWiring;
 import se.redfield.knime.runner.UnitTestBundle;
 
 /**
@@ -32,7 +33,7 @@ import se.redfield.knime.runner.UnitTestBundle;
  */
 @SuppressWarnings("restriction")
 public class KnimeInitializer implements Runnable {
-    private static final ConfigValues configVars = new ConfigValues(new HashMap<>());
+    private static final ConfigValues configVars = new ConfigValues(new HashMap<>(), new HashMap<>());
 
     /**
      * Default constructor.
@@ -57,6 +58,7 @@ public class KnimeInitializer implements Runnable {
         setFieldToPlatformInstance("initialized", Boolean.TRUE);
         //set bundle context
         setFieldToPlatformInstance("context", UnitTestBundle.INSTANCE);
+        setFieldToPlatformInstance("fwkWiring", new JunitFrameworkWiring());
 
         final String workDir = System.getProperty("user.dir");
 
@@ -77,15 +79,27 @@ public class KnimeInitializer implements Runnable {
         addConnectorPortObject(portObjects);
         addFlowVariablesPortObject(portObjects);
 
-        final JUnitExtension tableStoreFormat = new JUnitExtension();
-        addDefaultFormat(tableStoreFormat);
-
+        //our tested extensioin
         reg.getExtensionPoint(JUnitExtensionRegistry.PORT_TYPE).addExtension(
                 "neo4j-connector-port", portObjects);
+
+        //default format
+        final JUnitExtension tableStoreFormat = new JUnitExtension();
+        addDefaultFormat(tableStoreFormat);
         reg.getExtensionPoint(JUnitExtensionRegistry.TABLE_FORMAT).addExtension(
                 "table-store-format", tableStoreFormat);
 
+        //row container extension
+        final JUnitExtension rowContainer = new JUnitExtension();
+        addDefaultRowContainer(rowContainer);
+        reg.getExtensionPoint(JUnitExtensionRegistry.ROW_CONTAINER).addExtension(
+                "factoryClass", rowContainer);
         RegistryProviderFactory.setDefault(new RegistryProviderOSGI(reg));
+    }
+    private void addDefaultRowContainer(final JUnitExtension ext) {
+        final JunitConfigurationElement e = new JunitConfigurationElement();
+        e.putAttribute("factoryClass", "org.knime.core.data.container.BufferedRowContainerFactory");
+        ext.addConfigurationElement(e);
     }
     private void addDefaultFormat(final JUnitExtension ext) {
         final JunitConfigurationElement e = new JunitConfigurationElement();

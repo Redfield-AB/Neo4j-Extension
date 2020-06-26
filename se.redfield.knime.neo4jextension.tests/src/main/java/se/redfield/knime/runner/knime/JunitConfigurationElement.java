@@ -129,4 +129,8 @@ class JunitConfigurationElement implements IConfigurationElement {
     public boolean isValid() {
         return true;
     }
+
+    public int getHandleId() {
+        return 0;
+    }
 }
