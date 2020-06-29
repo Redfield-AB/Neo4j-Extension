@@ -11,7 +11,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.text.NumberFormat;
 
-import javax.swing.JCheckBox;
+import javax.swing.BorderFactory;
 import javax.swing.JComponent;
 import javax.swing.JFormattedTextField;
 import javax.swing.JLabel;
@@ -20,14 +20,15 @@ import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 
-import org.knime.base.node.io.database.connection.util.DBAuthenticationPanel;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
-import org.knime.core.node.port.database.DatabaseConnectionSettings;
+import org.knime.core.node.defaultnodesettings.DialogComponentAuthentication;
+import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication;
+import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication.AuthenticationType;
 
 import se.redfield.knime.neo4j.model.HashGenerator;
 
@@ -36,21 +37,21 @@ import se.redfield.knime.neo4j.model.HashGenerator;
  *
  */
 public class ConnectorDialog extends NodeDialogPane {
-    private static final String OLD_PASSWORD = "OLD_PASSWORD";
-    private static final String USE_AUTH_PARENT_PANEL = "useAuthParentPanel";
-
     //settings tab
     private final JTextField url = new JTextField();
 
-    //authentication
-    private final JCheckBox useAuth = new JCheckBox();
-
-    private final DatabaseConnectionSettings authSettings = new DatabaseConnectionSettings();
-    private final DBAuthenticationPanel<DatabaseConnectionSettings> authPanel
-        = new DBAuthenticationPanel<>(authSettings, false);
+    private final SettingsModelAuthentication authSettings = new SettingsModelAuthentication(
+            "neo4jAuth", AuthenticationType.USER_PWD, "neo4j", null, null);
+    DialogComponentAuthentication authComp = new DialogComponentAuthentication(
+            authSettings, "Authentication",
+            AuthenticationType.NONE,
+            AuthenticationType.CREDENTIALS,
+            AuthenticationType.USER_PWD);
 
     //config
     private final JFormattedTextField maxConnectionPoolSize = createIntValueEditor();
+
+    private String oldPassword;
 
     /**
      * Default constructor.
@@ -72,8 +73,11 @@ public class ConnectorDialog extends NodeDialogPane {
         final JPanel p = new JPanel(new BorderLayout(10, 5));
         p.setBorder(new EmptyBorder(5, 5, 5, 5));
 
+        //connecton
         //URL
         final JPanel north = new JPanel(new GridBagLayout());
+        north.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createEtchedBorder(), "Connection"));
         p.add(north, BorderLayout.NORTH);
 
         addLabeledComponent(north, "Neo4j URL", url, 0);
@@ -84,43 +88,8 @@ public class ConnectorDialog extends NodeDialogPane {
         p.add(center, BorderLayout.CENTER);
 
         //use auth checkbox
-        final JPanel useAuthPane = new JPanel(new BorderLayout(5, 5));
-        useAuthPane.add(new JLabel("Use authentication"), BorderLayout.WEST);
-        useAuthPane.add(this.useAuth, BorderLayout.CENTER);
-
-        center.add(useAuthPane, BorderLayout.NORTH);
-
-        this.useAuth.setSelected(true);
-        this.useAuth.putClientProperty(USE_AUTH_PARENT_PANEL, center);
-        this.useAuth.addActionListener(e -> useAuthChanged(useAuth.isSelected()));
-
-        useAuthChanged(true);
+        center.add(authComp.getComponentPanel(), BorderLayout.NORTH);
         return p;
-    }
-
-    private void useAuthChanged(final boolean selected) {
-        final JPanel parent = (JPanel) useAuth.getClientProperty(USE_AUTH_PARENT_PANEL);
-        final String authFieldsContainer = "authFieldsContainer";
-
-        JPanel wrapper = (JPanel) useAuth.getClientProperty(authFieldsContainer);
-        if (!selected) {
-            if (wrapper != null) {
-                parent.remove(wrapper);
-            }
-        } else {
-            if (wrapper == null) {
-                wrapper = new JPanel(new BorderLayout());
-                wrapper.add(authPanel, BorderLayout.NORTH);
-
-                useAuth.putClientProperty(authFieldsContainer, wrapper);
-            }
-
-            parent.add(wrapper, BorderLayout.CENTER);
-        }
-
-        if (getPanel() != null) {
-            getPanel().repaint();
-        }
     }
 
     /**
@@ -181,32 +150,27 @@ public class ConnectorDialog extends NodeDialogPane {
         this.url.setText(model.getLocation() == null
                 ? "" : model.getLocation().toASCIIString());
         maxConnectionPoolSize.setValue(model.getMaxConnectionPoolSize());
+        oldPassword = null;
 
         //authentication
         final AuthConfig auth = model.getAuth();
 
         final boolean shouldUseAuth = auth != null;
-        useAuth.setSelected(shouldUseAuth);
-        useAuthChanged(shouldUseAuth);
 
         if (!shouldUseAuth) {
-            authSettings.setCredentialName(null);
-            authSettings.setUserName(null);
-            authSettings.setPassword(null);
+            authSettings.setValues(AuthenticationType.NONE,
+                    null, null, null);
         } else if (auth.getScheme() == AuthScheme.flowCredentials) {
-            authSettings.setCredentialName(auth.getPrincipal());
-            authSettings.setUserName(null);
-            authSettings.setPassword(null);
+            authSettings.setValues(AuthenticationType.CREDENTIALS,
+                    auth.getPrincipal(), null, null);
         } else {
-            authSettings.setCredentialName(null);
-            authSettings.setUserName(auth.getPrincipal());
-
             final String password = auth.getCredentials();
-            useAuth.putClientProperty(OLD_PASSWORD, password);
-            authSettings.setPassword(createPasswordHash(auth.getCredentials()));
+            this.oldPassword = password;
+            authSettings.setValues(AuthenticationType.USER_PWD,
+                    null, auth.getPrincipal(), createPasswordHash(auth.getCredentials()));
         }
 
-        authPanel.loadSettings(null, getCredentialsProvider());
+        authComp.loadCredentials(getCredentialsProvider());
     }
     /**
      * @return connector config.
@@ -217,28 +181,35 @@ public class ConnectorDialog extends NodeDialogPane {
         config.setMaxConnectionPoolSize(getInt(maxConnectionPoolSize.getValue()));
 
         //authentication
-        authPanel.saveSettings();
+        final AuthenticationType authType = authSettings.getAuthenticationType();
 
         AuthConfig auth = null;
-        if (useAuth.isSelected()) {
-            if (authSettings.getCredentialName() != null) {
+
+        switch (authType) {
+            case CREDENTIALS:
                 auth = new AuthConfig();
                 auth.setScheme(AuthScheme.flowCredentials);
-                auth.setPrincipal(authSettings.getCredentialName());
-            } else if (authSettings.getUserName(getCredentialsProvider()) != null) {
+                auth.setPrincipal(authSettings.getCredential());
+            break;
+            case USER_PWD:
                 auth = new AuthConfig();
                 auth.setScheme(AuthScheme.basic);
                 auth.setPrincipal(authSettings.getUserName(getCredentialsProvider()));
 
                 String password = authSettings.getPassword(getCredentialsProvider());
-                final String oldPassword = (String) useAuth.getClientProperty(OLD_PASSWORD);
                 //if password not changed save old password
                 if (oldPassword != null && createPasswordHash(oldPassword).equals(password)) {
                     password = oldPassword;
                 }
                 auth.setCredentials(password);
-            } //else live as null
+            break;
+            case NONE:
+                auth = null;
+                break;
+            default:
+                throw new RuntimeException("Unexpected auth type: " + authType);
         }
+
         config.setAuth(auth);
         return config;
     }
