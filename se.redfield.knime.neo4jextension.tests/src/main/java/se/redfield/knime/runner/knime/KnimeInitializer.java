@@ -4,8 +4,11 @@
 package se.redfield.knime.runner.knime;
 
 import java.io.File;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.core.internal.registry.RegistryProviderFactory;
@@ -33,8 +36,7 @@ import se.redfield.knime.runner.UnitTestBundle;
  */
 @SuppressWarnings("restriction")
 public class KnimeInitializer implements Runnable {
-    private static final ConfigValues configVars = new ConfigValues(new HashMap<>(), new HashMap<>());
-
+    private static final ConfigValues configVars = createConfigVariables();
     /**
      * Default constructor.
      */
@@ -58,7 +60,12 @@ public class KnimeInitializer implements Runnable {
         setFieldToPlatformInstance("initialized", Boolean.TRUE);
         //set bundle context
         setFieldToPlatformInstance("context", UnitTestBundle.INSTANCE);
-        setFieldToPlatformInstance("fwkWiring", new JunitFrameworkWiring());
+        try {
+            setFieldToPlatformInstance("fwkWiring", new JunitFrameworkWiring());
+        } catch (final Exception e) {
+            //this field is presented only in 4.2 version
+            //and is absent in 4.1
+        }
 
         final String workDir = System.getProperty("user.dir");
 
@@ -164,5 +171,38 @@ public class KnimeInitializer implements Runnable {
         final Field f = InternalPlatform.class.getDeclaredField(fieldName);
         f.setAccessible(true);
         f.set(platform.get(null), value);
+    }
+
+    /**
+     * @return
+     */
+    private static ConfigValues createConfigVariables() {
+        final Class<ConfigValues> cls = ConfigValues.class;
+        final Constructor<?>[] consts = cls.getConstructors();
+        //search only constructor with maps
+        for (final Constructor<?> c : consts) {
+            final Class<?>[] params = c.getParameterTypes();
+            boolean found = true;
+            int numMaps = 0;
+            for (final Class<?> p : params) {
+                if (!Map.class.isAssignableFrom(p)) {
+                    found = false;
+                    break;
+                }
+                numMaps++;
+            }
+
+            if (numMaps > 0 && found) {
+                final Object[] args = new Object[numMaps];
+                Arrays.fill(args, new HashMap<String, Object>());
+                try {
+                    return (ConfigValues) c.newInstance(args);
+                } catch (final Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        throw new RuntimeException("Failed to create ConfigValues");
     }
 }

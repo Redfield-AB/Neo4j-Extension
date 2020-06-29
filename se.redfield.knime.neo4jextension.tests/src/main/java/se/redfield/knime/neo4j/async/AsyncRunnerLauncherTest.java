@@ -69,7 +69,8 @@ public class AsyncRunnerLauncherTest {
             assertEquals(script, output.get(i));
         }
     }
-    @Test
+    //uncomment it when need to run statistical test
+    //@Test
     public void statisticalTest() {
         //Create big lists of source items
         final List<String> source = new LinkedList<>();

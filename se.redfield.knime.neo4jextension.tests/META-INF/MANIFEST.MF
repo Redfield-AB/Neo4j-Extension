@@ -7,7 +7,6 @@ Automatic-Module-Name: se.redfield.knime.neo4jextension.tests
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Require-Bundle: se.redfield.knime.neo4jextension;bundle-version="1.0.0",
  org.knime.core,
- org.junit.source;bundle-version="4.12.0",
  org.junit;bundle-version="4.12.0",
  org.apache.log4j;bundle-version="1.2.15",
  org.apache.commons.codec;bundle-version="1.10.0",
@@ -21,3 +20,4 @@ Require-Bundle: se.redfield.knime.neo4jextension;bundle-version="1.0.0",
  org.eclipse.equinox.p2.core;bundle-version="2.4.101",
  org.eclipse.equinox.p2.metadata;bundle-version="2.3.200",
  com.google.guava
+Import-Package: org.apache.xmlbeans
