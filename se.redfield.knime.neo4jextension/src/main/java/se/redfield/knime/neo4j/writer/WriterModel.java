@@ -6,17 +6,18 @@ package se.redfield.knime.neo4j.writer;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.json.Json;
 import javax.json.stream.JsonGenerator;
+import javax.naming.OperationNotSupportedException;
 
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
-import org.knime.core.data.DataTable;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.RowKey;
 import org.knime.core.data.append.AppendedColumnRow;
@@ -36,6 +37,17 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.node.streamable.BufferedDataTableRowOutput;
+import org.knime.core.node.streamable.DataTableRowInput;
+import org.knime.core.node.streamable.InputPortRole;
+import org.knime.core.node.streamable.PartitionInfo;
+import org.knime.core.node.streamable.PortInput;
+import org.knime.core.node.streamable.PortObjectInput;
+import org.knime.core.node.streamable.PortObjectOutput;
+import org.knime.core.node.streamable.PortOutput;
+import org.knime.core.node.streamable.RowOutput;
+import org.knime.core.node.streamable.StreamableFunction;
+import org.knime.core.node.streamable.StreamableFunctionProducer;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
@@ -45,6 +57,7 @@ import org.neo4j.driver.Transaction;
 import se.redfield.knime.neo4j.async.AsyncRunner;
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
+import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.db.ContextListeningDriver;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
@@ -53,12 +66,14 @@ import se.redfield.knime.neo4j.db.WithSessionRunner;
 import se.redfield.knime.neo4j.json.JsonBuilder;
 import se.redfield.knime.neo4j.model.FlowVariablesProvider;
 import se.redfield.knime.neo4j.model.ModelUtils;
+import se.redfield.knime.neo4j.table.DataTableRowInputIterator;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class WriterModel extends NodeModel implements FlowVariablesProvider {
+public class WriterModel extends NodeModel implements FlowVariablesProvider,
+        StreamableFunctionProducer {
     public static final String SOME_QUERIES_ERROR = "Some queries were not successfully executed.";
     private WriterConfig config;
 
@@ -89,6 +104,13 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
         config = new WriterConfigSerializer().read(settings);
         //add metadata
     }
+
+    @Override
+    public InputPortRole[] getInputPortRoles() {
+        final InputPortRole[] roles = new InputPortRole[getNrInPorts()];
+        Arrays.fill(roles, InputPortRole.NONDISTRIBUTED_STREAMABLE);
+        return roles;
+    }
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
         PortObjectSpec conSpec;
@@ -113,57 +135,113 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     }
     @Override
     protected PortObject[] execute(final PortObject[] input, final ExecutionContext exec) throws Exception {
-        BufferedDataTable tableInput = null;
-        final ConnectorPortObject connectorPort;
-
+        BufferedDataTable inputTable = null;
+        final ConnectorPortObject connectorPort = (ConnectorPortObject) input[input.length - 1];
         if (input.length > 1) {
-            connectorPort = (ConnectorPortObject) input[1];
-            tableInput = (BufferedDataTable) input[0];
-        } else {
-            connectorPort = (ConnectorPortObject) input[0];
+            inputTable = (BufferedDataTable) input[0];
         }
 
-        final Neo4jSupport neo4j = new Neo4jSupport(connectorPort.getPortData().createResolvedConfig(
-                getCredentialsProvider()));
-
-        DataTable table;
-        if (tableInput != null) {
-            table = executeFromTableSource(exec, tableInput, neo4j);
-        } else {
-            table = executeFromScriptSource(exec, neo4j);
+        final PortObjectSpec[] outputSpecs = configure(getSpecs(input));
+        final BufferedDataContainer table = exec.createDataContainer(
+                (DataTableSpec) outputSpecs[0]);
+        try {
+            execute(connectorPort,
+                    inputTable == null ? null : new DataTableRowInput(inputTable),
+                    new BufferedDataTableRowOutput(table), exec);
+        } finally {
+            table.close();
         }
 
-        final BufferedDataTable executionResultPort = exec.createBufferedDataTable(table,
+        final BufferedDataTable executionResultPort = exec.createBufferedDataTable(
+                table.getTable(),
                 exec.createSubExecutionContext(0.0));
         return new PortObject[] {executionResultPort, connectorPort};
     }
 
-    private DataTable executeFromTableSource(
-            final ExecutionContext exec, final BufferedDataTable inputTable,
-            final Neo4jSupport neo4j) throws Exception {
-        final DataTableSpec tableSpec = ModelUtils.createSpecWithAddedJsonColumn(
-                inputTable.getSpec(), config.getInputColumn());
-        final BufferedDataContainer table = exec.createDataContainer(tableSpec);
-        try {
-            final ContextListeningDriver driver = neo4j.createDriver(exec);
+    @Override
+    public StreamableFunction createStreamableOperator(final PartitionInfo partitionInfo,
+            final PortObjectSpec[] inSpecs)
+            throws InvalidSettingsException {
+        return new StreamableFunction() {
+            @Override
+            public void runFinal(final PortInput[] inputs, final PortOutput[] outputs,
+                    final ExecutionContext exec)
+                    throws Exception {
+                final ConnectorPortObject con = (ConnectorPortObject) ((PortObjectInput) inputs[inputs.length - 1])
+                        .getPortObject();
+                // forward connection port object
+                final int numInputs = outputs.length;
+                ((PortObjectOutput) outputs[numInputs - 1]).setPortObject(con);
 
-            try {
-                if (config.isUseAsync()) {
-                    executeFromTableSourceAsync(inputTable, driver, neo4j, table);
-                } else {
-                    executeFromTableSourceSync(inputTable, driver, table);
-                }
-            } finally {
-                driver.close();
+                execute(con, numInputs == 1 ? null : (DataTableRowInput) inputs[0], (RowOutput) outputs[0], exec);
             }
-        } finally {
-            table.close();
-        }
-        return table.getTable();
+
+            @Override
+            public DataRow compute(final DataRow input) throws Exception {
+                throw new OperationNotSupportedException();
+            }
+        };
     }
 
-    private void executeFromTableSourceSync(final BufferedDataTable inputTable,
-            final ContextListeningDriver driver, final BufferedDataContainer output)
+    private void execute(
+            final ConnectorPortObject connectorPort,
+            final DataTableRowInput inputTable,
+            final RowOutput out,
+            final ExecutionContext exec)
+            throws Exception {
+        final Neo4jSupport neo4j = new Neo4jSupport(connectorPort.getPortData().createResolvedConfig(
+                getCredentialsProvider()));
+        final ContextListeningDriver driver = neo4j.createDriver(exec);
+        try {
+            if (inputTable != null) {
+                if (config.isUseAsync()) {
+                    executeFromTableSourceAsync(inputTable, driver, neo4j, out);
+                } else {
+                    executeFromTableSourceSync(inputTable, driver, out);
+                }
+            } else {
+                if (config.getScript() == null) {
+                    final String error = "Cypher script is not specified but also not input table connected";
+                    setWarningMessage(error);
+                    throw new InvalidSettingsException(error);
+                }
+
+                String json;
+                try {
+                    json = runSingleScript(driver.getDriver(), config.getScript());
+                } catch (final Exception e) {
+                    if (config.isStopOnQueryFailure()) {
+                        throw e;
+                    } else {
+                        setWarningMessage(e.getMessage());
+                        json = createErrorJson(e.getMessage());
+                    }
+                }
+
+                //convert output to JSON.
+                final DefaultRow row = new DefaultRow(new RowKey("result"),
+                        createJsonCell(json));
+                out.push(row);
+            }
+        } finally {
+            driver.close();
+        }
+    }
+
+    private PortObjectSpec[] getSpecs(final PortObject[] input) {
+        final ConnectorSpec conSpec = ((ConnectorPortObject) input[input.length - 1]).getSpec();
+        if (input.length < 2) {
+            return new PortObjectSpec[] {conSpec};
+        }
+        DataTableSpec tableSpec = null;
+        if (input[0] != null) {
+            tableSpec = ((BufferedDataTable) input[0]).getSpec();
+        }
+        return new PortObjectSpec[] {tableSpec, conSpec};
+    }
+
+    private void executeFromTableSourceSync(final DataTableRowInput inputTable,
+            final ContextListeningDriver driver, final RowOutput output)
             throws Exception {
 
         driver.setProgress(0.);
@@ -173,10 +251,9 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
                     driver.getDriver().defaultTypeSystem());
 
             long pos = 0;
-            final long size = inputTable.size();
-            for (final DataRow origin : inputTable) {
+            DataRow origin;
+            while ((origin = inputTable.poll()) != null) {
                 ScriptExecutionResult res;
-
                 final String script = getScriptFromInputColumn(inputTable, origin);
 
                 final Transaction tx = session.beginTransaction();
@@ -196,7 +273,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
                     }
                 }
 
-                driver.setProgress((double) pos / size);
+                driver.setProgress((double) pos / inputTable.getRowCount());
                 pos++;
                 //build result outside of Neo4j transaction.
                 addResultToOutput(res, output, converter);
@@ -205,37 +282,38 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
             session.close();
         }
     }
-    private void addResultToOutput(final ScriptExecutionResult res, final BufferedDataContainer output,
+    private void addResultToOutput(final ScriptExecutionResult res, final RowOutput output,
             final Neo4jDataConverter converter) {
         final List<Record> result = res.recors;
         Throwable error = res.error;
         if(error == null) {
             try {
-                output.addRowToTable(createRow(res.row, createSuccessJson(result, converter)));
-            } catch (final IOException e) {
+                output.push(createRow(res.row, createSuccessJson(result, converter)));
+            } catch (final Exception e) {
                 error = e;
             }
         }
         if (error != null) {
             try {
-                output.addRowToTable(createRow(res.row, createErrorJson(error.getMessage())));
+                output.push(createRow(res.row, createErrorJson(error.getMessage())));
                 setWarningMessage(SOME_QUERIES_ERROR);
-            } catch (final IOException e) {
+            } catch (final Exception e) {
                 setWarningMessage(SOME_QUERIES_ERROR);
                 throw new RuntimeException(e);
             }
         }
     }
-    private String getScriptFromInputColumn(final BufferedDataTable inputTable, final DataRow origin) {
+    private String getScriptFromInputColumn(final DataTableRowInput inputTable, final DataRow origin) {
         final int colIndex = inputTable.getDataTableSpec().findColumnIndex(config.getInputColumn());
         final StringCell cell = (StringCell) origin.getCell(colIndex);
         return ModelUtils.insertFlowVariables(cell.getStringValue(), this);
     }
 
-    private void executeFromTableSourceAsync(final BufferedDataTable inputTable,
-            final ContextListeningDriver driver, final Neo4jSupport neo4j, final BufferedDataContainer output)
+    private void executeFromTableSourceAsync(final DataTableRowInput inputTable,
+            final ContextListeningDriver driver, final Neo4jSupport neo4j,
+            final RowOutput output)
             throws Exception, IOException {
-        final long tableSize = inputTable.size();
+        final long tableSize = inputTable.getRowCount();
         if (tableSize == 0) {
             return;
         }
@@ -258,7 +336,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
         final AsyncRunnerLauncher<DataRow, ScriptExecutionResult> runner
                 = AsyncRunnerLauncher.Builder.<DataRow, ScriptExecutionResult>newBuilder()
             .withRunner(r)
-            .withSource(inputTable.iterator())
+            .withSource(new DataTableRowInputIterator(inputTable))
             .withConsumer(res -> {
                 final long num = counter.getAndIncrement();
                 driver.setProgress((double) num / tableSize);
@@ -283,7 +361,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
     }
 
     private ScriptExecutionResult runSingleScriptInAsyncContext(final Session session,
-            final BufferedDataTable inputTable, final DataRow row) throws IOException {
+            final DataTableRowInput inputTable, final DataRow row) throws IOException {
         final Transaction tr = session.beginTransaction();
         ScriptExecutionResult res;
         try {
@@ -369,33 +447,6 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
         return createJsonCell(createErrorJson(error));
     }
 
-    private DataTable executeFromScriptSource(final ExecutionContext exec, final Neo4jSupport neo4j)
-            throws Exception {
-        if (config.getScript() == null) {
-            final String error = "Cypher script is not specified but also not input table connected";
-            setWarningMessage(error);
-            throw new InvalidSettingsException(error);
-        }
-
-        final Driver driver = neo4j.createDriver();
-
-        String json;
-        try {
-            json = runSingleScript(driver, config.getScript());
-        } catch (final Exception e) {
-            if (config.isStopOnQueryFailure()) {
-                throw e;
-            } else {
-                setWarningMessage(e.getMessage());
-                json = createErrorJson(e.getMessage());
-            }
-        } finally {
-            driver.closeAsync();
-        }
-        //convert output to JSON.
-        return createJsonTable(json, exec);
-    }
-
     /**
      * @param error error description.
      * @return JSON with error.
@@ -428,18 +479,6 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider {
         gen.close();
 
         return wr.toString();
-    }
-    private DataTable createJsonTable(final String json, final ExecutionContext exec) throws IOException {
-        final DataTableSpec tableSpec = createOneColumnSpec();
-        final DefaultRow row = new DefaultRow(new RowKey("result"), createJsonCell(json));
-        final BufferedDataContainer table = exec.createDataContainer(tableSpec);
-        try {
-            table.addRowToTable(row);
-        } finally {
-            table.close();
-        }
-
-        return table.getTable();
     }
     private DataCell createJsonCell(final String json) throws IOException {
         return JSONCellFactory.create(json, false);
