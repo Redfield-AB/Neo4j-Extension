@@ -7,17 +7,17 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.knime.core.data.DataRow;
-import org.knime.core.node.streamable.DataTableRowInput;
+import org.knime.core.node.streamable.RowInput;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class DataTableRowInputIterator implements Iterator<DataRow> {
-    private final DataTableRowInput input;
+public class RowInputIterator implements Iterator<DataRow> {
+    private final RowInput input;
     private DataRow next;
 
-    public DataTableRowInputIterator(final DataTableRowInput input) {
+    public RowInputIterator(final RowInput input) {
         super();
         this.input = input;
     }

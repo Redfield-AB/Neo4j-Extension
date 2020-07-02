@@ -44,6 +44,7 @@ import org.knime.core.node.streamable.PortInput;
 import org.knime.core.node.streamable.PortObjectInput;
 import org.knime.core.node.streamable.PortObjectOutput;
 import org.knime.core.node.streamable.PortOutput;
+import org.knime.core.node.streamable.RowInput;
 import org.knime.core.node.streamable.RowOutput;
 import org.knime.core.node.streamable.StreamableFunction;
 import org.knime.core.node.streamable.StreamableFunctionProducer;
@@ -65,7 +66,8 @@ import se.redfield.knime.neo4j.db.WithSessionRunner;
 import se.redfield.knime.neo4j.json.JsonBuilder;
 import se.redfield.knime.neo4j.model.FlowVariablesProvider;
 import se.redfield.knime.neo4j.model.ModelUtils;
-import se.redfield.knime.neo4j.table.DataTableRowInputIterator;
+import se.redfield.knime.neo4j.table.RowInputContainer;
+import se.redfield.knime.neo4j.table.RowInputIterator;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -147,8 +149,10 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
                 (DataTableSpec) outputSpecs[0]);
         try {
             execute(connectorPort,
-                    inputTable == null ? null : new DataTableRowInput(inputTable),
-                    new BufferedDataTableRowOutput(table), exec);
+                    inputTable == null
+                        ? null : new RowInputContainer(new DataTableRowInput(inputTable)),
+                    new BufferedDataTableRowOutput(table),
+                    exec);
         } finally {
             table.close();
         }
@@ -174,7 +178,11 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
                 final int numInputs = outputs.length;
                 ((PortObjectOutput) outputs[numInputs - 1]).setPortObject(con);
 
-                execute(con, numInputs == 1 ? null : (DataTableRowInput) inputs[0], (RowOutput) outputs[0], exec);
+                execute(con,
+                        numInputs == 1 || inputs[0] == null ? null
+                                : new RowInputContainer((RowInput) inputs[0]),
+                        (RowOutput) outputs[0],
+                        exec);
             }
 
             @Override
@@ -186,7 +194,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
 
     private void execute(
             final ConnectorPortObject connectorPort,
-            final DataTableRowInput inputTable,
+            final RowInputContainer inputTable,
             final RowOutput out,
             final ExecutionContext exec)
             throws Exception {
@@ -241,7 +249,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
         return new PortObjectSpec[] {tableSpec, conSpec};
     }
 
-    private void executeFromTableSourceSync(final DataTableRowInput inputTable,
+    private void executeFromTableSourceSync(final RowInputContainer inputTable,
             final ContextListeningDriver driver, final RowOutput output)
             throws Exception {
 
@@ -253,9 +261,9 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
 
             long pos = 0;
             DataRow origin;
-            while ((origin = inputTable.poll()) != null) {
+            while ((origin = inputTable.getInput().poll()) != null) {
                 ScriptExecutionResult res;
-                final String script = getScriptFromInputColumn(inputTable, origin);
+                final String script = getScriptFromInputColumn(inputTable.getInput(), origin);
 
                 final Transaction tx = session.beginTransaction();
                 try {
@@ -307,17 +315,17 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
             }
         }
     }
-    private String getScriptFromInputColumn(final DataTableRowInput inputTable, final DataRow origin) {
+    private String getScriptFromInputColumn(final RowInput inputTable, final DataRow origin) {
         final int colIndex = inputTable.getDataTableSpec().findColumnIndex(config.getInputColumn());
         final StringCell cell = (StringCell) origin.getCell(colIndex);
         return ModelUtils.insertFlowVariables(cell.getStringValue(), this);
     }
 
-    private void executeFromTableSourceAsync(final DataTableRowInput inputTable,
+    private void executeFromTableSourceAsync(final RowInputContainer input,
             final ContextListeningDriver driver, final Neo4jSupport neo4j,
             final RowOutput output)
             throws Exception, IOException {
-        final long tableSize = inputTable.getRowCount();
+        final long tableSize = input.getRowCount();
         if (tableSize == 0) {
             return;
         }
@@ -332,7 +340,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
         //create asynchronous scripts runner
         final AsyncRunner<DataRow, ScriptExecutionResult> r = new WithSessionRunner<>(
                 (session, query) -> runSingleScriptInAsyncContext(
-                        session, inputTable, query),
+                        session, input.getInput(), query),
                 driver.getDriver());
 
         driver.setProgress(0.);
@@ -340,13 +348,12 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
         final AsyncRunnerLauncher<DataRow, ScriptExecutionResult> runner
                 = AsyncRunnerLauncher.Builder.<DataRow, ScriptExecutionResult>newBuilder()
             .withRunner(r)
-            .withSource(new DataTableRowInputIterator(inputTable))
+            .withSource(new RowInputIterator(input.getInput()))
             .withConsumer(res -> {
-                final long num = counter.getAndIncrement();
-                //row count 0 is possible in streamable node
-                final double progress = tableSize > 0
-                        ? (double) num / tableSize : .5;
-                driver.setProgress(progress);
+                if (input.hasRowCount()) {
+                    final double p = counter.getAndIncrement() / (double) tableSize;
+                    driver.setProgress(p);
+                }
                 addResultToOutput(res, output, converter);
             })
             .withNumThreads(numThreads)
@@ -368,7 +375,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
     }
 
     private ScriptExecutionResult runSingleScriptInAsyncContext(final Session session,
-            final DataTableRowInput inputTable, final DataRow row) throws IOException {
+            final RowInput inputTable, final DataRow row) throws IOException {
         final Transaction tr = session.beginTransaction();
         ScriptExecutionResult res;
         try {

@@ -67,9 +67,10 @@ import se.redfield.knime.neo4j.db.WithSessionRunner;
 import se.redfield.knime.neo4j.json.JsonBuilder;
 import se.redfield.knime.neo4j.model.FlowVariablesProvider;
 import se.redfield.knime.neo4j.model.ModelUtils;
-import se.redfield.knime.neo4j.table.DataTableRowInputIterator;
 import se.redfield.knime.neo4j.table.DataTypeDetection;
 import se.redfield.knime.neo4j.table.Neo4jTableOutputSupport;
+import se.redfield.knime.neo4j.table.RowInputContainer;
+import se.redfield.knime.neo4j.table.RowInputIterator;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -134,7 +135,8 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider, Str
                         .createResolvedConfig(getCredentialsProvider()));
 
                 //execute
-                executeFromInputTableToJson(exec, input, (RowOutput) outputs[0], neo4j);
+                executeFromInputTableToJson(exec,
+                        new RowInputContainer(input), (RowOutput) outputs[0], neo4j);
             }
 
             @Override
@@ -209,7 +211,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider, Str
         try {
             if (inputTable.size() > 0) {
                 executeFromInputTableToJson(exec,
-                        new DataTableRowInput(inputTable),
+                        new RowInputContainer(new DataTableRowInput(inputTable)),
                         new BufferedDataTableRowOutput(table),
                         neo4j);
             }
@@ -220,9 +222,9 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider, Str
     }
 
     private void executeFromInputTableToJson(final ExecutionContext exec,
-            final DataTableRowInput input,
+            final RowInputContainer input,
             final RowOutput output, final Neo4jSupport neo4j) throws Exception {
-        final int columnIndex = input.getDataTableSpec().findColumnIndex(
+        final int columnIndex = input.getInput().getDataTableSpec().findColumnIndex(
                 config.getInputColumn());
 
         final ContextListeningDriver driver = neo4j.createDriver(exec);
@@ -239,7 +241,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider, Str
                 .withConsumer(row -> {
                     try {
                         output.push(row);
-                        if (tableSize > 0) {
+                        if (input.hasRowCount()) {
                             final double p = counter.getAndIncrement() / (double) tableSize;
                             driver.setProgress(p);
                         }
@@ -248,7 +250,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider, Str
                     }
                 })
                 .withKeepSourceOrder(config.isKeepSourceOrder())
-                .withSource(new DataTableRowInputIterator(input))
+                .withSource(new RowInputIterator(input.getInput()))
                 .withNumThreads(Math.max(1, (int) Math.min(
                         neo4j.getConfig().getMaxConnectionPoolSize(), tableSize)))
                 .withStopOnFailure(config.isStopOnQueryFailure())
