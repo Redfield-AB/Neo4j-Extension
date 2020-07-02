@@ -43,7 +43,6 @@ import org.knime.core.node.streamable.StreamableFunction;
 
 import junit.framework.AssertionFailedError;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
-import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.utils.KNimeHelper;
 import se.redfield.knime.neo4j.utils.Neo4jHelper;
 import se.redfield.knime.runner.KnimeTestRunner;
@@ -444,14 +443,12 @@ public class WriterModelStreamableTest {
 
     private PortObject[] executeByStreamableFunction(final PortObject[] inPorts)
             throws Exception {
-        final ConnectorSpec conSpec = ((ConnectorPortObject) inPorts[inPorts.length - 1]).getSpec();
-
         //create inputs
         PortObjectSpec[] inSpecs;
         PortInput[] inputs;
 
         if (inPorts.length < 2) {
-            inSpecs = new PortObjectSpec[] {conSpec};
+            inSpecs = new PortObjectSpec[] {inPorts[0].getSpec()};
             inputs = new PortInput[] {new PortObjectInput(inPorts[0])};
         } else {
             DataTableSpec tableSpec = null;
@@ -461,7 +458,7 @@ public class WriterModelStreamableTest {
                 tableSpec = table.getSpec();
             }
 
-            inSpecs = new PortObjectSpec[] {tableSpec, conSpec};
+            inSpecs = new PortObjectSpec[] {tableSpec, inPorts[1].getSpec()};
             inputs = new PortInput[] {tableSpec == null ?
                     null : new DataTableRowInput(table), new PortObjectInput(inPorts[1])};
         }

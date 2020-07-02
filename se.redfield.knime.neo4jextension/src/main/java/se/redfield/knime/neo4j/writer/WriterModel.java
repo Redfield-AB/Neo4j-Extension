@@ -6,7 +6,6 @@ package se.redfield.knime.neo4j.writer;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -107,8 +106,10 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
 
     @Override
     public InputPortRole[] getInputPortRoles() {
-        final InputPortRole[] roles = new InputPortRole[getNrInPorts()];
-        Arrays.fill(roles, InputPortRole.NONDISTRIBUTED_STREAMABLE);
+        final InputPortRole[] roles = super.getInputPortRoles();
+        if (roles.length > 1) {
+            roles[0] = InputPortRole.NONDISTRIBUTED_STREAMABLE;
+        }
         return roles;
     }
     @Override
@@ -273,7 +274,10 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
                     }
                 }
 
-                driver.setProgress((double) pos / inputTable.getRowCount());
+                //row count 0 is possible in streamable node
+                final double progress = inputTable.getRowCount() > 0
+                        ? (double) pos / inputTable.getRowCount() : .5;
+                driver.setProgress(progress);
                 pos++;
                 //build result outside of Neo4j transaction.
                 addResultToOutput(res, output, converter);
@@ -339,7 +343,10 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
             .withSource(new DataTableRowInputIterator(inputTable))
             .withConsumer(res -> {
                 final long num = counter.getAndIncrement();
-                driver.setProgress((double) num / tableSize);
+                //row count 0 is possible in streamable node
+                final double progress = tableSize > 0
+                        ? (double) num / tableSize : .5;
+                driver.setProgress(progress);
                 addResultToOutput(res, output, converter);
             })
             .withNumThreads(numThreads)
