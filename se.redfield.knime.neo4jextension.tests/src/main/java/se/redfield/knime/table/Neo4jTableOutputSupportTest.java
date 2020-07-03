@@ -19,7 +19,6 @@ import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
 
-import junit.framework.AssertionFailedError;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.table.DataTypeDetection;
@@ -91,14 +90,6 @@ public class Neo4jTableOutputSupportTest {
         //test value
         final DataCell cell = support.createCell(t.calculateType(), v);
         assertNotNull(cell);
-    }
-    @Test
-    public void testDate() {
-        throw new AssertionFailedError("TODO");
-    }
-    @Test
-    public void testDateTime() {
-        throw new AssertionFailedError("TODO");
     }
     @Test
     public void testCollections() {

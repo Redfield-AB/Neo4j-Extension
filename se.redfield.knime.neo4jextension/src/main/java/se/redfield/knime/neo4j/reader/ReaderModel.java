@@ -48,6 +48,7 @@ import org.knime.core.node.streamable.PortInput;
 import org.knime.core.node.streamable.PortObjectInput;
 import org.knime.core.node.streamable.PortObjectOutput;
 import org.knime.core.node.streamable.PortOutput;
+import org.knime.core.node.streamable.RowInput;
 import org.knime.core.node.streamable.RowOutput;
 import org.knime.core.node.streamable.StreamableFunction;
 import org.knime.core.node.streamable.StreamableFunctionProducer;
@@ -114,9 +115,9 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider, Str
             @Override
             public void runFinal(final PortInput[] inputs, final PortOutput[] outputs,
                     final ExecutionContext exec) throws Exception {
-                DataTableRowInput input = null;
+                RowInput input = null;
                 if (inputs.length > 0) {
-                    input = (DataTableRowInput) inputs[0];
+                    input = (RowInput) inputs[0];
                 }
 
                 //check correct input
