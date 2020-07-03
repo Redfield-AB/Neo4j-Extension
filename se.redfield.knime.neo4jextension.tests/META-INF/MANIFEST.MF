@@ -19,5 +19,6 @@ Require-Bundle: se.redfield.knime.neo4jextension;bundle-version="1.0.0",
  org.xerial.snappy.snappy-java;bundle-version="1.1.7",
  org.eclipse.equinox.p2.core;bundle-version="2.4.101",
  org.eclipse.equinox.p2.metadata;bundle-version="2.3.200",
- com.google.guava
+ com.google.guava,
+ org.knime.time;bundle-version="4.2.0"
 Import-Package: org.apache.xmlbeans
