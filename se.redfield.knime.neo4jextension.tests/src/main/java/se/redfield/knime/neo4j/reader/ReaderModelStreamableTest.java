@@ -29,8 +29,6 @@ import org.knime.core.node.NodeSettings;
 import org.knime.core.node.context.ModifiableNodeCreationConfiguration;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.core.node.streamable.BufferedDataTableRowOutput;
-import org.knime.core.node.streamable.DataTableRowInput;
 import org.knime.core.node.streamable.PortInput;
 import org.knime.core.node.streamable.PortObjectInput;
 import org.knime.core.node.streamable.PortObjectOutput;
@@ -41,6 +39,8 @@ import junit.framework.AssertionFailedError;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.utils.KNimeHelper;
 import se.redfield.knime.neo4j.utils.Neo4jHelper;
+import se.redfield.knime.neo4j.utils.TestRowInput;
+import se.redfield.knime.neo4j.utils.TestRowOutput;
 import se.redfield.knime.runner.KnimeTestRunner;
 
 /**
@@ -232,7 +232,7 @@ public class ReaderModelStreamableTest {
 
             inSpecs = new PortObjectSpec[] {tableSpec, inPorts[1].getSpec()};
             inputs = new PortInput[] {tableSpec == null ?
-                    null : new DataTableRowInput(table), new PortObjectInput(inPorts[1])};
+                    null : new TestRowInput(table), new PortObjectInput(inPorts[1])};
         }
 
         //create inputs and outputs
@@ -242,7 +242,7 @@ public class ReaderModelStreamableTest {
                 (DataTableSpec) outputSpecs[0]);
 
         final PortOutput[] outputs = {
-                new BufferedDataTableRowOutput(table),
+                new TestRowOutput(table),
                 new PortObjectOutput()
         };
 
@@ -256,7 +256,7 @@ public class ReaderModelStreamableTest {
 
         //create result
         return new PortObject[] {
-                ((BufferedDataTableRowOutput) outputs[0]).getDataTable(),
+                table.getTable(),
                 ((PortObjectOutput) outputs[1]).getPortObject()};
     }
     /**
