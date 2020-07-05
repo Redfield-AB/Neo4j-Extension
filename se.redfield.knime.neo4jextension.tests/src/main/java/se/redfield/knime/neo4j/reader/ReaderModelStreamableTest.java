@@ -5,6 +5,7 @@ package se.redfield.knime.neo4j.reader;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static se.redfield.knime.neo4j.utils.KNimeHelper.createConnectorPortObject;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -38,7 +39,6 @@ import org.knime.core.node.streamable.StreamableFunction;
 import junit.framework.AssertionFailedError;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.utils.KNimeHelper;
-import se.redfield.knime.neo4j.utils.Neo4jHelper;
 import se.redfield.knime.neo4j.utils.TestRowInput;
 import se.redfield.knime.neo4j.utils.TestRowOutput;
 import se.redfield.knime.runner.KnimeTestRunner;
@@ -301,12 +301,6 @@ public class ReaderModelStreamableTest {
         final DataColumnSpec column = new DataColumnSpecCreator(
                 columnName, StringCell.TYPE).createSpec();
         return new DataTableSpec("inputTable", column);
-    }
-    /**
-     * @return connector port object.
-     */
-    private ConnectorPortObject createConnectorPortObject() {
-        return new ConnectorPortObject(Neo4jHelper.createConfig());
     }
     private void setConfigToModel(final ReaderConfig cfg) throws InvalidSettingsException {
         final NodeSettings s = new NodeSettings("junit");

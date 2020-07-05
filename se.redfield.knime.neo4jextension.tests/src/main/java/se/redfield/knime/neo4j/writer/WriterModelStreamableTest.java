@@ -6,6 +6,7 @@ package se.redfield.knime.neo4j.writer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static se.redfield.knime.neo4j.utils.KNimeHelper.createConnectorPortObject;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -394,12 +395,6 @@ public class WriterModelStreamableTest {
         final List<DataRow> rows = read((DataTable) out[0]);
         assertTrue(((JSONCell) rows.get(0).getCell(1)).getStringValue().contains("error"));
         assertTrue(((JSONCell) rows.get(1).getCell(1)).getStringValue().contains("success"));
-    }
-    /**
-     * @return connector port object.
-     */
-    private ConnectorPortObject createConnectorPortObject() {
-        return new ConnectorPortObject(Neo4jHelper.createConfig());
     }
     /**
      * @param label node label.

@@ -7,6 +7,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static se.redfield.knime.neo4j.utils.KNimeHelper.createConnectorPortObject;
+import static se.redfield.knime.neo4j.utils.KNimeHelper.createConnectorSpec;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -390,13 +392,6 @@ public class ReaderModelTest {
         //test node really is not inserted
         assertEquals(0, Neo4jHelper.read("MATCH (n:n1)\nRETURN n").size());
     }
-
-    /**
-     * @return connector port specification.
-     */
-    private ConnectorSpec createConnectorSpec() {
-        return new ConnectorSpec(Neo4jHelper.createConfig());
-    }
     /**
      * @param table buffered data table.
      * @return all rows from given table.
@@ -440,12 +435,7 @@ public class ReaderModelTest {
                 columnName, StringCell.TYPE).createSpec();
         return new DataTableSpec("inputTable", column);
     }
-    /**
-     * @return connector port object.
-     */
-    private ConnectorPortObject createConnectorPortObject() {
-        return new ConnectorPortObject(Neo4jHelper.createConfig());
-    }
+
     private void setConfigToModel(final ReaderConfig cfg) throws InvalidSettingsException {
         final NodeSettings s = new NodeSettings("junit");
         new ReaderConfigSerializer().save(cfg, s);

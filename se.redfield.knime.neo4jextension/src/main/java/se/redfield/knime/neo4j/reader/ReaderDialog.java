@@ -48,19 +48,19 @@ import javax.swing.undo.CannotUndoException;
 import javax.swing.undo.UndoManager;
 
 import org.knime.core.data.DataColumnSpec;
+import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.def.StringCell;
-import org.knime.core.node.BufferedDataTable;
-import org.knime.core.node.DataAwareNodeDialogPane;
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
-import org.knime.core.node.port.PortObject;
+import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.util.FlowVariableListCellRenderer;
 import org.knime.core.node.workflow.FlowVariable;
 
 import se.redfield.knime.neo4j.connector.ConnectorConfig;
-import se.redfield.knime.neo4j.connector.ConnectorPortObject;
+import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.connector.FunctionDesc;
 import se.redfield.knime.neo4j.connector.Named;
 import se.redfield.knime.neo4j.connector.NamedWithProperties;
@@ -79,7 +79,7 @@ import se.redfield.knime.neo4j.ui.WithStringIconCellRenderer;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariablesProvider {
+public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvider {
     private static final String KEEP_ORIGIN_SOURCE_ROWS_ORDER = "keep origin source rows order";
     private static final String STOP_ON_QUERY_FAILURE = "Stop on query failure";
     private static final String INPUT_COLUMN_TAB = "Query from table";
@@ -213,7 +213,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
     }
 
     private JPanel createRefreshButton() {
-        final ImageIcon icon = UiUtils.createRefreshIcon();
+        final ImageIcon icon = createRefreshIcon();
         final JButton b = new JButton();
         b.setIcon(icon);
 
@@ -232,6 +232,13 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
         p.add(b, BorderLayout.EAST);
         p.setBorder(new EmptyBorder(5, 5, 5, 5));
         return p;
+    }
+    /**
+     * For overwriting in unit tests
+     * @return image icon.
+     */
+    protected ImageIcon createRefreshIcon() {
+        return UiUtils.createRefreshIcon();
     }
     private JSplitPane createFlowVariablesNodesAndRels() {
         final JSplitPane sp = createSplitPane(JSplitPane.VERTICAL_SPLIT, 0.1);
@@ -440,18 +447,18 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
         final ReaderConfig model = buildConfig();
         new ReaderConfigSerializer().save(model, settings);
     }
-
     @Override
-    protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObject[] input) throws NotConfigurableException {
-        BufferedDataTable tableInput = null;
-        final ConnectorPortObject connectorPort;
+    protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs) throws NotConfigurableException {
+        DataTableSpec tableInput = null;
+        final ConnectorSpec connectorPort;
 
-        if (input.length > 1) {
-            connectorPort = (ConnectorPortObject) input[1];
-            tableInput = (BufferedDataTable) input[0];
+        if (specs.length > 1) {
+            tableInput = (DataTableSpec) specs[0];
         } else {
-            connectorPort = (ConnectorPortObject) input[0];
         }
+
+        connectorPort = (ConnectorSpec) specs[specs.length - 1];
+        //check connector is NULL
         if (connectorPort == null) {
             throw new NotConfigurableException("Not connected to Neo4j connection");
         }
@@ -464,12 +471,13 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
             throw new NotConfigurableException(e.getMessage(), e);
         }
     }
-    private List<String> getStringColumns(final BufferedDataTable table) {
-        if (table == null) {
+
+    private List<String> getStringColumns(final DataTableSpec tableSpecs) {
+        if (tableSpecs == null) {
             return null;
         }
         final List<String> columns = new LinkedList<>();
-        for (final DataColumnSpec r : table.getDataTableSpec()) {
+        for (final DataColumnSpec r : tableSpecs) {
             if (r.getType() == StringCell.TYPE) {
                 columns.add(r.getName());
             }
@@ -506,6 +514,7 @@ public class ReaderDialog extends DataAwareNodeDialogPane implements FlowVariabl
         this.oldModel = model;
 
         scriptEditor.setText(model.getScript());
+        useJsonOutput.setSelected(model.isUseJson());
         inputColumn.removeAllItems();
         funcDescription.setText("");
         model(flowVariables).clear();

@@ -18,6 +18,9 @@ import org.knime.core.node.workflow.SingleNodeContainer.MemoryPolicy;
 import org.knime.core.util.ProgressMonitorAdapter;
 import org.w3c.dom.Element;
 
+import se.redfield.knime.neo4j.connector.ConnectorPortObject;
+import se.redfield.knime.neo4j.connector.ConnectorSpec;
+
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
@@ -125,5 +128,17 @@ public final class KNimeHelper {
      */
     public static NodeProgressMonitor createProgressMonitor() {
         return new ProgressMonitorAdapter(new NullProgressMonitor());
+    }
+    /**
+     * @return connector port specification.
+     */
+    public static ConnectorSpec createConnectorSpec() {
+        return new ConnectorSpec(Neo4jHelper.createConfig());
+    }
+    /**
+     * @return connector port object.
+     */
+    public static ConnectorPortObject createConnectorPortObject() {
+        return new ConnectorPortObject(Neo4jHelper.createConfig());
     }
 }

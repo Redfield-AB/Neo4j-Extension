@@ -6,6 +6,8 @@ package se.redfield.knime.neo4j.writer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static se.redfield.knime.neo4j.utils.KNimeHelper.createConnectorPortObject;
+import static se.redfield.knime.neo4j.utils.KNimeHelper.createConnectorSpec;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -476,18 +478,6 @@ public class WriterModelTest {
             columns[i] = new DataColumnSpecCreator("col-" + i, StringCell.TYPE).createSpec();
         }
         return new DataTableSpec(columns);
-    }
-    /**
-     * @return connector port specification.
-     */
-    private ConnectorSpec createConnectorSpec() {
-        return new ConnectorSpec(Neo4jHelper.createConfig());
-    }
-    /**
-     * @return connector port object.
-     */
-    private ConnectorPortObject createConnectorPortObject() {
-        return new ConnectorPortObject(Neo4jHelper.createConfig());
     }
     /**
      * @param label node label.
