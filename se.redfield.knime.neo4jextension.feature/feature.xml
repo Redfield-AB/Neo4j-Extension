@@ -6,7 +6,7 @@
       provider-name="Redfield AB">
 
    <description url="http://www.example.com/description">
-      [Enter Feature Description here.]
+      The Neo4j extension provided by Redfield AB (www.redfield.se). The nodes provide users with CRUD capabilities to work with Neo4j database over BOLT protocol. There are nodes for connection to the Neo4j instance, reading data from it and writing back.
    </description>
 
    <copyright url="http://www.example.com/copyright">
