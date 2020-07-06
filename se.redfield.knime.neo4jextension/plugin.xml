@@ -22,7 +22,7 @@
    <extension
          point="org.knime.workbench.repository.categories">
       <category
-            icon="icons/redfield_logo_big.png"
+            icon="icons/redfield_logo.png"
             level-id="neo4j"
             locked="true"
             name="Neo4j"
