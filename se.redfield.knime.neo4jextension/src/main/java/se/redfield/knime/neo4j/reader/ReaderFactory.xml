@@ -10,7 +10,7 @@
 		<intro>
 	    The node allows user to run queries for extracting data from Neo4j, any queries that change the state of DB will be rolled back. There are two modes available:
 	    <ul>
-	    	<li>Script - active when there is no input table connected. User can create a Cypher script with injections of labels for nodes and relationships, and available server functions to extract data from the database. Schema is fetched with functions db.labels, db.relationshipTypes, dbms.functions.</li>
+	    	<li>Script – active when there is no input table connected. User can create a Cypher script with injections of labels for nodes and relationships, and available server functions to extract data from the database. Schema is fetched with functions db.labels, db.relationshipTypes, dbms.functions. The output data will automatically matched to Knime table compatible types if possible, otherwise JSON columns will be produced.</li>
 	    	<li>Query from table - if the table is connected, then the user can select the string column that contains Cypher queries.</li>
 	    </ul>
 	   	</intro>
