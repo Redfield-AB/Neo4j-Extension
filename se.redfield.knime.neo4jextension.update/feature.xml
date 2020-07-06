@@ -2,7 +2,7 @@
 <feature
       id="se.redfield.knime.neo4jextension.update"
       label="Neo4j extension update site feature"
-      version="1.0.0"
+      version="1.0.0.qualifier"
       provider-name="Redfield AB">
 
    <description url="http://www.example.com/description">
