@@ -306,7 +306,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider, Str
             List<Record> records;
             try {
                 records = Neo4jSupport.runRead(driver, ModelUtils.insertFlowVariables(config.getScript(), this),
-                        () -> warning[0] = NOT_READ_ONLY_ERROR);
+                        () -> warning[0] = NOT_READ_ONLY_ERROR, neo4j.getConfig().getDatabase());
                 if (warning[0] != null) {
                     setWarningMessage(warning[0]);
                 }

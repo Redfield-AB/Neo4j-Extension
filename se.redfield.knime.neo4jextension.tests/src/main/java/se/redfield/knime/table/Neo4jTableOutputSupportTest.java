@@ -190,6 +190,6 @@ public class Neo4jTableOutputSupportTest {
         assertEquals(d1, d2);
     }
     private List<Record> run(final String query) {
-        return Neo4jSupport.runRead(driver, query, null);
+        return Neo4jSupport.runRead(driver, query, null, "neo4j");
     }
 }

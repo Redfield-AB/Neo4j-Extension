@@ -17,6 +17,7 @@ import org.knime.core.node.config.ConfigWO;
 public class ConnectorConfigSerializer {
     private static final String S_POOL_SIZE = "maxConnectionPoolSize";
     private static final String S_LOCATION = "location";
+    private static final String S_DATABASE = "database";
     //auth
     private static final String S_AUTH = "auth";
 
@@ -36,6 +37,7 @@ public class ConnectorConfigSerializer {
 
     public void save(final ConnectorConfig config, final ConfigWO settings) {
         settings.addString(S_LOCATION, config.getLocation().toASCIIString());
+        settings.addString(S_DATABASE, config.getDatabase());
         settings.addInt(S_POOL_SIZE, config.getMaxConnectionPoolSize());
         if (config.getAuth() != null) {
             saveAuth(config.getAuth(), settings.addConfig(S_AUTH));
@@ -48,6 +50,9 @@ public class ConnectorConfigSerializer {
         } catch (final URISyntaxException e) {
             throw new InvalidSettingsException(e);
         }
+
+        config.setDatabase(settings.getString(S_DATABASE, "neo4j"));
+
         if (settings.containsKey(S_AUTH)) {
             config.setAuth(loadAuth(settings.getConfig(S_AUTH)));
         } else {

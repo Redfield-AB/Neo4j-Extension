@@ -217,7 +217,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
 
                 String json;
                 try {
-                    json = runSingleScript(driver.getDriver(), config.getScript());
+                    json = runSingleScript(driver.getDriver(), config.getScript(), neo4j);
                 } catch (final Exception e) {
                     if (config.isStopOnQueryFailure()) {
                         throw e;
@@ -426,14 +426,14 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
         } catch (final Throwable e) {
         }
     }
-    private String runSingleScript(final Driver driver, final String script) {
+    private String runSingleScript(final Driver driver, final String script, final Neo4jSupport neo4j) {
         //run script in context of transaction.
         final List<Record> records = Neo4jSupport.runWithSession(driver, s -> s.writeTransaction(tx -> {
             final Result run = tx.run(script);
             final List<Record> res = run.list();
             tx.commit();
             return res;
-        }));
+        }), neo4j.getConfig().getDatabase());
         //build JSON result from records.
         return createSuccessJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
     }

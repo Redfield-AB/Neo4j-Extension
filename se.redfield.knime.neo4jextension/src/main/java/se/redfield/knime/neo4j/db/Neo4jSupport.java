@@ -19,6 +19,7 @@ import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
+import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.Transaction;
 import org.neo4j.driver.summary.QueryType;
 import org.neo4j.driver.summary.ResultSummary;
@@ -40,8 +41,8 @@ public class Neo4jSupport {
         super();
         this.config = config;
     }
-    public static List<Record> runRead(final Driver driver, final String query, final RollbackListener l) {
-        return runWithSession(driver, s ->  runInReadOnlyTransaction(s, query, l));
+    public static List<Record> runRead(final Driver driver, final String query, final RollbackListener l, final String dataBase) {
+        return runWithSession(driver, s ->  runInReadOnlyTransaction(s, query, l), dataBase);
     }
     /**
      * @param session session.
@@ -68,8 +69,8 @@ public class Neo4jSupport {
             tx.close();
         }
     }
-    public static <R> R runWithSession(final Driver driver, final WithSessionRunnable<R> r) {
-        final Session s = driver.session();
+    public static <R> R runWithSession(final Driver driver, final WithSessionRunnable<R> r, final String dataBase) {
+        final Session s = driver.session(SessionConfig.forDatabase(dataBase));
         try {
             return r.run(s);
         } finally {
@@ -123,7 +124,7 @@ public class Neo4jSupport {
 
             final AsyncRunnerLauncher<WithSessionRunnable<Void>, Void> runner
                 = AsyncRunnerLauncher.Builder.<WithSessionRunnable<Void>, Void>newBuilder()
-                    .withRunner((r) -> runWithSession(driver, r))
+                    .withRunner((r) -> runWithSession(driver, r, config.getDatabase()))
                     .withSource(runs.iterator())
                     .withNumThreads(runs.size())
                     .withStopOnFailure(true)

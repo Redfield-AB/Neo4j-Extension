@@ -18,6 +18,7 @@ public class ConnectorConfig implements Cloneable {
     private URI location;
     private AuthConfig auth;
     private int maxConnectionPoolSize;
+    private String database;
 
     public ConnectorConfig() {
         super();
@@ -50,25 +51,14 @@ public class ConnectorConfig implements Cloneable {
     public void setMaxConnectionPoolSize(final int maxConnectionPoolSize) {
         this.maxConnectionPoolSize = maxConnectionPoolSize;
     }
-    @Override
-    public boolean equals(final Object obj) {
-        if (!(obj instanceof ConnectorConfig)) {
-            return false;
-        }
+    
+    public String getDatabase() {
+		return database;
+	}
 
-        final ConnectorConfig that = (ConnectorConfig) obj;
-        return Objects.equals(this.location, that.location)
-            && Objects.equals(this.auth, that.auth)
-            && Objects.equals(this.maxConnectionPoolSize, that.maxConnectionPoolSize);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(
-                this.location,
-                this.auth,
-                maxConnectionPoolSize);
-    }
+	public void setDatabase(String database) {
+		this.database = database;
+	}
 
     @Override
     public String toString() {
@@ -76,7 +66,26 @@ public class ConnectorConfig implements Cloneable {
         sb.append(getLocation());
         return sb.toString();
     }
+    
     @Override
+	public int hashCode() {
+		return Objects.hash(auth, database, location, maxConnectionPoolSize);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		ConnectorConfig other = (ConnectorConfig) obj;
+		return Objects.equals(auth, other.auth) && Objects.equals(database, other.database)
+				&& Objects.equals(location, other.location) && maxConnectionPoolSize == other.maxConnectionPoolSize;
+	}
+
+	@Override
     public ConnectorConfig clone() {
         try {
             final ConnectorConfig clone = (ConnectorConfig) super.clone();

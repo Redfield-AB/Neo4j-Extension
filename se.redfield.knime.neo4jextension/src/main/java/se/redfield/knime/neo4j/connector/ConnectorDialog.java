@@ -37,8 +37,13 @@ import se.redfield.knime.neo4j.model.HashGenerator;
  *
  */
 public class ConnectorDialog extends NodeDialogPane {
+
+    public static final String DEFAULT_DATABASE_NAME = "neo4j";
+
     //settings tab
     private final JTextField url = new JTextField();
+    
+    private final JTextField database = new JTextField("neo4j");
 
     private final SettingsModelAuthentication authSettings = new SettingsModelAuthentication(
             "neo4jAuth", AuthenticationType.USER_PWD, "neo4j", null, null);
@@ -82,6 +87,7 @@ public class ConnectorDialog extends NodeDialogPane {
 
         addLabeledComponent(north, "Neo4j URL", url, 0);
         addLabeledComponent(north, "Max connection pool size:", maxConnectionPoolSize, 1);
+        addLabeledComponent(north, "Database name:", database, 2);
 
         //Authentication
         final JPanel center = new JPanel(new BorderLayout(5, 5));
@@ -152,6 +158,8 @@ public class ConnectorDialog extends NodeDialogPane {
         maxConnectionPoolSize.setValue(model.getMaxConnectionPoolSize());
         oldPassword = null;
 
+        this.database.setText(model.getDatabase() == null ? "neo4j" : model.getDatabase());
+
         //authentication
         final AuthConfig auth = model.getAuth();
 
@@ -179,6 +187,11 @@ public class ConnectorDialog extends NodeDialogPane {
         final ConnectorConfig config = new ConnectorConfig();
         config.setLocation(buildUri());
         config.setMaxConnectionPoolSize(getInt(maxConnectionPoolSize.getValue()));
+        if (this.database.getText() == null) {
+            config.setDatabase(DEFAULT_DATABASE_NAME);
+        } else {
+            config.setDatabase(this.database.getText());
+        }
 
         //authentication
         final AuthenticationType authType = authSettings.getAuthenticationType();
