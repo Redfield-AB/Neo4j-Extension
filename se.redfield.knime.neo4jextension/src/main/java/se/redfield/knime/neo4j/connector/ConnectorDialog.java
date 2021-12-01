@@ -3,23 +3,6 @@
  */
 package se.redfield.knime.neo4j.connector;
 
-import java.awt.BorderLayout;
-import java.awt.Component;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.text.NumberFormat;
-
-import javax.swing.BorderFactory;
-import javax.swing.JComponent;
-import javax.swing.JFormattedTextField;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JTextField;
-import javax.swing.SwingConstants;
-import javax.swing.border.EmptyBorder;
-
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeDialogPane;
@@ -29,8 +12,14 @@ import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.defaultnodesettings.DialogComponentAuthentication;
 import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication;
 import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication.AuthenticationType;
-
 import se.redfield.knime.neo4j.model.HashGenerator;
+
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import java.awt.*;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.text.NumberFormat;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -40,10 +29,12 @@ public class ConnectorDialog extends NodeDialogPane {
 
     public static final String DEFAULT_DATABASE_NAME = "neo4j";
 
-    //settings tab
+    //connection
     private final JTextField url = new JTextField();
-    
-    private final JTextField database = new JTextField("neo4j");
+    private final JFormattedTextField maxConnectionPoolSize = createIntValueEditor();
+    private final JRadioButton defaultRBtn = new JRadioButton("default");
+    private final JRadioButton customRBtn = new JRadioButton("custom");
+    private final JTextField database = new JTextField(DEFAULT_DATABASE_NAME);
 
     private final SettingsModelAuthentication authSettings = new SettingsModelAuthentication(
             "neo4jAuth", AuthenticationType.USER_PWD, "neo4j", null, null);
@@ -52,9 +43,6 @@ public class ConnectorDialog extends NodeDialogPane {
             AuthenticationType.NONE,
             AuthenticationType.CREDENTIALS,
             AuthenticationType.USER_PWD);
-
-    //config
-    private final JFormattedTextField maxConnectionPoolSize = createIntValueEditor();
 
     private String oldPassword;
 
@@ -71,6 +59,7 @@ public class ConnectorDialog extends NodeDialogPane {
         tf.setValue(0);
         return tf;
     }
+
     /**
      * @return
      */
@@ -87,7 +76,24 @@ public class ConnectorDialog extends NodeDialogPane {
 
         addLabeledComponent(north, "Neo4j URL", url, 0);
         addLabeledComponent(north, "Max connection pool size:", maxConnectionPoolSize, 1);
-        addLabeledComponent(north, "Database name:", database, 2);
+
+        // Set database name
+        final JPanel p1 = new JPanel(new BorderLayout(10, 5));
+        p1.setBorder(BorderFactory.createTitledBorder(new EmptyBorder(5, 5, 5, 5)));
+
+        defaultRBtn.addActionListener(e -> database.setEnabled(false));
+        customRBtn.addActionListener(e -> database.setEnabled(true));
+        defaultRBtn.setSelected(true);
+        ButtonGroup btnGroup = new ButtonGroup();
+        btnGroup.add(defaultRBtn);
+        btnGroup.add(customRBtn);
+
+        p1.add(defaultRBtn, BorderLayout.CENTER);
+        p1.add(customRBtn, BorderLayout.LINE_START);
+
+        addLabeledComponent(north, "Use database name:", p1, 2);
+
+        addLabeledComponent(north, "Database name:", database, 3);
 
         //Authentication
         final JPanel center = new JPanel(new BorderLayout(5, 5));
@@ -105,7 +111,7 @@ public class ConnectorDialog extends NodeDialogPane {
      * @param row
      */
     private void addLabeledComponent(final JPanel container, final String label,
-            final JComponent component, final int row) {
+                                     final JComponent component, final int row) {
         //add label
         final GridBagConstraints lc = new GridBagConstraints();
         lc.fill = GridBagConstraints.HORIZONTAL;
@@ -138,6 +144,7 @@ public class ConnectorDialog extends NodeDialogPane {
             new ConnectorConfigSerializer().save(model, settings);
         }
     }
+
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final DataTableSpec[] specs) throws NotConfigurableException {
         try {
@@ -158,7 +165,11 @@ public class ConnectorDialog extends NodeDialogPane {
         maxConnectionPoolSize.setValue(model.getMaxConnectionPoolSize());
         oldPassword = null;
 
-        this.database.setText(model.getDatabase() == null ? "neo4j" : model.getDatabase());
+        database.setText(model.getDatabase() == null ? DEFAULT_DATABASE_NAME : model.getDatabase());
+        boolean isDefaultDatabaseName = database.getText().equals(DEFAULT_DATABASE_NAME);
+        defaultRBtn.setSelected(isDefaultDatabaseName);
+        database.setEnabled(!isDefaultDatabaseName);
+
 
         //authentication
         final AuthConfig auth = model.getAuth();
@@ -180,6 +191,7 @@ public class ConnectorDialog extends NodeDialogPane {
 
         authComp.loadCredentials(getCredentialsProvider());
     }
+
     /**
      * @return connector config.
      */
@@ -187,7 +199,10 @@ public class ConnectorDialog extends NodeDialogPane {
         final ConnectorConfig config = new ConnectorConfig();
         config.setLocation(buildUri());
         config.setMaxConnectionPoolSize(getInt(maxConnectionPoolSize.getValue()));
-        if (this.database.getText() == null) {
+
+        if (defaultRBtn.isSelected()) {
+            config.setDatabase(null);
+        } else if (this.database.getText() == null) {
             config.setDatabase(DEFAULT_DATABASE_NAME);
         } else {
             config.setDatabase(this.database.getText());
@@ -203,7 +218,7 @@ public class ConnectorDialog extends NodeDialogPane {
                 auth = new AuthConfig();
                 auth.setScheme(AuthScheme.flowCredentials);
                 auth.setPrincipal(authSettings.getCredential());
-            break;
+                break;
             case USER_PWD:
                 auth = new AuthConfig();
                 auth.setScheme(AuthScheme.basic);
@@ -215,7 +230,7 @@ public class ConnectorDialog extends NodeDialogPane {
                     password = oldPassword;
                 }
                 auth.setCredentials(password);
-            break;
+                break;
             case NONE:
                 auth = null;
                 break;
@@ -226,6 +241,7 @@ public class ConnectorDialog extends NodeDialogPane {
         config.setAuth(auth);
         return config;
     }
+
     private static int getInt(final Object value) {
         if (value instanceof Number) {
             return ((Number) value).intValue();
@@ -243,6 +259,7 @@ public class ConnectorDialog extends NodeDialogPane {
             throw new InvalidSettingsException("Invalid URI: " + text);
         }
     }
+
     private String createPasswordHash(final String password) {
         if (password == null) {
             return null;

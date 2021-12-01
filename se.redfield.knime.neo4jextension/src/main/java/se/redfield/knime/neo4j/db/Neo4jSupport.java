@@ -70,13 +70,21 @@ public class Neo4jSupport {
         }
     }
     public static <R> R runWithSession(final Driver driver, final WithSessionRunnable<R> r, final String dataBase) {
-        final Session s = driver.session(SessionConfig.forDatabase(dataBase));
+        final Session s;
+
+        if (dataBase != null){
+            s = driver.session(SessionConfig.forDatabase(dataBase));
+        } else {
+            s = driver.session();
+        }
+
         try {
             return r.run(s);
         } finally {
             s.close();
         }
     }
+
     public Driver createDriver() {
         return createDriver(config);
     }
