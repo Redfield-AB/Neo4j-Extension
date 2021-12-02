@@ -3,21 +3,22 @@
 <knimeNode icon="/icons/connector.png" type="Source">
 	<name>Neo4j Connection</name>
 	<shortDescription>
-	    Neo4j Connection
+		Neo4j Connection
 	</shortDescription>
-	
+
 	<fullDescription>
 		<intro>
-		Node creates connection to a Neo4j instance via BOLT protocol.
+			Node creates connection to a Neo4j instance via BOLT protocol.
 		</intro>
 		<option name="Neo4j URL">the hostname or URL of Neo4j server with port.</option>
+		<option name="Max connection pool size">defines the maximum amount of connections.</option>
+		<option name="Use database name">use default (neo4j) graph for connection or provide a graph name.</option>
 		<option name="Database name">the name of the database you want to connect to.</option>
 		<option name="Use authentication">checkbox that activates/deactivates authentication.</option>
 		<option name="Username and password">credentials for authentication.</option>
-		<option name="Max connection pool size">defines the maximum amount of connections.</option>
 	</fullDescription>
-	
+
 	<ports>
-	    <outPort index="0" name="Neo4j connection">Neo4j connection</outPort>
-	</ports>	
+		<outPort index="0" name="Neo4j connection">Neo4j connection</outPort>
+	</ports>
 </knimeNode>
