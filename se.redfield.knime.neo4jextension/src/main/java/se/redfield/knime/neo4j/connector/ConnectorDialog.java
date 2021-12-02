@@ -34,7 +34,9 @@ public class ConnectorDialog extends NodeDialogPane {
     private final JFormattedTextField maxConnectionPoolSize = createIntValueEditor();
     private final JRadioButton defaultRBtn = new JRadioButton("default");
     private final JRadioButton customRBtn = new JRadioButton("custom");
+    private boolean usedDefaultDbName = true;
     private final JTextField database = new JTextField(DEFAULT_DATABASE_NAME);
+    private String customDBNameBuffer = DEFAULT_DATABASE_NAME;
 
     private final SettingsModelAuthentication authSettings = new SettingsModelAuthentication(
             "neo4jAuth", AuthenticationType.USER_PWD, "neo4j", null, null);
@@ -81,9 +83,20 @@ public class ConnectorDialog extends NodeDialogPane {
         final JPanel p1 = new JPanel(new BorderLayout(10, 5));
         p1.setBorder(BorderFactory.createTitledBorder(new EmptyBorder(5, 5, 5, 5)));
 
-        defaultRBtn.addActionListener(e -> database.setEnabled(false));
-        customRBtn.addActionListener(e -> database.setEnabled(true));
-        defaultRBtn.setSelected(true);
+        defaultRBtn.addActionListener(e -> {
+            customDBNameBuffer = database.getText();
+            database.setText(DEFAULT_DATABASE_NAME);
+            database.setEnabled(false);
+            usedDefaultDbName = true;
+        });
+
+        customRBtn.addActionListener(e -> {
+            database.setText(customDBNameBuffer);
+            database.setEnabled(true);
+            usedDefaultDbName = false;
+        });
+
+        defaultRBtn.setSelected(usedDefaultDbName);
         ButtonGroup btnGroup = new ButtonGroup();
         btnGroup.add(defaultRBtn);
         btnGroup.add(customRBtn);
@@ -166,9 +179,8 @@ public class ConnectorDialog extends NodeDialogPane {
         oldPassword = null;
 
         database.setText(model.getDatabase() == null ? DEFAULT_DATABASE_NAME : model.getDatabase());
-        boolean isDefaultDatabaseName = database.getText().equals(DEFAULT_DATABASE_NAME);
-        defaultRBtn.setSelected(isDefaultDatabaseName);
-        database.setEnabled(!isDefaultDatabaseName);
+        defaultRBtn.setSelected(model.isUsedDefaultDbName());
+        database.setEnabled(!model.isUsedDefaultDbName());
 
 
         //authentication
@@ -200,7 +212,9 @@ public class ConnectorDialog extends NodeDialogPane {
         config.setLocation(buildUri());
         config.setMaxConnectionPoolSize(getInt(maxConnectionPoolSize.getValue()));
 
-        if (defaultRBtn.isSelected()) {
+        config.setUsedDefaultDbName(usedDefaultDbName);
+
+        if (usedDefaultDbName) {
             config.setDatabase(null);
         } else if (this.database.getText() == null) {
             config.setDatabase(DEFAULT_DATABASE_NAME);
