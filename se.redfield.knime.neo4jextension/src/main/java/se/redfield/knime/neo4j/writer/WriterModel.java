@@ -217,7 +217,8 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
 
                 String json;
                 try {
-                    json = runSingleScript(driver.getDriver(), config.getScript(), neo4j);
+                	final String script = ModelUtils.insertFlowVariables(config.getScript(), this);
+                    json = runSingleScript(driver.getDriver(), script, neo4j);
                 } catch (final Exception e) {
                     if (config.isStopOnQueryFailure()) {
                         throw e;
