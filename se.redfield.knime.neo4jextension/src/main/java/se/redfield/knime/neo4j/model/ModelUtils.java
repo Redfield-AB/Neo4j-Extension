@@ -4,12 +4,15 @@
 package se.redfield.knime.neo4j.model;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
@@ -18,8 +21,11 @@ import org.knime.core.data.MissingCell;
 import org.knime.core.data.append.AppendedColumnRow;
 import org.knime.core.data.json.JSONCell;
 import org.knime.core.data.json.JSONCellFactory;
+import org.knime.core.node.streamable.RowInput;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.core.node.workflow.VariableType;
+import se.redfield.knime.neo4j.cell.DataCellValueGetter;
+import se.redfield.knime.neo4j.table.RowInputContainer;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -135,5 +141,32 @@ public class ModelUtils {
             }
         }
         return new AppendedColumnRow(originRow, new MissingCell("Not a value"));
+    }
+
+    public static Map<String, Object> inputTableToMap(final RowInputContainer inputTable, String keyName) throws Exception {
+        Map<String, Object> res = new HashMap<>();
+        List<Map<String, Object>> data = new ArrayList<>();
+        DataRow origin;
+        while ((origin = inputTable.getInput().poll()) != null) {
+            Map<String, Object> row = dataRowToMap(inputTable.getInput(), origin);
+            data.add(row);
+        }
+
+        res.put(keyName, data);
+        return res;
+    }
+
+    public static Map<String, Object> dataRowToMap(final RowInput inputTable, final DataRow row) {
+        DataTableSpec dataTableSpec = inputTable.getDataTableSpec();
+        Map<String, Object> rowData = new HashMap<>();
+
+        dataTableSpec.stream().forEach(dts -> {
+            String dtsName = dts.getName();
+            int columnIndex = dataTableSpec.findColumnIndex(dtsName);
+            DataCell cell = row.getCell(columnIndex);
+
+            rowData.put(dtsName, DataCellValueGetter.getValue(cell));
+        });
+        return rowData;
     }
 }

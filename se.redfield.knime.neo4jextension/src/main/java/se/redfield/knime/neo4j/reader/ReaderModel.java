@@ -5,10 +5,17 @@ package se.redfield.knime.neo4j.reader;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import java.util.stream.Collectors;
+import javax.json.Json;
+import javax.json.stream.JsonGenerator;
 import javax.naming.OperationNotSupportedException;
 
 import org.knime.core.data.DataCell;
@@ -60,6 +67,7 @@ import org.neo4j.driver.util.Pair;
 
 import se.redfield.knime.neo4j.async.AsyncRunner;
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
+import se.redfield.knime.neo4j.cell.DataCellValueGetter;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.db.ContextListeningDriver;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
@@ -168,10 +176,10 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider, Str
 
         PortObjectSpec output = null;
         //if JSON output used it is possible to specify output.
-        if (tableSpec != null) {
+        if (tableSpec != null && !config.isUseBatch()) {
             output = ModelUtils.createSpecWithAddedJsonColumn(tableSpec, config.getInputColumn());
         } else if (config.isUseJson()) {
-            output = ModelUtils.createOneColumnJsonTableSpec("json");
+            output = ModelUtils.createOneColumnJsonTableSpec("result");
         }
         return new PortObjectSpec[] {output, conSpec};
     }
@@ -191,9 +199,17 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider, Str
         final boolean useTableInput = tableInput != null;
         DataTable table;
         if (!useTableInput) {
-            table = executeFromScriptSource(exec, neo4j);
+            table = executeFromScriptSource(exec, neo4j, config.getScript(), Map.of());
         } else {
-            table = executeFromTableSource(exec, tableInput, neo4j);
+            if (config.isUseBatch()){
+                Map<String, Object> parameters = ModelUtils.inputTableToMap(
+                        new RowInputContainer(new DataTableRowInput(tableInput)),
+                        config.getBatchParameterName()
+                );
+                table = executeFromScriptSource(exec, neo4j, config.getBatchScript(), parameters);
+            } else {
+                table = executeFromTableSource(exec, tableInput, neo4j);
+            }
         }
 
         final BufferedDataTable executionResultPort = exec.createBufferedDataTable(table,
@@ -280,7 +296,7 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider, Str
 
             final List<Record> records = Neo4jSupport.runInReadOnlyTransaction(
                     session, query, null);
-            final String json = buildJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
+            final String json = buildSuccessJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
             return ModelUtils.createRowWithAppendedJson(row, json);
         } catch (final Throwable e) {
             if (config.isStopOnQueryFailure()) {
@@ -291,10 +307,10 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider, Str
         }
     }
 
-    private DataTable executeFromScriptSource(final ExecutionContext exec, final Neo4jSupport neo4j)
+    private DataTable executeFromScriptSource(final ExecutionContext exec, final Neo4jSupport neo4j, String script, Map<String, Object> parameters)
             throws Exception {
         DataTable table;
-        if (config.getScript() == null) {
+        if (script == null) {
             final String error = "Cypher script is not specified but also not input table connected";
             setWarningMessage(error);
             throw new InvalidSettingsException(error);
@@ -304,23 +320,35 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider, Str
         try {
             final String[] warning = {null};
             List<Record> records;
+            String json = null;
             try {
-                records = Neo4jSupport.runRead(driver, ModelUtils.insertFlowVariables(config.getScript(), this),
-                        () -> warning[0] = NOT_READ_ONLY_ERROR, neo4j.getConfig().getDatabase());
+                records = Neo4jSupport.runRead(
+                        driver,
+                        ModelUtils.insertFlowVariables(script, this),
+                        () -> warning[0] = NOT_READ_ONLY_ERROR,
+                        neo4j.getConfig().getDatabase(),
+                        parameters
+                );
                 if (warning[0] != null) {
                     setWarningMessage(warning[0]);
+                }
+                if (config.isUseJson()) {
+                    json = buildSuccessJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
                 }
             } catch (final Exception e) {
                 if (config.isStopOnQueryFailure()) {
                     throw e;
                 } else {
+                    if (config.isUseJson()) {
+                        json = createErrorJson(e.getMessage());
+                    }
                     setWarningMessage(e.getMessage());
                     records = new LinkedList<>();
                 }
             }
+
             if (config.isUseJson()) {
                 //convert output to JSON.
-                final String json = buildJson(records, new Neo4jDataConverter(driver.defaultTypeSystem()));
                 table = createJsonTable(json, exec);
             } else if (records.isEmpty()) {
                 table = createEmptyTable();
@@ -370,8 +398,8 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider, Str
         return table.getTable();
     }
     private DataTable createJsonTable(final String json, final ExecutionContext exec) throws IOException {
-        final DataTableSpec tableSpec = ModelUtils.createOneColumnJsonTableSpec("json");
-        final DefaultRow row = new DefaultRow(new RowKey("json"),
+        final DataTableSpec tableSpec = ModelUtils.createOneColumnJsonTableSpec("result");
+        final DefaultRow row = new DefaultRow(new RowKey("result"),
                 JSONCellFactory.create(json, false));
 
         final BufferedDataContainer table = exec.createDataContainer(tableSpec);
@@ -383,9 +411,37 @@ public class ReaderModel extends NodeModel implements FlowVariablesProvider, Str
 
         return table.getTable();
     }
-    public String buildJson(final List<Record> records, final Neo4jDataConverter adapter) {
-        return new JsonBuilder(adapter).buildJson(records);
+    public String buildSuccessJson(final List<Record> records, final Neo4jDataConverter adapter) {
+        final StringWriter wr = new StringWriter();
+
+        final JsonGenerator gen = Json.createGenerator(wr);
+        gen.writeStartObject();
+
+        gen.write("status", "success");
+        gen.writeKey("result");
+        JsonBuilder.writeJson(records, gen, adapter);
+
+        gen.writeEnd();
+        gen.close();
+
+        return wr.toString();
     }
+
+    private String createErrorJson(final String error) {
+        final StringWriter wr = new StringWriter();
+
+        final JsonGenerator gen = Json.createGenerator(wr);
+        gen.writeStartObject();
+
+        gen.write("status", "error");
+        gen.write("description", error);
+
+        gen.writeEnd();
+        gen.close();
+
+        return wr.toString();
+    }
+
     private DataTableSpec createTableSpec(final Neo4jTableOutputSupport support, final List<Record> records) {
         DataTypeDetection[] detections = null;
 

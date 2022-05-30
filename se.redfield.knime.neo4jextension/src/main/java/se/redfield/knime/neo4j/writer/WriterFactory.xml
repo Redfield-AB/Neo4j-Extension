@@ -8,11 +8,11 @@
 	
 	<fullDescription>
 		<intro>
-			The node allows user to populate Neo4j with the data.
+			The node allows user to populate Neo4j with the data. There are three modes available:
 			<ul>
-				<li>Script - active when there is no input table connected. User can create a Cypher script with injections of labels for nodes and relationships, and available server functions to populate the database.</li>
-				<li>Schema is fetched with functions db.labels, db.relationshipTypes, dbms.functions.</li>
-				<li>Query from table - if the table is connected, then user can select the string column that contains Cypher queries. Output will always be a JSON column.</li>
+				<li>Script – active when there is no input table connected. User can create a Cypher script with injections of labels for nodes and relationships, and available server functions to extract data from the database. Schema is fetched with functions db.labels, db.relationshipTypes, dbms.functions. The output data will be automatically matched to Knime table compatible types if possible, otherwise JSON columns will be produced.</li>
+				<li>Query from table - active if the table is connected, the user can select the string column that contains Cypher queries.</li>
+				<li>Batch script - active if the table is connected, the user can provide a Cypher batch script with references to the input table columns as the parameters for the query. The capabilities are similar to Script mode.</li>
 			</ul>
 		</intro>
 		<tab name="Script">
@@ -23,6 +23,12 @@
 			<option name="Column with query">queries from the selected string column will be executed. Results and status will be returned as a JSON column.</option>
 			<option name="Stop on query failure">if active the node will return an error and stop execution in case the query was not successfully executed. Otherwise node will produce an empty table and a warning message. All the transactions will be rolled back.</option>
 			<option name="Use asynchronous query execution">if active all the queries will be running in asynchronous mode, otherwise there will be consequent execution starting from the top of the table.</option>
+		</tab>
+		<tab name="Batch script">
+			<option name="Use batch query">activates Batch query mode and deactivates Query from table mode.</option>
+			<option name="Name for batch parameter">defines a batch variable name that can be used with UNWIND clause.</option>
+			<option name="Batch Patterns">several examples with Cypher batch queries with wildcards, can be inserted to script body with double-click.</option>
+			<option name="Column List">list of columns of input table, can be can be inserted to script body with double-click.</option>
 		</tab>
 	</fullDescription>
 	

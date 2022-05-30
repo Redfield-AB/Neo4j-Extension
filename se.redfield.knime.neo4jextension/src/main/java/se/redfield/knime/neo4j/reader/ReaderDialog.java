@@ -12,6 +12,7 @@ import java.awt.GridBagLayout;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseListener;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import javax.swing.AbstractAction;
+import javax.swing.ButtonModel;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListModel;
 import javax.swing.ImageIcon;
@@ -34,12 +36,14 @@ import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.JToggleButton.ToggleButtonModel;
 import javax.swing.KeyStroke;
+import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.event.UndoableEditEvent;
 import javax.swing.event.UndoableEditListener;
 import javax.swing.text.BadLocationException;
@@ -68,9 +72,13 @@ import se.redfield.knime.neo4j.db.LabelsAndFunctions;
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.model.FlowVariablesProvider;
 import se.redfield.knime.neo4j.model.ModelUtils;
+import se.redfield.knime.neo4j.ui.BatchNamedValueRenderer;
+import se.redfield.knime.neo4j.ui.BatchPattern;
+import se.redfield.knime.neo4j.ui.BatchReaderPattern;
 import se.redfield.knime.neo4j.ui.NamedValueRenderer;
 import se.redfield.knime.neo4j.ui.OnClickInserter;
 import se.redfield.knime.neo4j.ui.SplitPanelExt;
+import se.redfield.knime.neo4j.ui.StringRenderer;
 import se.redfield.knime.neo4j.ui.UiUtils;
 import se.redfield.knime.neo4j.ui.ValueInsertHandler;
 import se.redfield.knime.neo4j.ui.WithStringIconCellRenderer;
@@ -80,23 +88,35 @@ import se.redfield.knime.neo4j.ui.WithStringIconCellRenderer;
  *
  */
 public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvider {
-    private static final String KEEP_ORIGIN_SOURCE_ROWS_ORDER = "keep origin source rows order";
+    private static final String KEEP_ORIGIN_SOURCE_ROWS_ORDER = "Keep original row order";
     private static final String STOP_ON_QUERY_FAILURE = "Stop on query failure";
     private static final String INPUT_COLUMN_TAB = "Query from table";
     private static final String SCRIPT_TAB = "Script";
+    private static final String BATCH_TAB = "Batch query";
+    private static final String USE_BATCH = "Use batch request";
+    private static final String BATCH_PARAMETER_NAME = "Name for batch parameter";
+    private static final String USE_JSON = "Use JSON output";
 
-    private final JCheckBox keepSourceOrder = new JCheckBox();
-    private final JCheckBox useJsonOutput = new JCheckBox();
+    private final ToggleButtonModel keepSourceOrder = new ToggleButtonModel();
+    private final ToggleButtonModel keepSourceOrderInBatchTab = new ToggleButtonModel();
+    private final ToggleButtonModel useJsonOutput = new ToggleButtonModel();
     private final JComboBox<String> inputColumn = new JComboBox<>(new DefaultComboBoxModel<>());
     private final ToggleButtonModel stopInQueryFailure = new ToggleButtonModel();
+    private final ToggleButtonModel stopInQueryFailureInBatchTab = new ToggleButtonModel();
+    private final ToggleButtonModel useBatchQuery = new ToggleButtonModel();
 
     private JTextArea scriptEditor;
+    private JTextArea batchScriptEditor;
     private JTextArea funcDescription;
+    private JTextArea descriptionArea;
+    private JTextArea batchParameterName;
 
+    private final JList<BatchPattern> batchPatterns = new JList<>(new DefaultListModel<>());
     private final JList<FlowVariable> flowVariables = new JList<>(new DefaultListModel<>());
     private final JList<NamedWithProperties> nodes = new JList<>(new DefaultListModel<>());
     private final JList<NamedWithProperties> relationships = new JList<>(new DefaultListModel<>());
     private final JList<FunctionDesc> functions = new JList<>(new DefaultListModel<>());
+    private final JList<String> inputColumnsJList = new JList<>(new DefaultListModel<>());
 
     private final DefaultListModel<String> nodeProperties = new DefaultListModel<>();
     private final DefaultListModel<String> relationshipsProperties = new DefaultListModel<>();
@@ -115,6 +135,7 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
 
         addTab(SCRIPT_TAB, createScriptTab(), false);
         addTab(INPUT_COLUMN_TAB, createInputColumnTab(), false);
+        addTab(BATCH_TAB, createBatchTab(), false);
     }
 
     private JPanel createInputColumnTab() {
@@ -124,16 +145,28 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         final JPanel parent = new JPanel(new GridBagLayout());
         wrapper.add(parent);
 
+        // Use batch script
+        final JCheckBox cbUseBatch = createCheckBoxFromButtonModel(useBatchQuery);
+        addLabeledComponent(parent, USE_BATCH, cbUseBatch, 0);
+
         inputColumn.setRenderer(new WithStringIconCellRenderer());
-        addLabeledComponent(parent, "Column with query", this.inputColumn, 0);
+        addLabeledComponent(parent, "Column with query", this.inputColumn, 1);
 
-        final JCheckBox cb = new JCheckBox();
-        cb.setModel(stopInQueryFailure);
-        addLabeledComponent(parent, STOP_ON_QUERY_FAILURE, cb, 1);
+        final JCheckBox cbStopOnFailure = createCheckBoxFromButtonModel(stopInQueryFailure);
+        addLabeledComponent(parent, STOP_ON_QUERY_FAILURE, cbStopOnFailure, 2);
+        cbStopOnFailure.addChangeListener(e -> stopInQueryFailureInBatchTab.setSelected(cbStopOnFailure.isSelected()));
 
-        addLabeledComponent(parent, KEEP_ORIGIN_SOURCE_ROWS_ORDER, keepSourceOrder, 2);
+        final JCheckBox cbKeepSourceOrder = createCheckBoxFromButtonModel(keepSourceOrder);
+        addLabeledComponent(parent, KEEP_ORIGIN_SOURCE_ROWS_ORDER, cbKeepSourceOrder, 3);
+        cbKeepSourceOrder.addChangeListener(e -> keepSourceOrderInBatchTab.setSelected(cbKeepSourceOrder.isSelected()));
 
         tab.add(wrapper, BorderLayout.CENTER);
+
+        useBatchQuery.addChangeListener(e -> {
+            inputColumn.setEnabled(!useBatchQuery.isSelected());
+            cbStopOnFailure.setEnabled(!useBatchQuery.isSelected());
+            cbKeepSourceOrder.setEnabled(!useBatchQuery.isSelected());
+        });
         return tab;
     }
     private void addLabeledComponent(final JPanel container, final String label,
@@ -167,27 +200,27 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
      * @return script editor page.
      */
     private JComponent createScriptTab() {
-        final JSplitPane fv = createFlowVariablesNodesAndRels();
+        final JPanel scriptPanel = createScriptPanel();
+        final JSplitPane fv = createFlowVariablesNodesAndRels(scriptEditor);
 
         final JPanel p = new JPanel(new BorderLayout());
-        p.add(createRefreshButton(), BorderLayout.NORTH);
         p.add(fv, BorderLayout.CENTER);
 
         final JSplitPane topPanel = createSplitPane(JSplitPane.HORIZONTAL_SPLIT, 0.3);
         topPanel.setLeftComponent(p);
-        topPanel.setRightComponent(createScriptPanel());
+        topPanel.setRightComponent(scriptPanel);
 
         final JSplitPane vertical = createSplitPane(JSplitPane.VERTICAL_SPLIT, 0.67);
         vertical.setTopComponent(topPanel);
-        vertical.setBottomComponent(createFunctions());
+        vertical.setBottomComponent(createFunctions(scriptEditor));
 
         return vertical;
     }
     private JPanel createScriptPanel() {
         //use JSON
-        final JPanel useJsonOutputPane = new JPanel(new BorderLayout(5, 5));
-        useJsonOutputPane.add(new JLabel("Use JSON output"), BorderLayout.WEST);
-        useJsonOutputPane.add(useJsonOutput, BorderLayout.CENTER);
+        final JPanel useJsonOutputPane = new JPanel(new GridBagLayout());
+        final JCheckBox cbUseJsonOutput = createCheckBoxFromButtonModel(useJsonOutput);
+        addLabeledComponent(useJsonOutputPane,USE_JSON, cbUseJsonOutput,0);
 
         //stop on failure
         final JPanel stopOnFailurePane = new JPanel(new BorderLayout(5, 5));
@@ -212,6 +245,172 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         return scriptPanel;
     }
 
+    private JComponent createBatchTab() {
+        // Batch script editor
+        this.batchScriptEditor = createScriptEditor();
+        final JScrollPane batchScriptSP = new JScrollPane(batchScriptEditor,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        useBatchQuery.addChangeListener(e -> batchScriptEditor.setEnabled(useBatchQuery.isSelected()));
+
+        final JSplitPane leftPanel = createSplitPane(JSplitPane.VERTICAL_SPLIT, 0.3);
+        leftPanel.setTopComponent(createSettingsPanel());
+        leftPanel.setBottomComponent(createFlowVariablesNodesAndRels(batchScriptEditor));
+
+        final JSplitPane topPanel = createSplitPane(JSplitPane.HORIZONTAL_SPLIT, 0.35);
+        topPanel.setTopComponent(leftPanel);
+        topPanel.setBottomComponent(batchScriptSP);
+
+        final JSplitPane batchTab = createSplitPane(JSplitPane.VERTICAL_SPLIT, 0.78);
+        batchTab.setTopComponent(topPanel);
+        batchTab.setBottomComponent(createBottomPanelInBatchTab());
+
+        return batchTab;
+    }
+
+    private JPanel createSettingsPanel() {
+        final JPanel settingsWrapper = new JPanel(new FlowLayout(FlowLayout.LEADING));
+        final JPanel settingsPanel = new JPanel(new GridBagLayout());
+        settingsWrapper.add(settingsPanel);
+
+        // Use batch script
+        final JCheckBox cbUseBatch = createCheckBoxFromButtonModel(useBatchQuery);
+        addLabeledComponent(settingsPanel, USE_BATCH, cbUseBatch, 0);
+
+        //use JSON
+        final JCheckBox cbUseJsonOutput = createCheckBoxFromButtonModel(useJsonOutput);
+        addLabeledComponent(settingsPanel, USE_JSON, cbUseJsonOutput,1);
+
+        // Stop on failure
+        final JCheckBox cbStopOnFailure = createCheckBoxFromButtonModel(stopInQueryFailureInBatchTab);
+        addLabeledComponent(settingsPanel, STOP_ON_QUERY_FAILURE, cbStopOnFailure,2);
+        cbStopOnFailure.addChangeListener(e -> stopInQueryFailure.setSelected(cbStopOnFailure.isSelected()));
+
+        // Keep original row order
+        final JCheckBox cbKeepSourceOrder = createCheckBoxFromButtonModel(keepSourceOrderInBatchTab);
+        addLabeledComponent(settingsPanel, KEEP_ORIGIN_SOURCE_ROWS_ORDER, cbKeepSourceOrder, 3);
+        cbKeepSourceOrder.addChangeListener(e -> keepSourceOrder.setSelected(cbKeepSourceOrder.isSelected()));
+
+        // Name for batch parameter
+        this.batchParameterName = createScriptEditor();
+        final JScrollPane spBNV = new JScrollPane(batchParameterName,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        addLabeledComponent(settingsPanel, BATCH_PARAMETER_NAME, spBNV, 4);
+
+        useBatchQuery.addChangeListener(e -> {
+            if (useInputTable){
+                cbUseJsonOutput.setEnabled(useBatchQuery.isSelected());
+                cbStopOnFailure.setEnabled(useBatchQuery.isSelected());
+                cbKeepSourceOrder.setEnabled(useBatchQuery.isSelected());
+                batchParameterName.setEnabled(useBatchQuery.isSelected());
+            }
+        });
+
+        return settingsWrapper;
+    }
+
+    private JSplitPane createBottomPanelInBatchTab(){
+        final JPanel batchPatternsPanel = new JPanel(new BorderLayout());
+        batchPatternsPanel.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Batch Patterns"));
+        final JPanel functionPanel = new JPanel(new BorderLayout());
+        functionPanel.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Functions"));
+        final JPanel patternFunctionPanel = new JPanel(new BorderLayout());
+        patternFunctionPanel.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED)));
+        final JPanel columnListPanel = new JPanel(new BorderLayout());
+        columnListPanel.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Column List"));
+
+        descriptionArea = createTextAreaWithoutMinSize();
+        descriptionArea.setBackground(batchPatternsPanel.getBackground());
+        descriptionArea.setEditable(false);
+        descriptionArea.setLineWrap(true);
+
+        // batch patterns
+        settingsJList(
+                batchPatterns,
+                new OnClickInserter<>(batchPatterns, v -> insertToScript(v.getScript(), batchScriptEditor)),
+                e -> {
+                    final int index = batchPatterns.getSelectedIndex();
+                    if (index > -1) {
+                        final BatchPattern el = batchPatterns.getModel().getElementAt(index);
+                        descriptionArea.setText(buildBatchPatternDescription(el));
+                    }
+                },
+                new BatchNamedValueRenderer()
+        );
+
+        // functions
+        JList<FunctionDesc> functionList = new JList<>(functions.getModel());
+        settingsJList(
+                functionList,
+                new OnClickInserter<>(functionList,
+                        v -> {
+                            if (useInputTable) {
+                                insertToScript(v.getName(), batchScriptEditor);
+                            }
+                        }),
+                e -> {
+                    final int index = functionList.getSelectedIndex();
+                    if (index > -1 && useInputTable) {
+                        final FunctionDesc el = functionList.getModel().getElementAt(index);
+                        descriptionArea.setText(buildFunctionDescription(el));
+                    }
+                },
+                new NamedValueRenderer()
+        );
+
+        // inputColumns
+        settingsJList(
+                inputColumnsJList,
+                new OnClickInserter<>(inputColumnsJList, v -> insertToScript(v, batchScriptEditor)),
+                e -> {},
+                new StringRenderer()
+        );
+
+        batchPatternsPanel.add(new JScrollPane(batchPatterns));
+        functionPanel.add(new JScrollPane(functionList));
+        patternFunctionPanel.add(batchPatternsPanel, BorderLayout.WEST);
+        patternFunctionPanel.add(functionPanel);
+
+        columnListPanel.add(new JScrollPane(inputColumnsJList));
+
+        final JSplitPane pfDesk = createSplitPane(JSplitPane.HORIZONTAL_SPLIT, 0.5);
+        pfDesk.setTopComponent(patternFunctionPanel);
+        pfDesk.setBottomComponent(descriptionArea);
+
+        final JSplitPane panel = createSplitPane(JSplitPane.HORIZONTAL_SPLIT, 0.9);
+        panel.setTopComponent(pfDesk);
+        panel.setBottomComponent(columnListPanel);
+
+        useBatchQuery.addChangeListener(e -> {
+            if (useInputTable){
+                batchPatterns.setEnabled(useBatchQuery.isSelected());
+                inputColumnsJList.setEnabled(useBatchQuery.isSelected());
+                functionList.setEnabled(useBatchQuery.isSelected());
+            } else {
+                functionList.setEnabled(true);
+            }
+        });
+
+        return panel;
+    }
+
+    private <T> void settingsJList(JList<T> list,
+                                   MouseListener inserter,
+                                   ListSelectionListener listener,
+                                   ListCellRenderer<? super T> cellRenderer){
+        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        list.addMouseListener(inserter);
+        list.getSelectionModel().addListSelectionListener(listener);
+        list.setCellRenderer(cellRenderer);
+    }
+
+    private JCheckBox createCheckBoxFromButtonModel(ButtonModel buttonModel) {
+        JCheckBox checkBox = new JCheckBox();
+        checkBox.setModel(buttonModel);
+        return checkBox;
+    }
+
     private JPanel createRefreshButton() {
         final ImageIcon icon = createRefreshIcon();
         final JButton b = new JButton();
@@ -231,6 +430,15 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         final JPanel p = new JPanel(new BorderLayout());
         p.add(b, BorderLayout.EAST);
         p.setBorder(new EmptyBorder(5, 5, 5, 5));
+
+        useBatchQuery.addChangeListener(e -> {
+            if (useInputTable) {
+                b.setEnabled(useBatchQuery.isSelected());
+            } else {
+                b.setEnabled(true);
+            }
+        });
+
         return p;
     }
     /**
@@ -240,16 +448,20 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
     protected ImageIcon createRefreshIcon() {
         return UiUtils.createRefreshIcon();
     }
-    private JSplitPane createFlowVariablesNodesAndRels() {
-        final JSplitPane sp = createSplitPane(JSplitPane.VERTICAL_SPLIT, 0.1);
-        sp.setTopComponent(createFlowVariables());
+    private JSplitPane createFlowVariablesNodesAndRels(JTextArea scriptEditor) {
+        final JSplitPane fvAndReButton = createSplitPane(JSplitPane.HORIZONTAL_SPLIT, 0.9);
+        fvAndReButton.setTopComponent(createFlowVariables(scriptEditor));
+        fvAndReButton.setBottomComponent(createRefreshButton());
 
         //nodes and relationships
         final JSplitPane nodesAndRel = createSplitPane(JSplitPane.VERTICAL_SPLIT, 0.5);
-        nodesAndRel.setTopComponent(createNodes());
-        nodesAndRel.setBottomComponent(createRelationships());
+        nodesAndRel.setTopComponent(createNodes(scriptEditor));
+        nodesAndRel.setBottomComponent(createRelationships(scriptEditor));
 
+        final JSplitPane sp = createSplitPane(JSplitPane.VERTICAL_SPLIT, 0.2);
+        sp.setTopComponent(fvAndReButton);
         sp.setBottomComponent(nodesAndRel);
+
         return sp;
     }
 
@@ -259,20 +471,23 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         sp.setDividerLocation(dividerPosition);
         return sp;
     }
-    private JSplitPane createNodes() {
-        return createNamedWithPropertiesComponent(nodes, nodeProperties, "Node labels",
-                "Node properties",
-                v -> insertToScript("(:" + v.getName() + ")"));
+    private JSplitPane createNodes(JTextArea scriptEditor) {
+        return createNamedWithPropertiesComponent(
+                new JList<>(nodes.getModel()), nodeProperties,
+                "Node labels", "Node properties",
+                v -> insertToScript(v.getName(), scriptEditor), scriptEditor);
     }
-    private JSplitPane createRelationships() {
-        return createNamedWithPropertiesComponent(relationships, relationshipsProperties,
+    private JSplitPane createRelationships(JTextArea scriptEditor) {
+        return createNamedWithPropertiesComponent(
+                new JList<>(relationships.getModel()), relationshipsProperties,
                 "Relationship labels", "Relationship properties",
-                v -> insertToScript("-[:" + v.getName() + "]-"));
+                v -> insertToScript(v.getName(), scriptEditor), scriptEditor);
     }
 
     private JSplitPane createNamedWithPropertiesComponent(final JList<NamedWithProperties> named,
             final DefaultListModel<String> propsOfNamed, final String title,
-            final String propertiesTitle, final ValueInsertHandler<NamedWithProperties> handler) {
+            final String propertiesTitle, final ValueInsertHandler<NamedWithProperties> handler,
+            JTextArea scriptEditor) {
         final JSplitPane p = createSplitPane(JSplitPane.HORIZONTAL_SPLIT, 0.5);
 
         final JPanel nodesContainer = new JPanel(new BorderLayout());
@@ -299,21 +514,42 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         nodesContainer.add(new JScrollPane(named));
         p.setLeftComponent(nodesContainer);
 
-        final JPanel props = createTitledList(propertiesTitle, propsOfNamed, v -> insertToScript(v));
+        final JPanel props = createTitledList(propertiesTitle, propsOfNamed, v -> insertToScript(v, scriptEditor));
         p.setRightComponent(props);
+
+        useBatchQuery.addChangeListener(e -> {
+            if (useInputTable) {
+                named.setEnabled(useBatchQuery.isSelected());
+            } else {
+                named.setEnabled(true);
+            }
+        });
         return p;
     }
 
-    private JComponent createFlowVariables() {
-        final JPanel p = new JPanel(new BorderLayout());
-        p.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Flow variables"));
+    private JComponent createFlowVariables(JTextArea scriptEditor) {
+        final JList<FlowVariable> flowVariableJList = new JList<>(flowVariables.getModel());
+        final JPanel flowVariablesPanel = new JPanel(new BorderLayout());
+        flowVariablesPanel.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Flow variables"));
 
-        flowVariables.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        flowVariables.addMouseListener(new OnClickInserter<FlowVariable>(
-                flowVariables, v -> insertToScript("${{" + v.getName() + "}}")));
-        flowVariables.setCellRenderer(new FlowVariableListCellRenderer());
-        p.add(new JScrollPane(flowVariables), BorderLayout.CENTER);
-        return p;
+
+        settingsJList(
+                flowVariableJList,
+                new OnClickInserter<>(
+                        flowVariableJList, v -> insertToScript("${{" + v.getName() + "}}", scriptEditor)),
+                e -> {},
+                new FlowVariableListCellRenderer()
+        );
+        flowVariablesPanel.add(new JScrollPane(flowVariableJList), BorderLayout.CENTER);
+
+        useBatchQuery.addChangeListener(e -> {
+            if (useInputTable) {
+                flowVariableJList.setEnabled(useBatchQuery.isSelected());
+            } else {
+                flowVariableJList.setEnabled(true);
+            }
+        });
+        return flowVariablesPanel;
     }
     private JPanel createTitledList(final String title,
             final DefaultListModel<String> listModel, final ValueInsertHandler<String> h) {
@@ -330,9 +566,17 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         final JList<T> list = new JList<T>(listModel);
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.addMouseListener(new OnClickInserter<T>(list, h));
+
+        useBatchQuery.addChangeListener(e -> {
+            if (useInputTable) {
+                list.setEnabled(useBatchQuery.isSelected());
+            } else {
+                list.setEnabled(true);
+            }
+        });
         return list;
     }
-    private JPanel createFunctions() {
+    private JPanel createFunctions(JTextArea scriptEditor) {
         final JPanel p = new JPanel(new BorderLayout());
         p.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Functions"));
 
@@ -342,19 +586,25 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         funcDescription.setLineWrap(true);
         p.add(funcDescription, BorderLayout.CENTER);
 
-        functions.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        functions.addMouseListener(new OnClickInserter<FunctionDesc>(functions,
-                v -> insertToScript(v.getName())));
-        functions.getSelectionModel().addListSelectionListener(e -> {
-            final int index = functions.getSelectedIndex();
-            if (index > -1) {
-                final FunctionDesc el = functions.getModel().getElementAt(index);
-                funcDescription.setText(buildFunctionDescription(el));
-            }
-        });
-
-        functions.setCellRenderer(new NamedValueRenderer());
-        p.add(new JScrollPane(functions), BorderLayout.WEST);
+        JList<FunctionDesc> functionList = new JList<>(functions.getModel());
+        settingsJList(
+                functionList,
+                new OnClickInserter<FunctionDesc>(functionList,
+                        v -> {
+                            if (!useInputTable) {
+                                insertToScript(v.getName(), scriptEditor);
+                            }
+                        }),
+                e -> {
+                    final int index = functionList.getSelectedIndex();
+                    if (index > -1 && !useInputTable) {
+                        final FunctionDesc el = functionList.getModel().getElementAt(index);
+                        funcDescription.setText(buildFunctionDescription(el));
+                    }
+                },
+                new NamedValueRenderer()
+        );
+        p.add(new JScrollPane(functionList), BorderLayout.WEST);
 
         return p;
     }
@@ -363,6 +613,14 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         sb.append(v.getSignature()).append("\n\n");
         sb.append("Description:\n");
         sb.append(v.getDescription());
+        return sb.toString();
+    }
+
+    private String buildBatchPatternDescription(final BatchPattern v) {
+        final StringBuilder sb = new StringBuilder("Description:\n");
+        sb.append(v.getDescription()).append("\n\n");
+        sb.append("Script:\n");
+        sb.append(v.getScript());
         return sb.toString();
     }
 
@@ -424,7 +682,7 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
             }
         };
     }
-    private void insertToScript(final String text) {
+    private void insertToScript(final String text, JTextArea scriptEditor) {
         //possible remove selection
         final int selStart = scriptEditor.getSelectionStart();
         final int selEnd = scriptEditor.getSelectionEnd();
@@ -465,7 +723,7 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
 
         try {
             final ReaderConfig model = new ReaderConfigSerializer().read(settings);
-            initFromModel(model, connectorPort.getPortData(), getStringColumns(tableInput));
+            initFromModel(model, connectorPort.getPortData(), getStringColumns(tableInput), getAllColumns(tableInput));
         } catch (final Exception e) {
             getLogger().error(e);
             throw new NotConfigurableException(e.getMessage(), e);
@@ -482,6 +740,15 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
                 columns.add(r.getName());
             }
         }
+        return columns;
+    }
+
+    private List<String> getAllColumns(final DataTableSpec tableSpecs) {
+        if (tableSpecs == null) {
+            return List.of();
+        }
+        final List<String> columns = new LinkedList<>();
+        tableSpecs.stream().forEach(dcs -> columns.add(dcs.getName()));
         return columns;
     }
 
@@ -505,22 +772,23 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
 
     /**
      * @param model model.
-     * @param inputColumns string columns from input table.
+     * @param inputStringColumns string columns from input table.
      * @throws Exception
      */
     private void initFromModel(final ReaderConfig model, final ConnectorConfig data,
-            final List<String> inputColumns) {
+            final List<String> inputStringColumns, final List<String> inputAllColumns) {
         this.connector = data;
         this.oldModel = model;
 
         scriptEditor.setText(model.getScript());
-        useJsonOutput.setSelected(model.isUseJson());
         inputColumn.removeAllItems();
         funcDescription.setText("");
         model(flowVariables).clear();
 
-        this.useInputTable = inputColumns != null;
-        if (useInputTable) {
+        this.useInputTable = inputStringColumns != null;
+        if (useInputTable && model.isUseBatch()) {
+            setSelected(BATCH_TAB);
+        } else if (useInputTable) {
             setSelected(INPUT_COLUMN_TAB);
         } else {
             setSelected(SCRIPT_TAB);
@@ -528,37 +796,41 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
 
         setEnabled(!useInputTable, SCRIPT_TAB);
         setEnabled(useInputTable, INPUT_COLUMN_TAB);
+        setEnabled(useInputTable, BATCH_TAB);
 
+        reloadMetadata();
         if (useInputTable) {
-            //clear all script tab UI
-            nodeProperties.clear();
-            relationshipsProperties.clear();
-            funcDescription.setText("");
-            applyMetadata(model.getMetaData());
-
             //init input table UI.
             final DefaultComboBoxModel<String> boxModel = (DefaultComboBoxModel<String>) inputColumn.getModel();
-            final List<String> all = new LinkedList<String>(inputColumns);
+            final List<String> all = new LinkedList<String>(inputStringColumns);
             Collections.sort(all);
 
             for (final String c : all) {
                 boxModel.addElement(c);
             }
 
-            if (model.getInputColumn() != null && inputColumns.contains(model.getInputColumn())) {
+            if (model.getInputColumn() != null && inputStringColumns.contains(model.getInputColumn())) {
                 inputColumn.setSelectedItem(model.getInputColumn());
             }
-        } else {
-            reloadMetadata();
 
-            final DefaultListModel<FlowVariable> flowVariablesModel = model(flowVariables);
-            final Map<String, FlowVariable> vars = ModelUtils.getAvailableFlowVariables(this);
-            for (final FlowVariable var : vars.values()) {
-                flowVariablesModel.addElement(var);
-            }
+            useBatchQuery.setSelected(model.isUseBatch());
+            batchParameterName.setText(model.getBatchParameterName());
+            batchScriptEditor.setText(model.getBatchScript());
+            batchPatterns.setListData(BatchReaderPattern.values());
+            this.inputColumnsJList.setListData(inputAllColumns.toArray(String[]::new));
         }
+
+        final DefaultListModel<FlowVariable> flowVariablesModel = model(flowVariables);
+        final Map<String, FlowVariable> vars = ModelUtils.getAvailableFlowVariables(this);
+        for (final FlowVariable var : vars.values()) {
+            flowVariablesModel.addElement(var);
+        }
+
+        useJsonOutput.setSelected(model.isUseJson());
         stopInQueryFailure.setSelected(model.isStopOnQueryFailure());
+        stopInQueryFailureInBatchTab.setSelected(model.isStopOnQueryFailure());
         keepSourceOrder.setSelected(model.isKeepSourceOrder());
+        keepSourceOrderInBatchTab.setSelected(model.isKeepSourceOrder());
     }
 
     private void reloadMetadata() {
@@ -618,10 +890,13 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         final ReaderConfig model = oldModel == null ? new ReaderConfig() : oldModel.clone();
         if (useInputTable) {
             final String column = (String) inputColumn.getSelectedItem();
-            if (column == null) {
+            if (column == null && !useBatchQuery.isSelected()) {
                 getLogger().warn("Not input column selected");
             }
             model.setInputColumn(column);
+            model.setUseBatch(useBatchQuery.isSelected());
+            model.setBatchScript(batchScriptEditor.getText());
+            model.setBatchParameterName(batchParameterName.getText());
         } else {
             final String script = scriptEditor.getText();
             if (script == null || script.trim().isEmpty()) {
@@ -629,8 +904,8 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
             }
 
             model.setScript(script);
-            model.setUseJson(this.useJsonOutput.isSelected());
         }
+        model.setUseJson(this.useJsonOutput.isSelected());
         model.setStopOnQueryFailure(stopInQueryFailure.isSelected());
         model.setKeepSourceOrder(keepSourceOrder.isSelected());
         return model;
