@@ -4,11 +4,15 @@
 package se.redfield.knime.neo4j.db;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import java.util.stream.Collectors;
 import org.knime.core.node.ExecutionContext;
 import org.neo4j.driver.AuthToken;
 import org.neo4j.driver.AuthTokens;
@@ -41,20 +45,39 @@ public class Neo4jSupport {
         super();
         this.config = config;
     }
+
     public static List<Record> runRead(final Driver driver, final String query, final RollbackListener l, final String dataBase) {
-        return runWithSession(driver, s ->  runInReadOnlyTransaction(s, query, l), dataBase);
+        return runRead(driver, query, l, dataBase, Map.of());
     }
+    public static List<Record> runRead(final Driver driver, final String query, final RollbackListener l, final String dataBase, final Map<String, Object> parameters) {
+        return runWithSession(driver, s ->  runInReadOnlyTransaction(s, query, l, parameters), dataBase);
+    }
+
     /**
      * @param session session.
      * @param query query.
      * @param listener rollback listener.
      * @return execution result.
      */
+    public static List<Record> runInReadOnlyTransaction(final Session session,
+                                                        final String query,
+                                                        final RollbackListener listener) {
+
+        return runInReadOnlyTransaction(session, query, listener, Map.of());
+    }
+
+    /**
+     * @param session session.
+     * @param query query.
+     * @param listener rollback listener.
+     * @param parameters parameters.
+     * @return execution result.
+     */
     public static List<Record> runInReadOnlyTransaction(final Session session, final String query,
-            final RollbackListener listener) {
+            final RollbackListener listener, final Map<String, Object> parameters) {
         final Transaction tx = session.beginTransaction();
         try {
-            final Result run = tx.run(query);
+            final Result run = tx.run(query, parameters);
             final List<Record> list = run.list();
 
             final ResultSummary summary = run.consume();
@@ -220,17 +243,39 @@ public class Neo4jSupport {
         return null;
     }
     private Void loadFunctions(final Session s, final List<FunctionDesc> functions) {
-        final List<Record> result = s.readTransaction(tx -> tx.run(
+        final List<Record> dbmsFunctions = s.readTransaction(tx -> tx.run(
                 "call dbms.functions()").list());
-        for (final Record r : result) {
+
+        putToFunctions(dbmsFunctions, functions);
+
+        try {
+            final List<Record> dbmsProcedures = s.readTransaction(tx -> tx.run(
+                    "call dbms.procedures()").list());
+
+            putToFunctions(dbmsProcedures, functions);
+        } catch (Exception ignored) {}
+
+        try {
+            final List<Record> gdsList = s.readTransaction(tx -> tx.run(
+                    "call gds.list").list());
+
+            putToFunctions(gdsList, functions);
+        } catch (Exception ignored) {}
+
+        functions.sort(Comparator.comparing(FunctionDesc::getName));
+        return null;
+    }
+
+    private void putToFunctions(final List<Record> records, final List<FunctionDesc> functions) {
+        for (final Record r : records) {
             final FunctionDesc f = new FunctionDesc();
             f.setName(r.get("name").asString());
             f.setSignature(r.get("signature").asString());
             f.setDescription(r.get("description").asString());
             functions.add(f);
         }
-        return null;
     }
+
     public ConnectorConfig getConfig() {
         return config;
     }

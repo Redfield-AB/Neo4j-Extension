@@ -31,6 +31,9 @@ public class ReaderConfigSerializer {
     private static final String RELATIONSHIP_TYPES_KEY = "relationships";
     private static final String NODE_LABELS_KEY = "labels";
     private static final String FUNCTIONS_KEY = "functions";
+    private static final String USE_BATCH_KEY = "useBatch";
+    private static final String BATCH_KEY = "batchScript";
+    private static final String BATCH_PARAMETER_NAME_KEY = "batchParameterName";
 
     /**
      * Default constructor.
@@ -45,6 +48,9 @@ public class ReaderConfigSerializer {
         settings.addString(INPUT_COLUMN_KEY, config.getInputColumn());
         settings.addBoolean(STOP_ON_QUERY_FAILURE_KEY, config.isStopOnQueryFailure());
         settings.addBoolean(KEEP_SOURCE_ROWS_ORDER, config.isKeepSourceOrder());
+        settings.addBoolean(USE_BATCH_KEY, config.isUseBatch());
+        settings.addString(BATCH_KEY, config.getBatchScript());
+        settings.addString(BATCH_PARAMETER_NAME_KEY, config.getBatchParameterName());
 
         saveNamedWithProperties(settings, NODE_LABELS_KEY, config.getNodeLabels());
         saveNamedWithProperties(settings, RELATIONSHIP_TYPES_KEY, config.getRelationshipTypes());
@@ -67,6 +73,15 @@ public class ReaderConfigSerializer {
         }
         if (settings.containsKey(KEEP_SOURCE_ROWS_ORDER)) {
             config.setKeepSourceOrder(settings.getBoolean(KEEP_SOURCE_ROWS_ORDER));
+        }
+        if (settings.containsKey(BATCH_KEY)) {
+            config.setBatchScript(settings.getString(BATCH_KEY));
+        }
+        if (settings.containsKey(USE_BATCH_KEY)) {
+            config.setUseBatch(settings.getBoolean(USE_BATCH_KEY));
+        }
+        if (settings.containsKey(BATCH_PARAMETER_NAME_KEY)) {
+            config.setBatchParameterName(settings.getString(BATCH_PARAMETER_NAME_KEY));
         }
 
         config.setNodeLabels(loadNamedWithPropertiesSafely(settings, NODE_LABELS_KEY));

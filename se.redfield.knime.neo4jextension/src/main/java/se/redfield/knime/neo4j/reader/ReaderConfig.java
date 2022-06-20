@@ -15,11 +15,14 @@ import se.redfield.knime.neo4j.db.LabelsAndFunctions;
  */
 public class ReaderConfig implements Cloneable {
     private String script;
-    private boolean useJson = true; //default true
+    private String batchScript;
+    private String batchParameterName = "batch";
     private String inputColumn;
     private LabelsAndFunctions metaData = new LabelsAndFunctions();
+    private boolean useJson = true; //default true
     private boolean stopOnQueryFailure;
     private boolean keepSourceOrder = true;
+    private boolean useBatch;
 
     public ReaderConfig() {
         super();
@@ -75,6 +78,24 @@ public class ReaderConfig implements Cloneable {
     }
     public LabelsAndFunctions getMetaData() {
         return metaData;
+    }
+    public String getBatchScript() {
+        return batchScript;
+    }
+    public void setBatchScript(String batchScript) {
+        this.batchScript = batchScript;
+    }
+    public String getBatchParameterName() {
+        return batchParameterName;
+    }
+    public void setBatchParameterName(String batchParameterName) {
+        this.batchParameterName = batchParameterName;
+    }
+    public boolean isUseBatch() {
+        return useBatch;
+    }
+    public void setUseBatch(boolean useBatch) {
+        this.useBatch = useBatch;
     }
 
     @Override

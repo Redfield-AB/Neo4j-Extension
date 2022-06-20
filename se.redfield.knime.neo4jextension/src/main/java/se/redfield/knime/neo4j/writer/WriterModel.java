@@ -6,13 +6,13 @@ package se.redfield.knime.neo4j.writer;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
-
 import javax.json.Json;
 import javax.json.stream.JsonGenerator;
 import javax.naming.OperationNotSupportedException;
-
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
@@ -53,7 +53,6 @@ import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Transaction;
-
 import se.redfield.knime.neo4j.async.AsyncRunner;
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
@@ -127,7 +126,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
         }
 
         final DataTableSpec spec;
-        if (inputTableSpec != null) {
+        if (inputTableSpec != null && !config.isUseBatch()) {
             spec = ModelUtils.createSpecWithAddedJsonColumn(
                     inputTableSpec, config.getInputColumn());
         } else {
@@ -203,8 +202,15 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
         final ContextListeningDriver driver = neo4j.createDriver(exec);
         try {
             if (inputTable != null) {
-                if (config.isUseAsync()) {
+                if (config.isUseAsync() && config.isUseBatch()) {
+                    final String script = ModelUtils.insertFlowVariables(config.getBatchScript(), this);
+                    executeBatchScriptAsync(inputTable, script, driver, neo4j, out);
+                } else if (config.isUseAsync() && !config.isUseBatch()){
                     executeFromTableSourceAsync(inputTable, driver, neo4j, out);
+                } else if (!config.isUseAsync() && config.isUseBatch()) {
+                    Map<String, Object> parameters = ModelUtils.inputTableToMap(inputTable, config.getBatchParameterName());
+                    final String script = ModelUtils.insertFlowVariables(config.getBatchScript(), this);
+                    executeBatchScriptSync(driver, script, parameters, out);
                 } else {
                     executeFromTableSourceSync(inputTable, driver, out);
                 }
@@ -295,6 +301,37 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
             session.close();
         }
     }
+
+    private void executeBatchScriptSync(final ContextListeningDriver driver,
+                                          final String batchScript,
+                                          final Map<String, Object> parameters,
+                                          final RowOutput output) throws Exception {
+        final Session session = driver.getDriver().session();
+        final Transaction tx = session.beginTransaction();
+
+        List<Record> records;
+        String json;
+        try {
+            final Result run = tx.run(batchScript, parameters);
+            records = run.list();
+
+            json = createSuccessJson(records, new Neo4jDataConverter(driver.getDriver().defaultTypeSystem()));
+            commitAndClose(tx);
+        } catch (final Exception e) {
+            rollbackAndClose(tx);
+
+            if (config.isStopOnQueryFailure()) {
+                throw new Exception(SOME_QUERIES_ERROR);
+            } else {
+                setWarningMessage(SOME_QUERIES_ERROR);
+                json = createErrorJson(e.getMessage());
+            }
+        }
+
+        final DefaultRow row = new DefaultRow(new RowKey("result"), createJsonCell(json));
+        output.push(row);
+    }
+
     private void addResultToOutput(final ScriptExecutionResult res, final RowOutput output,
             final Neo4jDataConverter converter) {
         final List<Record> result = res.recors;
@@ -401,6 +438,66 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
 
         return res;
     }
+
+    private void executeBatchScriptAsync(final RowInputContainer input,
+                                         final String batchScript,
+                                         final ContextListeningDriver driver,
+                                         final Neo4jSupport neo4j,
+                                         final RowOutput output) throws Exception {
+        final long tableSize = input.getRowCount();
+        if (tableSize == 0) {
+            return;
+        }
+
+        final int maxConnectionPoolSize = neo4j.getConfig().getMaxConnectionPoolSize();
+        final int numThreads = Math.max((int) Math.min(maxConnectionPoolSize, tableSize), 1);
+        final boolean stopOnQueryFailure = config.isStopOnQueryFailure();
+
+        //create asynchronous convert DataRow to Map runner
+        final AsyncRunner<DataRow, Map<String, Object>> r = dr -> ModelUtils.dataRowToMap(input.getInput(), dr);
+
+        List<Map<String, Object>> data = new ArrayList<>();
+        final AsyncRunnerLauncher<DataRow, Map<String, Object>> runner
+                = AsyncRunnerLauncher.Builder.<DataRow, Map<String, Object>>newBuilder()
+            .withRunner(r)
+            .withSource(new RowInputIterator(input.getInput()))
+            .withConsumer(data::add)
+            .withNumThreads(numThreads)
+            .withStopOnFailure(stopOnQueryFailure)
+            .withKeepSourceOrder(config.isKeepSourceOrder())
+            .withMaxBufferSize(maxConnectionPoolSize * 2)
+            .build();
+
+        final Session session = driver.getDriver().session();
+        final Transaction tx = session.beginTransaction();
+
+        //run convert DataRow to Map in parallel
+        runner.run();
+
+        List<Record> records;
+        String json;
+        try {
+            final Result run = tx.run(batchScript, Map.of(config.getBatchParameterName(), data));
+            records = run.list();
+            json = createSuccessJson(records, new Neo4jDataConverter(driver.getDriver().defaultTypeSystem()));
+
+            commitAndClose(tx);
+        } catch (final Exception e) {
+            rollbackAndClose(tx);
+
+            if (config.isStopOnQueryFailure()) {
+                throw new Exception(SOME_QUERIES_ERROR);
+            } else {
+                setWarningMessage(SOME_QUERIES_ERROR);
+                json = createErrorJson(e.getMessage());
+            }
+        }
+
+        final DefaultRow row = new DefaultRow(new RowKey("result"), createJsonCell(json));
+        output.push(row);
+    }
+
+
     /**
      * @param tr transaction.
      */
