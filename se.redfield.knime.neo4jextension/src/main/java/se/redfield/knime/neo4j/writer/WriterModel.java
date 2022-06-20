@@ -7,7 +7,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -56,7 +55,6 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.Transaction;
 import se.redfield.knime.neo4j.async.AsyncRunner;
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
-import se.redfield.knime.neo4j.cell.DataCellValueGetter;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.db.ContextListeningDriver;
@@ -205,12 +203,14 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
         try {
             if (inputTable != null) {
                 if (config.isUseAsync() && config.isUseBatch()) {
-                    executeBatchScriptAsync(inputTable, driver, neo4j, out);
+                    final String script = ModelUtils.insertFlowVariables(config.getBatchScript(), this);
+                    executeBatchScriptAsync(inputTable, script, driver, neo4j, out);
                 } else if (config.isUseAsync() && !config.isUseBatch()){
                     executeFromTableSourceAsync(inputTable, driver, neo4j, out);
                 } else if (!config.isUseAsync() && config.isUseBatch()) {
                     Map<String, Object> parameters = ModelUtils.inputTableToMap(inputTable, config.getBatchParameterName());
-                    executeBatchScriptSync(driver, config.getBatchScript(), parameters, out);
+                    final String script = ModelUtils.insertFlowVariables(config.getBatchScript(), this);
+                    executeBatchScriptSync(driver, script, parameters, out);
                 } else {
                     executeFromTableSourceSync(inputTable, driver, out);
                 }
@@ -440,6 +440,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
     }
 
     private void executeBatchScriptAsync(final RowInputContainer input,
+                                         final String batchScript,
                                          final ContextListeningDriver driver,
                                          final Neo4jSupport neo4j,
                                          final RowOutput output) throws Exception {
@@ -476,7 +477,7 @@ public class WriterModel extends NodeModel implements FlowVariablesProvider,
         List<Record> records;
         String json;
         try {
-            final Result run = tx.run(config.getBatchScript(), Map.of(config.getBatchParameterName(), data));
+            final Result run = tx.run(batchScript, Map.of(config.getBatchParameterName(), data));
             records = run.list();
             json = createSuccessJson(records, new Neo4jDataConverter(driver.getDriver().defaultTypeSystem()));
 
