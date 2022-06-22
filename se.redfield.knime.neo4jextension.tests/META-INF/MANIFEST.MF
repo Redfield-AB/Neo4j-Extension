@@ -4,7 +4,7 @@ Bundle-Name: Tests
 Bundle-SymbolicName: se.redfield.knime.neo4jextension.tests
 Bundle-Version: 1.0.1.qualifier
 Automatic-Module-Name: se.redfield.knime.neo4jextension.tests
-Bundle-RequiredExecutionEnvironment: JavaSE-1.8
+Bundle-RequiredExecutionEnvironment: JavaSE-11
 Require-Bundle: se.redfield.knime.neo4jextension;bundle-version="1.0.1",
  org.knime.core,
  org.junit;bundle-version="4.12.0",
