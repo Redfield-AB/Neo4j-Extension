@@ -1,10 +1,11 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Tests
-Bundle-SymbolicName: se.redfield.knime.neo4jextension.tests
+Bundle-SymbolicName: se.redfield.knime.neo4jextension.tests;singleton:=true
 Bundle-Version: 1.0.1.qualifier
 Automatic-Module-Name: se.redfield.knime.neo4jextension.tests
 Bundle-RequiredExecutionEnvironment: JavaSE-11
+Fragment-Host: se.redfield.knime.neo4jextension;bundle-version="1.0.1"
 Require-Bundle: se.redfield.knime.neo4jextension;bundle-version="1.0.1",
  org.knime.core,
  org.junit;bundle-version="4.12.0",
@@ -22,3 +23,4 @@ Require-Bundle: se.redfield.knime.neo4jextension;bundle-version="1.0.1",
  com.google.guava,
  org.knime.time;bundle-version="4.2.0"
 Import-Package: org.apache.xmlbeans
+Bundle-ClassPath: .
