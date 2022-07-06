@@ -19,7 +19,7 @@ import se.redfield.knime.runner.KnimeTestRunner;
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-@RunWith(KnimeTestRunner.class)
+//@RunWith(KnimeTestRunner.class)
 public class Neo4jSupportTest {
     private Driver driver;
     private Neo4jSupport support;
