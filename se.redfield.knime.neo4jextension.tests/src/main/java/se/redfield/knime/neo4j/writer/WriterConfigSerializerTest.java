@@ -10,19 +10,16 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
 
 import se.redfield.knime.neo4j.connector.FunctionDesc;
 import se.redfield.knime.neo4j.connector.NamedWithProperties;
-import se.redfield.knime.runner.KnimeTestRunner;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-@RunWith(KnimeTestRunner.class)
 public class WriterConfigSerializerTest {
     /**
      * Default constructor.

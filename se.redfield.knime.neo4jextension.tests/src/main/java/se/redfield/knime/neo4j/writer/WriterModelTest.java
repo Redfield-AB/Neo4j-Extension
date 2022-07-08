@@ -17,7 +17,6 @@ import javax.json.JsonObject;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataColumnSpecCreator;
 import org.knime.core.data.DataRow;
@@ -41,13 +40,11 @@ import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
 import se.redfield.knime.neo4j.utils.KNimeHelper;
 import se.redfield.knime.neo4j.utils.Neo4jHelper;
-import se.redfield.knime.runner.KnimeTestRunner;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-@RunWith(KnimeTestRunner.class)
 public class WriterModelTest {
     private AccessibleWriterModel model;
 
