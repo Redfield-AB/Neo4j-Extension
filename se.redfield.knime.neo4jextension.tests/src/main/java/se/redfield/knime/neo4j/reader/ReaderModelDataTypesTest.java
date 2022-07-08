@@ -12,7 +12,6 @@ import java.util.List;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.MissingCell;
@@ -27,13 +26,11 @@ import org.knime.core.node.context.ModifiableNodeCreationConfiguration;
 import org.knime.core.node.port.PortObject;
 
 import se.redfield.knime.neo4j.utils.KNimeHelper;
-import se.redfield.knime.runner.KnimeTestRunner;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-@RunWith(KnimeTestRunner.class)
 public class ReaderModelDataTypesTest {
     private ReaderModel model;
 

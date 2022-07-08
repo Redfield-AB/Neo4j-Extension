@@ -7,7 +7,6 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
 import org.knime.core.node.NotConfigurableException;
@@ -15,13 +14,11 @@ import org.knime.core.node.port.PortObjectSpec;
 
 import junit.framework.AssertionFailedError;
 import se.redfield.knime.neo4j.utils.KNimeHelper;
-import se.redfield.knime.runner.KnimeTestRunner;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-@RunWith(KnimeTestRunner.class)
 public class ReaderDialogTest {
     private AccessibleReaderDialog dialog;
 

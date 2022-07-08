@@ -13,16 +13,18 @@ Require-Bundle: org.eclipse.ui,
  org.knime.json;bundle-version="4.1.0"
 Bundle-RequiredExecutionEnvironment: JavaSE-11
 Automatic-Module-Name: com.redfield.ab.knime.neo4jconnector
-Bundle-ClassPath: lib/neo4j-java-driver-4.4.0.jar,
- lib/reactive-streams-1.0.3.jar,
- target/classes/
+Bundle-ClassPath: .,
+ lib/neo4j-java-driver-4.4.0.jar,
+ lib/reactive-streams-1.0.3.jar
 Import-Package: org.apache.commons.lang3.concurrent;version="3.9.0"
 Export-Package: org.neo4j.driver,
  se.redfield.knime.neo4j.async,
+ se.redfield.knime.neo4j.cell,
  se.redfield.knime.neo4j.connector,
  se.redfield.knime.neo4j.db,
  se.redfield.knime.neo4j.json,
  se.redfield.knime.neo4j.model,
  se.redfield.knime.neo4j.reader,
  se.redfield.knime.neo4j.table,
- se.redfield.knime.neo4j.ui
+ se.redfield.knime.neo4j.ui,
+ se.redfield.knime.neo4j.writer

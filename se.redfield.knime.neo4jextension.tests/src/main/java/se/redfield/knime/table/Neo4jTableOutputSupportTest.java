@@ -15,7 +15,6 @@ import java.util.List;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.knime.core.data.DataType;
 import org.knime.core.data.def.StringCell;
 import org.knime.core.data.time.duration.DurationCell;
@@ -32,13 +31,11 @@ import se.redfield.knime.neo4j.db.Neo4jSupport;
 import se.redfield.knime.neo4j.table.DataTypeDetection;
 import se.redfield.knime.neo4j.table.Neo4jTableOutputSupport;
 import se.redfield.knime.neo4j.utils.Neo4jHelper;
-import se.redfield.knime.runner.KnimeTestRunner;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-@RunWith(KnimeTestRunner.class)
 public class Neo4jTableOutputSupportTest {
     private Neo4jTableOutputSupport support;
     private Driver driver;

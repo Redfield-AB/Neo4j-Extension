@@ -10,17 +10,13 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
-
-import se.redfield.knime.runner.KnimeTestRunner;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-@RunWith(KnimeTestRunner.class)
 public class ConnectorConfigSerializerTest {
     /**
      * Default constructor.
