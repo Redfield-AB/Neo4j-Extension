@@ -332,7 +332,7 @@ public class ReaderModelTest {
         setConfigToModel(cfg);
         //should not throw exception
         model.execute(input, KNimeHelper.createExecutionContext(model));
-        assertNotNull(model.getWarning());
+        assertNotNull(model.getWarningMsg());
 
         cfg.setStopOnQueryFailure(true);
         setConfigToModel(cfg);
@@ -362,7 +362,7 @@ public class ReaderModelTest {
         setConfigToModel(cfg);
         //should not throw exception
         model.execute(input, KNimeHelper.createExecutionContext(model));
-        assertEquals(ReaderModel.SOME_QUERIES_ERROR, model.getWarning());
+        assertEquals(ReaderModel.SOME_QUERIES_ERROR, model.getWarningMsg());
 
         cfg.setStopOnQueryFailure(true);
         setConfigToModel(cfg);

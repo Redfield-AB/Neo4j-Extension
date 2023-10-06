@@ -10,14 +10,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
-import javax.json.stream.JsonGenerator;
-
 import org.neo4j.driver.types.Node;
 import org.neo4j.driver.types.Path;
 import org.neo4j.driver.types.Path.Segment;
 import org.neo4j.driver.types.Point;
 import org.neo4j.driver.types.Relationship;
 
+import jakarta.json.stream.JsonGenerator;
 import se.redfield.knime.neo4j.db.ConvertedValueConsumer;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 

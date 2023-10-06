@@ -12,8 +12,6 @@ import static se.redfield.knime.neo4j.utils.KNimeHelper.createConnectorSpec;
 import java.util.LinkedList;
 import java.util.List;
 
-import javax.json.JsonObject;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -35,6 +33,7 @@ import org.knime.core.node.context.ModifiableNodeCreationConfiguration;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 
+import jakarta.json.JsonObject;
 import junit.framework.AssertionFailedError;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.connector.ConnectorSpec;
@@ -192,7 +191,7 @@ public class WriterModelTest {
         final PortObject[] input = {null, connector};
         //should not throw exception
         final PortObject[] out = model.execute(input, createExecutionContext());
-        assertNotNull(model.getWarning());
+        assertNotNull(model.getWarningMsg());
 
         assertEquals(connector, out[1]);
         assertTrue(out[0] instanceof DataTable);
@@ -362,7 +361,7 @@ public class WriterModelTest {
         };
 
         final PortObject[] out = model.execute(input, createExecutionContext());
-        assertNotNull(model.getWarning());
+        assertNotNull(model.getWarningMsg());
 
         //test result table
         final List<DataRow> rows = read((DataTable) out[0]);

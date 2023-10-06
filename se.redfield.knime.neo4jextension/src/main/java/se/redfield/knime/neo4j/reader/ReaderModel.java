@@ -6,16 +6,11 @@ package se.redfield.knime.neo4j.reader;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-import java.util.stream.Collectors;
-import javax.json.Json;
-import javax.json.stream.JsonGenerator;
 import javax.naming.OperationNotSupportedException;
 
 import org.knime.core.data.DataCell;
@@ -65,9 +60,10 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.util.Pair;
 
+import jakarta.json.Json;
+import jakarta.json.stream.JsonGenerator;
 import se.redfield.knime.neo4j.async.AsyncRunner;
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
-import se.redfield.knime.neo4j.cell.DataCellValueGetter;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.db.ContextListeningDriver;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;

@@ -195,7 +195,7 @@ public class ReaderModelStreamableTest {
         setConfigToModel(cfg);
         //should not throw exception
         execute(input);
-        assertEquals(ReaderModel.SOME_QUERIES_ERROR, model.getWarning());
+        assertEquals(ReaderModel.SOME_QUERIES_ERROR, model.getWarningMsg());
 
         cfg.setStopOnQueryFailure(true);
         setConfigToModel(cfg);

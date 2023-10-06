@@ -34,7 +34,7 @@ public class AccessibleWriterModel extends WriterModel {
     public void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         super.loadValidatedSettingsFrom(settings);
     }
-    public String getWarning() {
+    public String getWarningMsg() {
         return getWarningMessage();
     }
 }

@@ -6,11 +6,10 @@ package se.redfield.knime.neo4j.json;
 import java.io.StringWriter;
 import java.util.List;
 
-import javax.json.Json;
-import javax.json.stream.JsonGenerator;
-
 import org.neo4j.driver.Record;
 
+import jakarta.json.Json;
+import jakarta.json.stream.JsonGenerator;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 
 /**
