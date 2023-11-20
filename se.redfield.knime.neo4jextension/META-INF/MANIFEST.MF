@@ -2,21 +2,20 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Neo4jconnector
 Bundle-SymbolicName: se.redfield.knime.neo4jextension;singleton:=true
-Bundle-Version: 1.0.1.qualifier
+Bundle-Version: 1.0.2.qualifier
 Bundle-Vendor: REDFIELD
 Require-Bundle: org.eclipse.ui,
  org.eclipse.core.runtime,
- org.knime.base;bundle-version="4.1.0",
- org.knime.workbench;bundle-version="4.1.0",
- org.knime.workbench.repository;bundle-version="4.1.0",
- org.knime.time;bundle-version="4.1.0",
- org.knime.json;bundle-version="4.1.0"
-Bundle-RequiredExecutionEnvironment: JavaSE-11
+ org.knime.base;bundle-version="[5.1.0,6.0.0)",
+ org.knime.workbench;bundle-version="[5.1.0,6.0.0)",
+ org.knime.workbench.repository;bundle-version="[5.1.0,6.0.0)",
+ org.knime.time;bundle-version="[5.1.0,6.0.0)",
+ org.knime.json;bundle-version="[5.1.0,6.0.0)"
+Bundle-RequiredExecutionEnvironment: JavaSE-17
 Automatic-Module-Name: com.redfield.ab.knime.neo4jconnector
 Bundle-ClassPath: .,
  lib/neo4j-java-driver-4.4.0.jar,
  lib/reactive-streams-1.0.3.jar
-Import-Package: org.apache.commons.lang3.concurrent;version="3.9.0"
 Export-Package: org.neo4j.driver,
  se.redfield.knime.neo4j.async,
  se.redfield.knime.neo4j.cell,

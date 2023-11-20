@@ -31,7 +31,7 @@ public class AccessibleReaderModel extends ReaderModel {
     public void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         super.loadValidatedSettingsFrom(settings);
     }
-    public String getWarning() {
+    public String getWarningMsg() {
         return getWarningMessage();
     }
 }
