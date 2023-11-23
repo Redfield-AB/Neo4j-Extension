@@ -21,6 +21,7 @@
 
     <!-- List the modules of your project here -->
     <modules>
+		<module>se.redfield.knime.neo4jextension/lib/fetch_jars</module>
         <module>se.redfield.knime.neo4jextension</module>
         <module>se.redfield.knime.neo4jextension.feature</module>
         <module>se.redfield.knime.neo4jextension.tests</module>
