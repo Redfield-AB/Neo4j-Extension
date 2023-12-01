@@ -244,13 +244,13 @@ public class Neo4jSupport {
     }
     private Void loadFunctions(final Session s, final List<FunctionDesc> functions) {
         final List<Record> dbmsFunctions = s.readTransaction(tx -> tx.run(
-                "call dbms.functions()").list());
+                "SHOW FUNCTIONS YIELD *").list());
 
         putToFunctions(dbmsFunctions, functions);
 
         try {
             final List<Record> dbmsProcedures = s.readTransaction(tx -> tx.run(
-                    "call dbms.procedures()").list());
+                    "SHOW PROCEDURES YIELD *").list());
 
             putToFunctions(dbmsProcedures, functions);
         } catch (Exception ignored) {}
