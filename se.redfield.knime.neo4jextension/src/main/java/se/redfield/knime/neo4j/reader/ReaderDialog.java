@@ -5,13 +5,10 @@ package se.redfield.knime.neo4j.reader;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
-import java.awt.Event;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.KeyEvent;
 import java.awt.event.MouseListener;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -19,7 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import javax.swing.AbstractAction;
 import javax.swing.ButtonModel;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListModel;
@@ -34,8 +30,8 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 import javax.swing.JToggleButton.ToggleButtonModel;
-import javax.swing.KeyStroke;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
@@ -44,12 +40,6 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.ListSelectionListener;
-import javax.swing.event.UndoableEditEvent;
-import javax.swing.event.UndoableEditListener;
-import javax.swing.text.BadLocationException;
-import javax.swing.undo.CannotRedoException;
-import javax.swing.undo.CannotUndoException;
-import javax.swing.undo.UndoManager;
 
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataTableSpec;
@@ -82,6 +72,7 @@ import se.redfield.knime.neo4j.ui.StringRenderer;
 import se.redfield.knime.neo4j.ui.UiUtils;
 import se.redfield.knime.neo4j.ui.ValueInsertHandler;
 import se.redfield.knime.neo4j.ui.WithStringIconCellRenderer;
+import se.redfield.knime.neo4j.ui.editor.CypherEditor;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
@@ -105,11 +96,11 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
     private final ToggleButtonModel stopInQueryFailureInBatchTab = new ToggleButtonModel();
     private final ToggleButtonModel useBatchQuery = new ToggleButtonModel();
 
-    private JTextArea scriptEditor;
-    private JTextArea batchScriptEditor;
+    private CypherEditor scriptEditor;
+    private CypherEditor batchScriptEditor;
     private JTextArea funcDescription;
     private JTextArea descriptionArea;
-    private JTextArea batchParameterName;
+	private JTextField batchParameterName;
 
     private final JList<BatchPattern> batchPatterns = new JList<>(new DefaultListModel<>());
     private final JList<FlowVariable> flowVariables = new JList<>(new DefaultListModel<>());
@@ -236,21 +227,15 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         //Script editor
         final JPanel scriptPanel = new JPanel(new BorderLayout());
         scriptPanel.add(north, BorderLayout.NORTH);
-        this.scriptEditor = createScriptEditor();
+		this.scriptEditor = new CypherEditor();
 
-        final JScrollPane sp = new JScrollPane(scriptEditor,
-                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        scriptPanel.add(sp, BorderLayout.CENTER);
+		scriptPanel.add(scriptEditor.getComponent(), BorderLayout.CENTER);
         return scriptPanel;
     }
 
     private JComponent createBatchTab() {
         // Batch script editor
-        this.batchScriptEditor = createScriptEditor();
-        final JScrollPane batchScriptSP = new JScrollPane(batchScriptEditor,
-                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		this.batchScriptEditor = new CypherEditor();
         useBatchQuery.addChangeListener(e -> batchScriptEditor.setEnabled(useBatchQuery.isSelected()));
 
         final JSplitPane leftPanel = createSplitPane(JSplitPane.VERTICAL_SPLIT, 0.3);
@@ -259,7 +244,7 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
 
         final JSplitPane topPanel = createSplitPane(JSplitPane.HORIZONTAL_SPLIT, 0.35);
         topPanel.setTopComponent(leftPanel);
-        topPanel.setBottomComponent(batchScriptSP);
+		topPanel.setBottomComponent(batchScriptEditor.getComponent());
 
         final JSplitPane batchTab = createSplitPane(JSplitPane.VERTICAL_SPLIT, 0.78);
         batchTab.setTopComponent(topPanel);
@@ -292,11 +277,8 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         cbKeepSourceOrder.addChangeListener(e -> keepSourceOrder.setSelected(cbKeepSourceOrder.isSelected()));
 
         // Name for batch parameter
-        this.batchParameterName = createScriptEditor();
-        final JScrollPane spBNV = new JScrollPane(batchParameterName,
-                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        addLabeledComponent(settingsPanel, BATCH_PARAMETER_NAME, spBNV, 4);
+		this.batchParameterName = new JTextField(20);
+		addLabeledComponent(settingsPanel, BATCH_PARAMETER_NAME, batchParameterName, 4);
 
         useBatchQuery.addChangeListener(e -> {
             if (useInputTable){
@@ -328,7 +310,7 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         // batch patterns
         settingsJList(
                 batchPatterns,
-                new OnClickInserter<>(batchPatterns, v -> insertToScript(v.getScript(), batchScriptEditor)),
+				new OnClickInserter<>(batchPatterns, v -> batchScriptEditor.insert(v.getScript())),
                 e -> {
                     final int index = batchPatterns.getSelectedIndex();
                     if (index > -1) {
@@ -346,7 +328,7 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
                 new OnClickInserter<>(functionList,
                         v -> {
                             if (useInputTable) {
-                                insertToScript(v.getName(), batchScriptEditor);
+								batchScriptEditor.insert(v.getName());
                             }
                         }),
                 e -> {
@@ -362,7 +344,7 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         // inputColumns
         settingsJList(
                 inputColumnsJList,
-                new OnClickInserter<>(inputColumnsJList, v -> insertToScript(v, batchScriptEditor)),
+				new OnClickInserter<>(inputColumnsJList, batchScriptEditor::insert),
                 e -> {},
                 new StringRenderer()
         );
@@ -448,7 +430,7 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
     protected ImageIcon createRefreshIcon() {
         return UiUtils.createRefreshIcon();
     }
-    private JSplitPane createFlowVariablesNodesAndRels(JTextArea scriptEditor) {
+    private JSplitPane createFlowVariablesNodesAndRels(CypherEditor scriptEditor) {
         final JSplitPane fvAndReButton = createSplitPane(JSplitPane.HORIZONTAL_SPLIT, 0.9);
         fvAndReButton.setTopComponent(createFlowVariables(scriptEditor));
         fvAndReButton.setBottomComponent(createRefreshButton());
@@ -471,23 +453,25 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         sp.setDividerLocation(dividerPosition);
         return sp;
     }
-    private JSplitPane createNodes(JTextArea scriptEditor) {
+
+	private JSplitPane createNodes(CypherEditor scriptEditor) {
         return createNamedWithPropertiesComponent(
                 new JList<>(nodes.getModel()), nodeProperties,
                 "Node labels", "Node properties",
-                v -> insertToScript(v.getName(), scriptEditor), scriptEditor);
+				v -> scriptEditor.insert(v.getName()), scriptEditor);
     }
-    private JSplitPane createRelationships(JTextArea scriptEditor) {
+
+	private JSplitPane createRelationships(CypherEditor scriptEditor) {
         return createNamedWithPropertiesComponent(
                 new JList<>(relationships.getModel()), relationshipsProperties,
                 "Relationship labels", "Relationship properties",
-                v -> insertToScript(v.getName(), scriptEditor), scriptEditor);
+				v -> scriptEditor.insert(v.getName()), scriptEditor);
     }
 
     private JSplitPane createNamedWithPropertiesComponent(final JList<NamedWithProperties> named,
             final DefaultListModel<String> propsOfNamed, final String title,
             final String propertiesTitle, final ValueInsertHandler<NamedWithProperties> handler,
-            JTextArea scriptEditor) {
+			CypherEditor scriptEditor) {
         final JSplitPane p = createSplitPane(JSplitPane.HORIZONTAL_SPLIT, 0.5);
 
         final JPanel nodesContainer = new JPanel(new BorderLayout());
@@ -514,7 +498,7 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         nodesContainer.add(new JScrollPane(named));
         p.setLeftComponent(nodesContainer);
 
-        final JPanel props = createTitledList(propertiesTitle, propsOfNamed, v -> insertToScript(v, scriptEditor));
+		final JPanel props = createTitledList(propertiesTitle, propsOfNamed, scriptEditor::insert);
         p.setRightComponent(props);
 
         useBatchQuery.addChangeListener(e -> {
@@ -527,7 +511,7 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         return p;
     }
 
-    private JComponent createFlowVariables(JTextArea scriptEditor) {
+    private JComponent createFlowVariables(CypherEditor scriptEditor) {
         final JList<FlowVariable> flowVariableJList = new JList<>(flowVariables.getModel());
         final JPanel flowVariablesPanel = new JPanel(new BorderLayout());
         flowVariablesPanel.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Flow variables"));
@@ -536,7 +520,7 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         settingsJList(
                 flowVariableJList,
                 new OnClickInserter<>(
-                        flowVariableJList, v -> insertToScript("${{" + v.getName() + "}}", scriptEditor)),
+						flowVariableJList, v -> scriptEditor.insert("${{" + v.getName() + "}}")),
                 e -> {},
                 new FlowVariableListCellRenderer()
         );
@@ -576,7 +560,8 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         });
         return list;
     }
-    private JPanel createFunctions(JTextArea scriptEditor) {
+
+	private JPanel createFunctions(CypherEditor scriptEditor) {
         final JPanel p = new JPanel(new BorderLayout());
         p.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.RAISED), "Functions"));
 
@@ -592,7 +577,7 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
                 new OnClickInserter<FunctionDesc>(functionList,
                         v -> {
                             if (!useInputTable) {
-                                insertToScript(v.getName(), scriptEditor);
+								scriptEditor.insert(v.getName());
                             }
                         }),
                 e -> {
@@ -624,53 +609,7 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
         return sb.toString();
     }
 
-    /**
-     * @return script editor.
-     */
-    private JTextArea createScriptEditor() {
-        final JTextArea scriptEditor = createTextAreaWithoutMinSize();
 
-        final UndoManager undoRedo = new UndoManager();
-        scriptEditor.getDocument().addUndoableEditListener(
-            new UndoableEditListener() {
-                @Override
-                public void undoableEditHappened(final UndoableEditEvent e) {
-                    undoRedo.addEdit(e.getEdit());
-                }
-            });
-
-        final KeyStroke undoKeyStroke = KeyStroke.getKeyStroke(
-                KeyEvent.VK_Z, Event.CTRL_MASK);
-        final KeyStroke redoKeyStroke = KeyStroke.getKeyStroke(
-                KeyEvent.VK_Z, Event.CTRL_MASK | Event.SHIFT_MASK);
-
-        scriptEditor.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(undoKeyStroke, "undoKeyStroke");
-        scriptEditor.getActionMap().put("undoKeyStroke", new AbstractAction() {
-            private static final long serialVersionUID = 1L;
-            @Override
-            public void actionPerformed(final ActionEvent e) {
-                try {
-                    undoRedo.undo();
-                } catch (final CannotUndoException cue) {
-                }
-            }
-        });
-
-        // Map redo action
-        scriptEditor.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(redoKeyStroke, "redoKeyStroke");
-        scriptEditor.getActionMap().put("redoKeyStroke", new AbstractAction() {
-            private static final long serialVersionUID = 1L;
-            @Override
-            public void actionPerformed(final ActionEvent e) {
-                try {
-                    undoRedo.redo();
-                } catch (final CannotRedoException cre) {
-                }
-            }
-        });
-        scriptEditor.setLineWrap(true);
-        return scriptEditor;
-    }
     private JTextArea createTextAreaWithoutMinSize() {
         return new JTextArea() {
             private static final long serialVersionUID = -6583141839191451218L;
@@ -681,23 +620,6 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
                 return min == null ? new Dimension() : new Dimension(0, min.height);
             }
         };
-    }
-    private void insertToScript(final String text, JTextArea scriptEditor) {
-        //possible remove selection
-        final int selStart = scriptEditor.getSelectionStart();
-        final int selEnd = scriptEditor.getSelectionEnd();
-        if (selEnd != selStart) {
-            try {
-                scriptEditor.getDocument().remove(
-                        Math.min(selStart, selEnd),
-                        Math.abs(selStart - selEnd));
-            } catch (final BadLocationException e) {
-            }
-        }
-
-        //insert text
-        final int pos = Math.max(0, scriptEditor.getCaretPosition());
-        scriptEditor.insert(text, pos);
     }
 
     @Override
@@ -859,6 +781,9 @@ public class ReaderDialog extends NodeDialogPane implements FlowVariablesProvide
 
         funcDescription.setText("");
         values(functions, metaData.getFunctions());
+
+		scriptEditor.installAutoComplete(metaData);
+		batchScriptEditor.installAutoComplete(metaData);
     }
 
     private <T extends Named> void values(final JList<T> list, final List<T> values) {
