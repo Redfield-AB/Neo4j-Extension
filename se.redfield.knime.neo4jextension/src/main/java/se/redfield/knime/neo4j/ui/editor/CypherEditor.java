@@ -2,6 +2,7 @@ package se.redfield.knime.neo4j.ui.editor;
 
 import java.awt.Dimension;
 import java.awt.Font;
+import java.io.IOException;
 import java.util.List;
 
 import javax.swing.JComponent;
@@ -44,7 +45,13 @@ public class CypherEditor {
 	private RTextScrollPane scrollpane;
 
 	public CypherEditor() {
-		editor = new KnimeSyntaxTextArea();
+		editor = new KnimeSyntaxTextArea() {
+			private static final long serialVersionUID = 1L;
+			@Override
+			protected void applySyntaxColors() throws IOException {
+				// do not apply eclipse theme
+			}
+		};
 		editor.setSyntaxEditingStyle(CYPHER_SYNTAX);
 		editor.setCodeFoldingEnabled(true);
 		editor.setAntiAliasingEnabled(true);

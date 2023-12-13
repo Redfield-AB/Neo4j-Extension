@@ -1,5 +1,5 @@
 /*
- * Generated on 12/8/23, 8:54 AM
+ * Generated on 12/13/23, 4:35 AM
  */
 package se.redfield.knime.neo4j.ui.editor;
 
@@ -89,7 +89,7 @@ import org.fife.ui.rsyntaxtextarea.*;
 	 * {@inheritDoc}
 	 */
 	public String[] getLineCommentStartAndEnd(int languageIndex) {
-		return null;
+		return new String[] { "//", null };
 	}
 
 
@@ -201,12 +201,12 @@ ErrorStringLiteral			= ({UnclosedStringLiteral}[\"])
 
 /* No multi-line comments */
 /* No documentation comments */
-/* No line comments */
+LineCommentBegin			= "//"
 
 IntegerLiteral			= ({Digit}+)
-/* No hex literals */
+HexLiteral			= (0x{HexDigit}+)
 FloatLiteral			= (({Digit}+)("."{Digit}+)?(e[+-]?{Digit}+)? | ({Digit}+)?("."{Digit}+)(e[+-]?{Digit}+)?)
-ErrorNumberFormat			= (({IntegerLiteral}|{FloatLiteral}){NonSeparator}+)
+ErrorNumberFormat			= (({IntegerLiteral}|{HexLiteral}|{FloatLiteral}){NonSeparator}+)
 BooleanLiteral				= ("true"|"false")
 
 Separator					= ([\(\)\{\}\[\]])
@@ -227,7 +227,7 @@ URL						= (((https?|f(tp|ile))"://"|"www.")({URLCharacters}{URLEndCharacter})?)
 /* No char state */
 /* No MLC state */
 /* No documentation comment state */
-/* No line comment state */
+%state EOL_COMMENT
 
 %%
 
@@ -264,7 +264,6 @@ URL						= (((https?|f(tp|ile))"://"|"www.")({URLCharacters}{URLEndCharacter})?)
 "EXISTS" |
 "FOR" |
 "FOREACH" |
-"Hints" |
 "IN" |
 "INDEX" |
 "INDEX" |
@@ -310,10 +309,167 @@ URL						= (((https?|f(tp|ile))"://"|"www.")({URLCharacters}{URLEndCharacter})?)
 	/* No keywords 2 */
 
 	/* Data types */
-	/* No data types */
+	"ANY" |
+"ANY VALUE" |
+"ARRAY" |
+"BOOL" |
+"BOOLEAN" |
+"DATE" |
+"DURATION" |
+"EDGE" |
+"FLOAT" |
+"INT" |
+"INTEGER" |
+"LIST" |
+"LOCAL DATETIME" |
+"LOCAL TIME" |
+"MAP" |
+"NODE" |
+"NOTHING" |
+"NULL" |
+"PATH" |
+"POINT" |
+"PROPERTY VALUE" |
+"RELATIONSHIP" |
+"SIGNED INTEGER" |
+"STRING" |
+"TIME WITH TIMEZONE" |
+"TIME WITHOUT TIMEZONE" |
+"TIMESTAMP WITH TIMEZONE" |
+"TIMESTAMP WITHOUT TIMEZONE" |
+"VARCHAR" |
+"VERTEX" |
+"ZONED DATETIME" |
+"ZONED TIME"		{ addToken(Token.DATA_TYPE); }
 
 	/* Functions */
-	/* No functions */
+	"abs" |
+"acos" |
+"all" |
+"any" |
+"asin" |
+"atan" |
+"atan2" |
+"avg" |
+"ceil" |
+"char_length" |
+"character_length" |
+"coalesce" |
+"collect" |
+"cos" |
+"cot" |
+"count" |
+"date" |
+"date.realtime" |
+"date.statement" |
+"date.transaction" |
+"date.truncate" |
+"datetime" |
+"datetime.fromepoch" |
+"datetime.fromepochmillis" |
+"datetime.realtime" |
+"datetime.statement" |
+"datetime.transaction" |
+"datetime.truncate" |
+"db.nameFromElementId" |
+"degrees" |
+"duration" |
+"duration.between" |
+"duration.inDays" |
+"duration.inMonths" |
+"duration.inSeconds" |
+"e" |
+"endNode" |
+"exists" |
+"exp" |
+"file" |
+"floor" |
+"graph.byElementId" |
+"graph.byName" |
+"graph.names" |
+"graph.propertiesByName" |
+"haversin" |
+"head" |
+"id" |
+"isEmpty" |
+"isNaN" |
+"keys" |
+"labels" |
+"last" |
+"left" |
+"length" |
+"linenumber" |
+"localdatetime" |
+"localdatetime.realtime" |
+"localdatetime.statement" |
+"localdatetime.transaction" |
+"localdatetime.truncate" |
+"localtime" |
+"localtime.realtime" |
+"localtime.statement" |
+"localtime.transaction" |
+"localtime.truncate" |
+"log" |
+"log10" |
+"ltrim" |
+"max" |
+"min" |
+"nodes" |
+"none" |
+"nullIf" |
+"percentileCont" |
+"percentileDisc" |
+"pi" |
+"point" |
+"point.distance" |
+"point.withinBBox" |
+"properties" |
+"radians" |
+"rand" |
+"randomUUID" |
+"range" |
+"reduce" |
+"relationships" |
+"replace" |
+"reverse" |
+"right" |
+"round" |
+"rtrim" |
+"sign" |
+"sin" |
+"single" |
+"size" |
+"split" |
+"sqrt" |
+"startNode" |
+"stdev" |
+"stdevp" |
+"substring" |
+"sum" |
+"tail" |
+"tan" |
+"time" |
+"time.realtime" |
+"time.statement" |
+"time.transaction" |
+"time.truncate" |
+"toBoolean" |
+"toBooleanList" |
+"toBooleanOrNull" |
+"toFloat" |
+"toFloatList" |
+"toFloatOrNull" |
+"toInteger" |
+"toIntegerList" |
+"toIntegerOrNull" |
+"toLower" |
+"toString" |
+"toStringList" |
+"toStringOrNull" |
+"toUpper" |
+"trim" |
+"type" |
+"valueType"		{ addToken(Token.FUNCTION); }
 
 	{BooleanLiteral}			{ addToken(Token.LITERAL_BOOLEAN); }
 
@@ -334,47 +490,39 @@ URL						= (((https?|f(tp|ile))"://"|"www.")({URLCharacters}{URLEndCharacter})?)
 	/* Comment literals. */
 	/* No multi-line comments */
 	/* No documentation comments */
-	/* No line comments */
+	{LineCommentBegin}			{ start = zzMarkedPos-2; yybegin(EOL_COMMENT); }
 
 	/* Separators. */
 	{Separator}					{ addToken(Token.SEPARATOR); }
 	{Separator2}					{ addToken(Token.IDENTIFIER); }
 
 	/* Operators. */
-	"!" |
-"%" |
-"%=" |
-"&" |
-"&&" |
+	"%" |
 "*" |
-"*=" |
 "+" |
-"++" |
-"+=" |
-"," |
 "-" |
-"--" |
-"-=" |
 "/" |
-"/=" |
-":" |
 "<" |
-"<<" |
-"<<=" |
+"<=" |
+"<>" |
 "=" |
-"==" |
+"=~" |
 ">" |
-">>" |
-">>=" |
-"?" |
-"^" |
-"|" |
-"||" |
-"~"		{ addToken(Token.OPERATOR); }
+">=" |
+"AND" |
+"CONTAINS" |
+"DISTINCT" |
+"ENDS WITH" |
+"IS" |
+"NOT" |
+"OR" |
+"STARTS WITH" |
+"XOR" |
+"^"		{ addToken(Token.OPERATOR); }
 
 	/* Numbers */
 	{IntegerLiteral}				{ addToken(Token.LITERAL_NUMBER_DECIMAL_INT); }
-	/* No hex literals */
+	{HexLiteral}					{ addToken(Token.LITERAL_NUMBER_HEXADECIMAL); }
 	{FloatLiteral}					{ addToken(Token.LITERAL_NUMBER_FLOAT); }
 	{ErrorNumberFormat}			{ addToken(Token.ERROR_NUMBER_FORMAT); }
 
@@ -395,4 +543,11 @@ URL						= (((https?|f(tp|ile))"://"|"www.")({URLCharacters}{URLEndCharacter})?)
 
 /* No documentation comment state */
 
-/* No line comment state */
+<EOL_COMMENT> {
+	[^hwf\n]+				{}
+	{URL}					{ int temp=zzStartRead; addToken(start,zzStartRead-1, Token.COMMENT_EOL); addHyperlinkToken(temp,zzMarkedPos-1, Token.COMMENT_EOL); start = zzMarkedPos; }
+	[hwf]					{}
+	\n						{ addToken(start,zzStartRead-1, Token.COMMENT_EOL); addNullToken(); return firstToken; }
+	<<EOF>>					{ addToken(start,zzStartRead-1, Token.COMMENT_EOL); addNullToken(); return firstToken; }
+}
+
