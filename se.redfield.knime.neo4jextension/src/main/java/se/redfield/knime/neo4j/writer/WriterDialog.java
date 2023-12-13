@@ -850,4 +850,9 @@ public class WriterDialog extends NodeDialogPane implements FlowVariablesProvide
     private <T> DefaultListModel<T> model(final JList<T> list) {
         return (DefaultListModel<T>) list.getModel();
     }
+
+	@Override
+	public boolean closeOnESC() {
+		return false;
+	}
 }
