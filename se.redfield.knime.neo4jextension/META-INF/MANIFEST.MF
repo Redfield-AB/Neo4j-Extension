@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Neo4jconnector
 Bundle-SymbolicName: se.redfield.knime.neo4jextension;singleton:=true
-Bundle-Version: 1.0.2.qualifier
+Bundle-Version: 1.0.3.qualifier
 Bundle-Vendor: REDFIELD
 Require-Bundle: org.eclipse.ui,
  org.eclipse.core.runtime,
