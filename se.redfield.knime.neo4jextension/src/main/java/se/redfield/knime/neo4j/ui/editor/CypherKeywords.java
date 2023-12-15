@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.eclipse.core.runtime.FileLocator;
@@ -42,7 +43,7 @@ public class CypherKeywords {
 
 	private static void loadKeywords() {
 		try (Stream<String> stream = Files.lines(getResourcePath())) {
-			keywords = stream.toList();
+			keywords = stream.collect(Collectors.toList());
 		} catch (IOException e) {
 			LOGGER.error(e.getMessage(), e);
 			keywords = List.of();
