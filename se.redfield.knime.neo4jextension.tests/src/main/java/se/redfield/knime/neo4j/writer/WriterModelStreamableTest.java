@@ -11,6 +11,8 @@ import static se.redfield.knime.neo4j.utils.KNimeHelper.createConnectorPortObjec
 import java.util.LinkedList;
 import java.util.List;
 
+import javax.json.JsonObject;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -37,7 +39,6 @@ import org.knime.core.node.streamable.PortObjectOutput;
 import org.knime.core.node.streamable.PortOutput;
 import org.knime.core.node.streamable.StreamableFunction;
 
-import jakarta.json.JsonObject;
 import junit.framework.AssertionFailedError;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
 import se.redfield.knime.neo4j.utils.KNimeHelper;

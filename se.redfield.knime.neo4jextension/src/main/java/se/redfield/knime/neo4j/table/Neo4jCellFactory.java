@@ -14,6 +14,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import javax.json.Json;
+import javax.json.stream.JsonGenerator;
+
 import org.knime.core.data.DataCell;
 import org.knime.core.data.MissingCell;
 import org.knime.core.data.blob.BinaryObjectCellFactory;
@@ -33,8 +36,6 @@ import org.neo4j.driver.types.Path;
 import org.neo4j.driver.types.Point;
 import org.neo4j.driver.types.Relationship;
 
-import jakarta.json.Json;
-import jakarta.json.stream.JsonGenerator;
 import se.redfield.knime.neo4j.db.ConvertedValueConsumer;
 import se.redfield.knime.neo4j.db.Neo4jDataConverter;
 import se.redfield.knime.neo4j.json.Neo4jValueWriter;

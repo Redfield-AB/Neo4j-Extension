@@ -6,15 +6,15 @@ Bundle-Version: 1.0.3.qualifier
 Bundle-Vendor: REDFIELD
 Require-Bundle: org.eclipse.ui,
  org.eclipse.core.runtime,
- org.knime.base;bundle-version="[5.1.0,6.0.0)",
- org.knime.workbench;bundle-version="[5.1.0,6.0.0)",
- org.knime.workbench.repository;bundle-version="[5.1.0,6.0.0)",
- org.knime.time;bundle-version="[5.1.0,6.0.0)",
- org.knime.json;bundle-version="[5.1.0,6.0.0)",
+ org.knime.base;bundle-version="[4.7.0,5.0.0)",
+ org.knime.workbench;bundle-version="[4.7.0,5.0.0)",
+ org.knime.workbench.repository;bundle-version="[4.7.0,5.0.0)",
+ org.knime.time;bundle-version="[4.7.0,5.0.0)",
+ org.knime.json;bundle-version="[4.7.0,5.0.0)",
  org.reactivestreams.reactive-streams;bundle-version="[1.0.3,2.0.0)",
  io.netty.all;bundle-version="[4.1.68,5.0.0)",
  io.projectreactor.reactor-core;bundle-version="[3.3.9,4.0.0)",
- org.knime.rsyntaxtextarea;bundle-version="[5.1.0,6.0.0)",
+ org.knime.rsyntaxtextarea;bundle-version="[4.7.0,5.0.0)",
  com.fifesoft.autocomplete;bundle-version="[2.6.0,3.0.0)",
  com.fifesoft.rsyntaxtextarea;bundle-version="[2.6.0,3.0.0)"
 Bundle-RequiredExecutionEnvironment: JavaSE-17

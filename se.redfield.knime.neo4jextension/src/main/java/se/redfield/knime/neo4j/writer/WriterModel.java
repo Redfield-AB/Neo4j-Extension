@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import javax.json.Json;
+import javax.json.stream.JsonGenerator;
 import javax.naming.OperationNotSupportedException;
 
 import org.knime.core.data.DataCell;
@@ -54,8 +56,6 @@ import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Transaction;
 
-import jakarta.json.Json;
-import jakarta.json.stream.JsonGenerator;
 import se.redfield.knime.neo4j.async.AsyncRunner;
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
 import se.redfield.knime.neo4j.connector.ConnectorPortObject;
