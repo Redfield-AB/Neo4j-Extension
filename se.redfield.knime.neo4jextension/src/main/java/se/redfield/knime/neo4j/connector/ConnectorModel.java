@@ -14,6 +14,7 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
@@ -26,12 +27,17 @@ import se.redfield.knime.neo4j.db.Neo4jSupport;
  */
 public class ConnectorModel extends NodeModel {
     private ConnectorConfig config;
-
-    /**
-     * Default constructor.
-     */
-    public ConnectorModel() {
-        super(new PortType[0], new PortType[] {ConnectorPortObject.TYPE});
+    private final int m_credentialPortIdx;
+    
+    
+    public ConnectorModel(final NodeCreationConfiguration cfg) {
+        //super(new PortType[0], new PortType[] {ConnectorPortObject.TYPE});
+        super(cfg.getPortConfig().orElseThrow(IllegalStateException::new).getInputPorts(),
+                cfg.getPortConfig().orElseThrow(IllegalStateException::new).getOutputPorts());
+            // the field m_credentialIdx tracks the index of the credential port if present.
+            
+        m_credentialPortIdx = cfg.getPortConfig().orElseThrow(IllegalStateException::new).getInputPortLocation()
+                .getOrDefault(ConnectorFactory.CREDENTIAL_GROUP_ID, new int[]{-1})[0];    	
         this.config = new ConnectorConfig();
     }
 
