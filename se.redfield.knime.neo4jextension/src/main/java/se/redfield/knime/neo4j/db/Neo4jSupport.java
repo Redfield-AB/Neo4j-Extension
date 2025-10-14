@@ -14,6 +14,7 @@ import java.util.Map;
 
 import java.util.stream.Collectors;
 import org.knime.core.node.ExecutionContext;
+import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.neo4j.driver.AuthToken;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Config;
@@ -30,6 +31,7 @@ import org.neo4j.driver.summary.ResultSummary;
 
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
 import se.redfield.knime.neo4j.connector.AuthConfig;
+import se.redfield.knime.neo4j.connector.AuthScheme;
 import se.redfield.knime.neo4j.connector.ConnectorConfig;
 import se.redfield.knime.neo4j.connector.FunctionDesc;
 import se.redfield.knime.neo4j.connector.NamedWithProperties;
@@ -108,32 +110,75 @@ public class Neo4jSupport {
         }
     }
 
+    public Driver createDriver(JWTCredential jwtCredential) {
+        if (jwtCredential == null) {
+            throw new IllegalArgumentException("JWT Credential cannot be null");
+        }
+        
+        String token = jwtCredential.getAccessToken();
+        if (token == null || token.isEmpty()) {
+            throw new IllegalArgumentException("Access token cannot be null or empty");
+        }
+        
+        // Create driver with OAuth2 token
+        AuthToken authToken = AuthTokens.bearer(token);
+        
+        return GraphDatabase.driver(
+            config.getLocation().toString(),
+            authToken,
+            Config.builder()
+                .withMaxConnectionPoolSize(config.getMaxConnectionPoolSize())
+                // Add other config options
+                .build()
+        );
+    }
+    
     public Driver createDriver() {
-        return createDriver(config);
+        // Standard authentication (basic, none, etc.)
+        AuthToken authToken;
+        
+        if (config.getAuth() == null) {
+            authToken = AuthTokens.none();
+        } else if (config.getAuth().getScheme() == AuthScheme.basic) {
+            authToken = AuthTokens.basic(
+                config.getAuth().getPrincipal(),
+                config.getAuth().getCredentials()
+            );
+        } else {
+            authToken = AuthTokens.none();
+        }
+        
+        return GraphDatabase.driver(
+            config.getLocation().toString(),
+            authToken,
+            Config.builder()
+                .withMaxConnectionPoolSize(config.getMaxConnectionPoolSize())
+                // Add other config options
+                .build()
+        );
     }
     public ContextListeningDriver createDriver(final ExecutionContext context) {
-        final Driver d = createDriver(config);
+        final Driver d = createDriver();
         return new ContextListeningDriver(d, context);
     }
-    /**
-     * @param con Neo4J configuration.
-     * @return Neo4J driver.
-     */
-    private static Driver createDriver(final ConnectorConfig con) {
-        final AuthConfig auth = con.getAuth();
-        final AuthToken token = auth == null ? null :  AuthTokens.basic(
-                auth.getPrincipal(), auth.getCredentials(), null);
 
-        final Driver d = GraphDatabase.driver(con.getLocation(), token,
-                createConfig(con.getMaxConnectionPoolSize()));
-        try {
-            d.verifyConnectivity();
-        } catch (final RuntimeException e) {
-            d.close();
-            throw e;
+    public Driver createDriverWithToken(final String oauthToken) {
+        if (oauthToken == null || oauthToken.isEmpty()) {
+            throw new IllegalArgumentException("OAuth2 token cannot be null or empty");
         }
-        return d;
+        
+        AuthToken authToken = AuthTokens.bearer(oauthToken);
+        
+        return GraphDatabase.driver(
+            config.getLocation().toString(),
+            authToken,
+            Config.builder()
+                .withMaxConnectionPoolSize(config.getMaxConnectionPoolSize())
+                // Add other config options
+                .build()
+        );
     }
+
     private static Config createConfig(final int poolSize) {
         final ConfigBuilder cfg = Config.builder();
         cfg.withMaxConnectionPoolSize(poolSize);
