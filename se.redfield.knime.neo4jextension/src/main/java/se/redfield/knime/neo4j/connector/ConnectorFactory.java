@@ -8,7 +8,6 @@ import java.util.Optional;
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeView;
 import org.knime.core.node.context.NodeCreationConfiguration;
-import org.knime.core.node.port.PortType;
 import org.knime.core.node.ConfigurableNodeFactory;
 import org.knime.credentials.base.CredentialPortObject;
 

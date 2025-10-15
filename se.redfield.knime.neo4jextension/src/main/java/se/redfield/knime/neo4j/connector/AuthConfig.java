@@ -16,6 +16,9 @@ public class AuthConfig implements Cloneable {
 
     public AuthConfig() {
         super();
+        // Initialize credentials to an empty string to prevent null password issues
+        // if AuthScheme.basic is used without explicitly setting credentials.
+        this.credentials = "";
     }
 
     public AuthScheme getScheme() {
@@ -34,7 +37,7 @@ public class AuthConfig implements Cloneable {
         return credentials;
     }
     public void setCredentials(final String credentials) {
-        this.credentials = credentials;
+        this.credentials = credentials != null ? credentials : ""; // Ensure credentials are never null
     }
     @Override
     public boolean equals(final Object obj) {

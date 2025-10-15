@@ -19,6 +19,7 @@ public class ConnectorConfigSerializer {
     private static final String S_LOCATION = "location";
     private static final String S_DATABASE = "database";
     private static final String USED_DEFAULT_DB_NAME = "usedDefaultDbName";
+    private static final String S_OAUTH_TOKEN = "oauthToken"; // New setting key for OAuth2 token
     //auth
     private static final String S_AUTH = "auth";
 
@@ -44,6 +45,10 @@ public class ConnectorConfigSerializer {
         if (config.getAuth() != null) {
             saveAuth(config.getAuth(), settings.addConfig(S_AUTH));
         }
+        // Save the OAuth2 token if present
+        if (config.getOauthToken() != null) {
+            settings.addString(S_OAUTH_TOKEN, config.getOauthToken());
+        }
     }
 
     public ConnectorConfig load(final ConfigRO settings) throws InvalidSettingsException {
@@ -60,10 +65,23 @@ public class ConnectorConfigSerializer {
         if (settings.containsKey(S_AUTH)) {
             config.setAuth(loadAuth(settings.getConfig(S_AUTH)));
         } else {
-            config.setAuth(null);
+            // If no auth settings are present, initialize with default basic scheme
+            config.setAuth(new AuthConfig());
+            config.getAuth().setScheme(AuthScheme.basic);
+            config.getAuth().setPrincipal("neo4j");
         }
         if (settings.containsKey(S_POOL_SIZE)) {
             config.setMaxConnectionPoolSize(settings.getInt(S_POOL_SIZE));
+        }
+        // Load the OAuth2 token if present
+        if (settings.containsKey(S_OAUTH_TOKEN)) {
+            config.setOauthToken(settings.getString(S_OAUTH_TOKEN));
+            // If an OAuth token is present, ensure the AuthScheme is set to OAuth2
+            // This overrides any potentially incorrect AuthScheme loaded from S_AUTH
+            if (config.getAuth() == null) {
+                config.setAuth(new AuthConfig());
+            }
+            config.getAuth().setScheme(AuthScheme.OAuth2);
         }
         return config;
     }
@@ -73,7 +91,9 @@ public class ConnectorConfigSerializer {
      * @param settings settings.
      */
     private void saveAuth(final AuthConfig auth, final ConfigWO settings) {
-        settings.addPassword(S_CREDENTIALS, ENC_KEY, auth.getCredentials());
+        if (auth.getScheme() == AuthScheme.basic) {
+            settings.addPassword(S_CREDENTIALS, ENC_KEY, auth.getCredentials());
+        }
         settings.addString(S_PRINCIPAL, auth.getPrincipal());
         settings.addString(S_SCHEME, auth.getScheme().name());
     }
@@ -86,14 +106,18 @@ public class ConnectorConfigSerializer {
     private static AuthConfig loadAuth(final ConfigRO settings)
             throws InvalidSettingsException {
         final AuthConfig auth = new AuthConfig();
-        try {
-            auth.setCredentials(settings.getPassword(S_CREDENTIALS, ENC_KEY));
-        } catch (final Exception e) {
-            //for backward compatibility
-            auth.setCredentials(settings.getString(S_CREDENTIALS));
-        }
         auth.setPrincipal(settings.getString(S_PRINCIPAL));
-        auth.setScheme(AuthScheme.valueOf(settings.getString(S_SCHEME)));
+        AuthScheme scheme = AuthScheme.valueOf(settings.getString(S_SCHEME));
+        auth.setScheme(scheme);
+
+        if (scheme == AuthScheme.basic) {
+            try {
+                auth.setCredentials(settings.getPassword(S_CREDENTIALS, ENC_KEY));
+            } catch (final Exception e) {
+                //for backward compatibility, ensure credentials are not null
+                auth.setCredentials(settings.getString(S_CREDENTIALS, ""));
+            }
+        }
         return auth;
     }
 }

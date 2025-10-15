@@ -3,7 +3,6 @@
  */
 package se.redfield.knime.neo4j.connector;
 
-import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeSettingsRO;
@@ -14,8 +13,6 @@ import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication;
 import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication.AuthenticationType;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.credentials.base.CredentialPortObjectSpec;
-import org.knime.credentials.base.NoSuchCredentialException;
-import org.knime.credentials.base.oauth.api.JWTCredential;
 import se.redfield.knime.neo4j.model.HashGenerator;
 
 import javax.swing.*;

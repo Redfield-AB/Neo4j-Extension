@@ -17,10 +17,8 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.core.node.port.PortType;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
-import org.knime.credentials.base.CredentialType;
 import org.knime.credentials.base.oauth.api.AccessTokenAccessor;
 import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.credentials.base.NoSuchCredentialException;
@@ -89,51 +87,46 @@ public class ConnectorModel extends NodeModel {
     }
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
-        // Test connection
-        final ConnectorConfig cfg = config.createResolvedConfig(getCredentialsProvider());
-        
-        String oauthToken = null;
-        
+        final ConnectorConfig resolvedConfig = config.createResolvedConfig(getCredentialsProvider());
+
         // Try to get OAuth2 token from credential port
         if (m_credentialPortIdx != -1 && inObjects[m_credentialPortIdx] instanceof CredentialPortObject) {
             CredentialPortObject credPortObj = (CredentialPortObject) inObjects[m_credentialPortIdx];
             try {
-                // Try to resolve as JWTCredential first
                 JWTCredential jwtCredential = credPortObj.getSpec().resolveCredential(JWTCredential.class);
                 if (jwtCredential != null) {
-                    try {
-                        oauthToken = jwtCredential.getAccessToken();
-                        
-                        // If token is null or empty, try to refresh it
-                        if ((oauthToken == null || oauthToken.isEmpty()) && jwtCredential instanceof AccessTokenAccessor) {
-                            getLogger().info("Token is null or empty, attempting to refresh...");
-                            oauthToken = ((AccessTokenAccessor) jwtCredential).getAccessToken(true); // force refresh
-                        }
-                    } catch (IOException e) {
-                        throw new Exception("Failed to retrieve or refresh OAuth2 token: " + e.getMessage(), e);
+                    String oauthToken = jwtCredential.getAccessToken();
+                    if ((oauthToken == null || oauthToken.isEmpty()) && jwtCredential instanceof AccessTokenAccessor) {
+                        getLogger().info("Token is null or empty, attempting to refresh...");
+                        oauthToken = ((AccessTokenAccessor) jwtCredential).getAccessToken(true);
                     }
+                    resolvedConfig.setOauthToken(oauthToken);
+                    resolvedConfig.getAuth().setScheme(AuthScheme.OAuth2);
                 }
-            } catch (NoSuchCredentialException ex) {
-                getLogger().warn("No JWT credential found in credential port: " + ex.getMessage());
+            } catch (NoSuchCredentialException | IOException ex) {
+                getLogger().warn("Failed to retrieve JWT credential or refresh token: " + ex.getMessage());
             }
         }
 
-        final Neo4jSupport s = new Neo4jSupport(cfg);
-        
-        // Connect using OAuth2 or standard auth
-        if (oauthToken != null && !oauthToken.isEmpty()) {
-            getLogger().info("Connecting to Neo4j using OAuth2 authentication");
-            try {
-                s.createDriverWithToken(oauthToken).closeAsync();
-            } catch (Exception e) {
-                throw new Exception("Failed to connect using OAuth2 authentication: " + e.getMessage(), e);
+        // Test connection using the resolved config
+        final Neo4jSupport s = new Neo4jSupport(resolvedConfig);
+        try {
+            if (resolvedConfig.getAuth() != null && resolvedConfig.getAuth().getScheme() == AuthScheme.OAuth2) {
+                getLogger().info("Testing connection to Neo4j using OAuth2 authentication");
+                s.createDriverWithToken(resolvedConfig.getOauthToken()).closeAsync();
+            } else {
+                getLogger().info("Testing connection to Neo4j using standard authentication");
+                s.createDriver().closeAsync();
             }
-        } else {
-            getLogger().info("Connecting to Neo4j using standard authentication");
-            s.createDriver().closeAsync();
+        } catch (Exception e) {
+            String authMethod = (resolvedConfig.getAuth() != null && resolvedConfig.getAuth().getScheme() == AuthScheme.OAuth2) ? "OAuth2" : "standard";
+            throw new Exception(
+                "Failed to connect to Neo4j using " + authMethod + " authentication during connection test: " + e.getMessage(),
+                e
+            );
         }
 
-        return new PortObject[]{new ConnectorPortObject(config)};
+        return new PortObject[]{new ConnectorPortObject(resolvedConfig)};
     }
 
     private PortObjectSpec[] configure() {

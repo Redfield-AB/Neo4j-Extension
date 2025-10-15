@@ -3,16 +3,14 @@
  */
 package se.redfield.knime.neo4j.db;
 
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import java.util.stream.Collectors;
 import org.knime.core.node.ExecutionContext;
 import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.neo4j.driver.AuthToken;
@@ -30,7 +28,6 @@ import org.neo4j.driver.summary.QueryType;
 import org.neo4j.driver.summary.ResultSummary;
 
 import se.redfield.knime.neo4j.async.AsyncRunnerLauncher;
-import se.redfield.knime.neo4j.connector.AuthConfig;
 import se.redfield.knime.neo4j.connector.AuthScheme;
 import se.redfield.knime.neo4j.connector.ConnectorConfig;
 import se.redfield.knime.neo4j.connector.FunctionDesc;
@@ -110,7 +107,7 @@ public class Neo4jSupport {
         }
     }
 
-    public Driver createDriver(JWTCredential jwtCredential) {
+    public Driver createDriver(JWTCredential jwtCredential) throws IOException {
         if (jwtCredential == null) {
             throw new IllegalArgumentException("JWT Credential cannot be null");
         }
@@ -134,16 +131,30 @@ public class Neo4jSupport {
     }
     
     public Driver createDriver() {
-        // Standard authentication (basic, none, etc.)
+        // Prioritize OAuth2 token if present, regardless of AuthScheme in AuthConfig
+        String resolvedOauthToken = config.getOauthToken();
+        if (resolvedOauthToken != null && !resolvedOauthToken.isEmpty()) {
+            return createDriverWithToken(resolvedOauthToken);
+        }
+
+        // Fallback to standard authentication if no OAuth2 token
         AuthToken authToken;
         
         if (config.getAuth() == null) {
             authToken = AuthTokens.none();
         } else if (config.getAuth().getScheme() == AuthScheme.basic) {
+            String credentials = config.getAuth().getCredentials();
+            if (credentials == null) {
+                credentials = ""; // Ensure credentials are not null for basic auth
+            }
             authToken = AuthTokens.basic(
                 config.getAuth().getPrincipal(),
-                config.getAuth().getCredentials()
+                credentials
             );
+        } else if (config.getAuth().getScheme() == AuthScheme.OAuth2) {
+            // If AuthScheme is OAuth2 but no token was found, it's an error
+            throw new IllegalArgumentException("OAuth2 token is null or empty in ConnectorConfig. "
+                + "Ensure the Connector node has successfully resolved and stored the token.");
         } else {
             authToken = AuthTokens.none();
         }
