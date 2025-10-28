@@ -31,14 +31,13 @@
     <!-- List the update sites providing dependencies for your projects here -->
     <repositories>
         <repository>
-            <id>p2-knime-update-site</id>
+                <id>p2-knime-update-site</id>
             <layout>p2</layout>
             <url>https://update.knime.com/analytics-platform/${knime.version}</url>
         </repository>
         <repository>
-            <id>p2-knime-update-site-54</id>
-            <layout>p2</layout>
-            <url>https://update.knime.com/analytics-platform/5.4</url>
+            <id>maven-central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
         </repository>
     </repositories>
 
