@@ -104,26 +104,16 @@ public class ConnectorModel extends NodeModel {
                     resolvedConfig.getAuth().setScheme(AuthScheme.OAuth2);
                 }
             } catch (NoSuchCredentialException | IOException ex) {
-                getLogger().warn("Failed to retrieve JWT credential or refresh token: " + ex.getMessage());
+                throw new Exception("Failed to retrieve JWT credential or refresh token: " + ex.getMessage(), ex);
             }
         }
 
         // Test connection using the resolved config
         final Neo4jSupport s = new Neo4jSupport(resolvedConfig);
-        try {
-            if (resolvedConfig.getAuth() != null && resolvedConfig.getAuth().getScheme() == AuthScheme.OAuth2) {
-                getLogger().info("Testing connection to Neo4j using OAuth2 authentication");
-                s.createDriverWithToken(resolvedConfig.getOauthToken()).closeAsync();
-            } else {
-                getLogger().info("Testing connection to Neo4j using standard authentication");
-                s.createDriver().closeAsync();
-            }
+        try (var driver = s.createDriver(); var session = driver.session()) {
+            session.run("RETURN 1");
         } catch (Exception e) {
-            String authMethod = (resolvedConfig.getAuth() != null && resolvedConfig.getAuth().getScheme() == AuthScheme.OAuth2) ? "OAuth2" : "standard";
-            throw new Exception(
-                "Failed to connect to Neo4j using " + authMethod + " authentication during connection test: " + e.getMessage(),
-                e
-            );
+            throw new Exception("Failed to connect to Neo4j: " + e.getMessage(), e);
         }
 
         return new PortObject[]{new ConnectorPortObject(resolvedConfig)};

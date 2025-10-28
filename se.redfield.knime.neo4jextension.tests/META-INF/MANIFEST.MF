@@ -20,3 +20,12 @@ Require-Bundle: org.knime.core;bundle-version="[5.1.0,6.0.0)",
  org.eclipse.equinox.p2.metadata;bundle-version="2.3.200",
  com.google.guava
 Bundle-ClassPath: .
+Export-Package: se.redfield.knime.neo4j.async,
+ se.redfield.knime.neo4j.connector,
+ se.redfield.knime.neo4j.db,
+ se.redfield.knime.neo4j.reader,
+ se.redfield.knime.neo4j.utils,
+ se.redfield.knime.neo4j.writer,
+ se.redfield.knime.runner,
+ se.redfield.knime.runner.knime,
+ se.redfield.knime.table

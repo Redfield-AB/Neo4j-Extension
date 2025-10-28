@@ -161,6 +161,7 @@ public class ConnectorConfig implements Cloneable {
             final ICredentials c = cp.get(auth.getPrincipal());
             cfg.getAuth().setPrincipal(c.getLogin());
             cfg.getAuth().setCredentials(c.getPassword() != null ? c.getPassword() : "");
+            cfg.getAuth().setScheme(AuthScheme.basic);
         } else if (auth == null) {
             // If no AuthConfig exists, try to resolve a JWTCredential directly
             try {

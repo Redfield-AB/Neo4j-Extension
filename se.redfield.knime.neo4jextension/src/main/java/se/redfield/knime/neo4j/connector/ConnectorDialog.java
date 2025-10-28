@@ -13,7 +13,6 @@ import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication;
 import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication.AuthenticationType;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.credentials.base.CredentialPortObjectSpec;
-import se.redfield.knime.neo4j.model.HashGenerator;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -45,22 +44,22 @@ public class ConnectorDialog extends NodeDialogPane {
     // Custom authentication UI components
     private final JRadioButton noneAuthRBtn = new JRadioButton("None");
     private final JRadioButton userPwdAuthRBtn = new JRadioButton("User/Password");
-    private final JRadioButton credentialsAuthRBtn = new JRadioButton("Flow Variables / OAuth2");
+    private final JRadioButton credentialsAuthRBtn = new JRadioButton("Credentials");
+    private final JRadioButton oauth2AuthRBtn = new JRadioButton("OAuth2");
     private final ButtonGroup authButtonGroup = new ButtonGroup();
     private final JPanel authCards = new JPanel(new CardLayout());
 
     // Panels for each authentication type
     private final JPanel noneAuthPanel = new JPanel(); // Empty panel for None
+    private final JPanel oauth2AuthPanel = new JPanel(); // Empty panel for OAuth2
     private final DialogComponentAuthentication userPwdAuthComp = new DialogComponentAuthentication(
             authSettings, "User/Password Authentication", AuthenticationType.USER_PWD);
     private final DialogComponentAuthentication credentialsAuthComp = new DialogComponentAuthentication(
-            authSettings, "Flow Variables / OAuth2 Authentication", AuthenticationType.CREDENTIALS);
+            authSettings, "Credentials Authentication", AuthenticationType.CREDENTIALS);
 
     public static final String OAUTH2_CREDENTIAL_IDENTIFIER = "OAuth2_Credential_From_Port";
 
-    private String oldPassword;
     private boolean m_hasCredentialPort; // To track if the credential port is connected
-    // Removed m_jwtCredential as it should not be stored in the dialog
 
     /**
      * Default constructor.
@@ -132,10 +131,13 @@ public class ConnectorDialog extends NodeDialogPane {
         authButtonGroup.add(noneAuthRBtn);
         authButtonGroup.add(userPwdAuthRBtn);
         authButtonGroup.add(credentialsAuthRBtn);
+        authButtonGroup.add(oauth2AuthRBtn);
+
 
         radioButtonsPanel.add(noneAuthRBtn);
         radioButtonsPanel.add(userPwdAuthRBtn);
         radioButtonsPanel.add(credentialsAuthRBtn);
+        radioButtonsPanel.add(oauth2AuthRBtn);
 
         authPanel.add(radioButtonsPanel, BorderLayout.NORTH);
         authPanel.add(authCards, BorderLayout.CENTER);
@@ -144,11 +146,25 @@ public class ConnectorDialog extends NodeDialogPane {
         authCards.add(noneAuthPanel, AuthenticationType.NONE.name());
         authCards.add(userPwdAuthComp.getComponentPanel(), AuthenticationType.USER_PWD.name());
         authCards.add(credentialsAuthComp.getComponentPanel(), AuthenticationType.CREDENTIALS.name());
+        authCards.add(oauth2AuthPanel, "OAuth2");
         
         // Add action listeners to switch cards
-        noneAuthRBtn.addActionListener(e -> ((CardLayout) authCards.getLayout()).show(authCards, AuthenticationType.NONE.name()));
-        userPwdAuthRBtn.addActionListener(e -> ((CardLayout) authCards.getLayout()).show(authCards, AuthenticationType.USER_PWD.name()));
-        credentialsAuthRBtn.addActionListener(e -> ((CardLayout) authCards.getLayout()).show(authCards, AuthenticationType.CREDENTIALS.name()));
+        noneAuthRBtn.addActionListener(e -> {
+            authSettings.setValues(AuthenticationType.NONE, null, null, null);
+            ((CardLayout) authCards.getLayout()).show(authCards, AuthenticationType.NONE.name());
+        });
+        userPwdAuthRBtn.addActionListener(e -> {
+            authSettings.setValues(AuthenticationType.USER_PWD, null, null, null);
+            ((CardLayout) authCards.getLayout()).show(authCards, AuthenticationType.USER_PWD.name());
+        });
+        credentialsAuthRBtn.addActionListener(e -> {
+            authSettings.setValues(AuthenticationType.CREDENTIALS, null, null, null);
+            ((CardLayout) authCards.getLayout()).show(authCards, AuthenticationType.CREDENTIALS.name());
+        });
+        oauth2AuthRBtn.addActionListener(e -> {
+            authSettings.setValues(AuthenticationType.CREDENTIALS, OAUTH2_CREDENTIAL_IDENTIFIER, null, null);
+            ((CardLayout) authCards.getLayout()).show(authCards, "OAuth2");
+        });
 
         // Default selection
         noneAuthRBtn.setSelected(true);
@@ -192,18 +208,6 @@ public class ConnectorDialog extends NodeDialogPane {
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
-        // Update authSettings based on selected radio button
-        if (noneAuthRBtn.isSelected()) {
-            authSettings.setValues(AuthenticationType.NONE, null, null, null);
-        } else if (userPwdAuthRBtn.isSelected()) {
-            // The userPwdAuthComp already updates authSettings internally
-        } else if (credentialsAuthRBtn.isSelected()) {
-            // Check if this is OAuth2 via port or flow credentials
-            if (m_hasCredentialPort) {
-                authSettings.setValues(AuthenticationType.CREDENTIALS, OAUTH2_CREDENTIAL_IDENTIFIER, null, null);
-            }
-            // Otherwise, credentialsAuthComp handles flow variables internally
-        }
 
         final ConnectorConfig model = buildConnector();
         if (model != null) {
@@ -226,7 +230,6 @@ public class ConnectorDialog extends NodeDialogPane {
     private void init(final ConnectorConfig model, final PortObjectSpec[] specs) throws NotConfigurableException {
         this.url.setText(model.getLocation() == null ? "" : model.getLocation().toASCIIString());
         maxConnectionPoolSize.setValue(model.getMaxConnectionPoolSize());
-        oldPassword = null;
 
         database.setText(model.getDatabase() == null ? DEFAULT_DATABASE_NAME : model.getDatabase());
         defaultRBtn.setSelected(model.isUsedDefaultDbName());
@@ -236,42 +239,45 @@ public class ConnectorDialog extends NodeDialogPane {
         final AuthConfig auth = model.getAuth();
         final boolean shouldUseAuth = auth != null;
 
-        // Check if credential port is connected
+        // Handle port connection state
+        noneAuthRBtn.setEnabled(true);
+        userPwdAuthRBtn.setEnabled(true);
+        credentialsAuthRBtn.setEnabled(true);
+        oauth2AuthRBtn.setEnabled(m_hasCredentialPort);
+
         if (m_hasCredentialPort) {
             // When credential port is connected, force OAuth2 mode
             authSettings.setValues(AuthenticationType.CREDENTIALS, OAUTH2_CREDENTIAL_IDENTIFIER, null, null);
-            credentialsAuthRBtn.setSelected(true);
-            ((CardLayout) authCards.getLayout()).show(authCards, AuthenticationType.CREDENTIALS.name());
+            oauth2AuthRBtn.setSelected(true);
+            ((CardLayout) authCards.getLayout()).show(authCards, "OAuth2");
             
             // Disable other authentication options
             noneAuthRBtn.setEnabled(false);
             userPwdAuthRBtn.setEnabled(false);
+            credentialsAuthRBtn.setEnabled(false);
         } else {
-            // Enable all authentication options if no credential port is connected
-            noneAuthRBtn.setEnabled(true);
-            userPwdAuthRBtn.setEnabled(true);
-            credentialsAuthRBtn.setEnabled(true);
-
-            if (!shouldUseAuth) {
+            // Port is not connected
+            if (shouldUseAuth && auth.getScheme() == AuthScheme.OAuth2) {
+                // If the saved config is OAuth2, default to None
                 authSettings.setValues(AuthenticationType.NONE, null, null, null);
                 noneAuthRBtn.setSelected(true);
                 ((CardLayout) authCards.getLayout()).show(authCards, AuthenticationType.NONE.name());
-            } else if (auth.getScheme() == AuthScheme.flowCredentials) {
-                authSettings.setValues(AuthenticationType.CREDENTIALS, auth.getPrincipal(), null, null);
-                credentialsAuthRBtn.setSelected(true);
-                ((CardLayout) authCards.getLayout()).show(authCards, AuthenticationType.CREDENTIALS.name());
-            } else if (auth.getScheme() == AuthScheme.basic) {
-                final String password = auth.getCredentials();
-                this.oldPassword = password;
-                authSettings.setValues(AuthenticationType.USER_PWD, null, auth.getPrincipal(), 
-                    createPasswordHash(auth.getCredentials()));
-                userPwdAuthRBtn.setSelected(true);
-                ((CardLayout) authCards.getLayout()).show(authCards, AuthenticationType.USER_PWD.name());
-            } else if (auth.getScheme() == AuthScheme.OAuth2) {
-                // OAuth2 was previously configured
-                authSettings.setValues(AuthenticationType.CREDENTIALS, OAUTH2_CREDENTIAL_IDENTIFIER, null, null);
-                credentialsAuthRBtn.setSelected(true);
-                ((CardLayout) authCards.getLayout()).show(authCards, AuthenticationType.CREDENTIALS.name());
+            } else if (shouldUseAuth) {
+                // Load the saved settings
+                if (auth.getScheme() == AuthScheme.flowCredentials) {
+                    authSettings.setValues(AuthenticationType.CREDENTIALS, auth.getPrincipal(), null, null);
+                    credentialsAuthRBtn.setSelected(true);
+                    ((CardLayout) authCards.getLayout()).show(authCards, AuthenticationType.CREDENTIALS.name());
+                } else if (auth.getScheme() == AuthScheme.basic) {
+                    authSettings.setValues(AuthenticationType.USER_PWD, null, auth.getPrincipal(), auth.getCredentials());
+                    userPwdAuthRBtn.setSelected(true);
+                    ((CardLayout) authCards.getLayout()).show(authCards, AuthenticationType.USER_PWD.name());
+                }
+            } else {
+                // No auth settings, default to None
+                authSettings.setValues(AuthenticationType.NONE, null, null, null);
+                noneAuthRBtn.setSelected(true);
+                ((CardLayout) authCards.getLayout()).show(authCards, AuthenticationType.NONE.name());
             }
         }
 
@@ -319,13 +325,8 @@ public class ConnectorDialog extends NodeDialogPane {
                 auth = new AuthConfig();
                 auth.setScheme(AuthScheme.basic);
                 auth.setPrincipal(authSettings.getUserName(getCredentialsProvider()));
-
                 String password = authSettings.getPassword(getCredentialsProvider());
-                //if password not changed save old password
-                if (oldPassword != null && createPasswordHash(oldPassword).equals(password)) {
-                    password = oldPassword;
-                }
-                auth.setCredentials(password);
+                auth.setCredentials(password != null ? password : "");
                 break;
             case NONE:
                 auth = null;
@@ -356,13 +357,4 @@ public class ConnectorDialog extends NodeDialogPane {
         }
     }
 
-    private String createPasswordHash(final String password) {
-        if (password == null) {
-            return null;
-        }
-
-        // first 10 symbols of password hash
-        final String hash = HashGenerator.generateHash(password);
-        return hash.substring(0, 10);
-    }
 }

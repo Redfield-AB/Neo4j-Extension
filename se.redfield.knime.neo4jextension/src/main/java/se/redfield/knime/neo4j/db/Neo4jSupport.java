@@ -131,40 +131,32 @@ public class Neo4jSupport {
     }
     
     public Driver createDriver() {
-        // Prioritize OAuth2 token if present, regardless of AuthScheme in AuthConfig
-        String resolvedOauthToken = config.getOauthToken();
-        if (resolvedOauthToken != null && !resolvedOauthToken.isEmpty()) {
-            return createDriverWithToken(resolvedOauthToken);
-        }
-
-        // Fallback to standard authentication if no OAuth2 token
         AuthToken authToken;
-        
         if (config.getAuth() == null) {
             authToken = AuthTokens.none();
-        } else if (config.getAuth().getScheme() == AuthScheme.basic) {
-            String credentials = config.getAuth().getCredentials();
-            if (credentials == null) {
-                credentials = ""; // Ensure credentials are not null for basic auth
-            }
-            authToken = AuthTokens.basic(
-                config.getAuth().getPrincipal(),
-                credentials
-            );
-        } else if (config.getAuth().getScheme() == AuthScheme.OAuth2) {
-            // If AuthScheme is OAuth2 but no token was found, it's an error
-            throw new IllegalArgumentException("OAuth2 token is null or empty in ConnectorConfig. "
-                + "Ensure the Connector node has successfully resolved and stored the token.");
         } else {
-            authToken = AuthTokens.none();
+            switch (config.getAuth().getScheme()) {
+                case basic:
+                    authToken = AuthTokens.basic(config.getAuth().getPrincipal(), config.getAuth().getCredentials());
+                    break;
+                case OAuth2:
+                    if (config.getOauthToken() == null || config.getOauthToken().isEmpty()) {
+                        throw new IllegalStateException("OAuth2 token is missing");
+                    }
+                    authToken = AuthTokens.bearer(config.getOauthToken());
+                    break;
+                case flowCredentials:
+                default:
+                    authToken = AuthTokens.none();
+                    break;
+            }
         }
-        
+
         return GraphDatabase.driver(
             config.getLocation().toString(),
             authToken,
             Config.builder()
                 .withMaxConnectionPoolSize(config.getMaxConnectionPoolSize())
-                // Add other config options
                 .build()
         );
     }
