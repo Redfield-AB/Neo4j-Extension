@@ -13,6 +13,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
+import org.knime.core.node.context.ModifiableNodeCreationConfiguration;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 
@@ -37,7 +38,9 @@ public class ConnectorModelTest {
 
     @Before
     public void setUp() {
-        model = new ConnectorModel();
+        // Use the ConnectorFactory to create the proper NodeCreationConfiguration
+        final ModifiableNodeCreationConfiguration cfg = new ConnectorFactory().createNodeCreationConfig();
+        model = new ConnectorModel(cfg);
         config = Neo4jHelper.createConfig();
     }
 

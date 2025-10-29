@@ -3,15 +3,19 @@
  */
 package se.redfield.knime.neo4j.connector;
 
+import java.util.Optional;
+
 import org.knime.core.node.NodeDialogPane;
-import org.knime.core.node.NodeFactory;
 import org.knime.core.node.NodeView;
+import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.core.node.ConfigurableNodeFactory;
+import org.knime.credentials.base.CredentialPortObject;
 
 /**
  * @author Vyacheslav Soldatov <vyacheslav.soldatov@inbox.ru>
  *
  */
-public class ConnectorFactory extends NodeFactory<ConnectorModel> {
+public class ConnectorFactory extends ConfigurableNodeFactory<ConnectorModel> {
     /**
      * Default constructor.
      */
@@ -19,11 +23,16 @@ public class ConnectorFactory extends NodeFactory<ConnectorModel> {
         super();
     }
 
+    static final String CREDENTIAL_GROUP_ID = "Credential";
+
     @Override
-    public ConnectorModel createNodeModel() {
-        ConnectorModel model = new ConnectorModel();
-        model.reset();
-        return model;
+    protected Optional<PortsConfigurationBuilder> createPortsConfigBuilder() {
+        var builder = new PortsConfigurationBuilder();
+
+        builder.addOptionalInputPortGroup(CREDENTIAL_GROUP_ID, CredentialPortObject.TYPE);
+        builder.addFixedOutputPortGroup("Connection", ConnectorPortObject.TYPE);
+
+        return Optional.of(builder);
     }
 
     @Override
@@ -41,7 +50,12 @@ public class ConnectorFactory extends NodeFactory<ConnectorModel> {
         return true;
     }
     @Override
-    protected NodeDialogPane createNodeDialogPane() {
+    protected NodeDialogPane createNodeDialogPane(final NodeCreationConfiguration creationConfig) {
         return new ConnectorDialog();
+    }
+
+    @Override
+    protected ConnectorModel createNodeModel(final NodeCreationConfiguration creationConfig) {
+        return new ConnectorModel(creationConfig);
     }
 }

@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>se.redfield.knime</groupId>
 	<artifactId>neo4j-fetch-jars</artifactId>
-	<version>${revision}${changelist}</version>
+	<version>1.0.3</version>
 	<packaging>pom</packaging>
 
 	<name>Jar fetcher for Neo4j</name>

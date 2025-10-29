@@ -14,9 +14,14 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.core.node.port.PortType;
+import org.knime.credentials.base.CredentialPortObject;
+import org.knime.credentials.base.CredentialPortObjectSpec;
+import org.knime.credentials.base.oauth.api.AccessTokenAccessor;
+import org.knime.credentials.base.oauth.api.JWTCredential;
+import org.knime.credentials.base.NoSuchCredentialException;
 
 import se.redfield.knime.neo4j.db.Neo4jSupport;
 
@@ -26,12 +31,17 @@ import se.redfield.knime.neo4j.db.Neo4jSupport;
  */
 public class ConnectorModel extends NodeModel {
     private ConnectorConfig config;
-
-    /**
-     * Default constructor.
-     */
-    public ConnectorModel() {
-        super(new PortType[0], new PortType[] {ConnectorPortObject.TYPE});
+    private final int m_credentialPortIdx;
+    
+    
+    public ConnectorModel(final NodeCreationConfiguration cfg) {
+        //super(new PortType[0], new PortType[] {ConnectorPortObject.TYPE});
+        super(cfg.getPortConfig().orElseThrow(IllegalStateException::new).getInputPorts(),
+                cfg.getPortConfig().orElseThrow(IllegalStateException::new).getOutputPorts());
+            // the field m_credentialIdx tracks the index of the credential port if present.
+            
+        m_credentialPortIdx = cfg.getPortConfig().orElseThrow(IllegalStateException::new).getInputPortLocation()
+                .getOrDefault(ConnectorFactory.CREDENTIAL_GROUP_ID, new int[]{-1})[0];    	
         this.config = new ConnectorConfig();
     }
 
@@ -60,6 +70,15 @@ public class ConnectorModel extends NodeModel {
     }
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+        if (m_credentialPortIdx >= 0 && inSpecs[m_credentialPortIdx] != null) {
+            var credSpec = (CredentialPortObjectSpec) inSpecs[m_credentialPortIdx];
+            var credType = credSpec.getCredentialType().orElse(null);
+            
+            if (credType != null && !JWTCredential.class.isAssignableFrom(credType.getCredentialClass())) {
+                setWarningMessage("Connected credential is not a JWT credential. OAuth2 authentication may fail.");
+            }
+        }
+        
         return configure();
     }
     @Override
@@ -68,13 +87,36 @@ public class ConnectorModel extends NodeModel {
     }
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
-        //test connection
-        final ConnectorConfig cfg = config.createResolvedConfig(getCredentialsProvider());
-        final Neo4jSupport s = new Neo4jSupport(cfg);
-        s.createDriver().closeAsync();
+        final ConnectorConfig resolvedConfig = config.createResolvedConfig(getCredentialsProvider());
 
-        //return port object
-        return new PortObject[]{new ConnectorPortObject(config)};
+        // Try to get OAuth2 token from credential port
+        if (m_credentialPortIdx != -1 && inObjects[m_credentialPortIdx] instanceof CredentialPortObject) {
+            CredentialPortObject credPortObj = (CredentialPortObject) inObjects[m_credentialPortIdx];
+            try {
+                JWTCredential jwtCredential = credPortObj.getSpec().resolveCredential(JWTCredential.class);
+                if (jwtCredential != null) {
+                    String oauthToken = jwtCredential.getAccessToken();
+                    if ((oauthToken == null || oauthToken.isEmpty()) && jwtCredential instanceof AccessTokenAccessor) {
+                        getLogger().info("Token is null or empty, attempting to refresh...");
+                        oauthToken = ((AccessTokenAccessor) jwtCredential).getAccessToken(true);
+                    }
+                    resolvedConfig.setOauthToken(oauthToken);
+                    resolvedConfig.getAuth().setScheme(AuthScheme.OAuth2);
+                }
+            } catch (NoSuchCredentialException | IOException ex) {
+                throw new Exception("Failed to retrieve JWT credential or refresh token: " + ex.getMessage(), ex);
+            }
+        }
+
+        // Test connection using the resolved config
+        final Neo4jSupport s = new Neo4jSupport(resolvedConfig);
+        try (var driver = s.createDriver(); var session = driver.session()) {
+            session.run("RETURN 1");
+        } catch (Exception e) {
+            throw new Exception("Failed to connect to Neo4j: " + e.getMessage(), e);
+        }
+
+        return new PortObject[]{new ConnectorPortObject(resolvedConfig)};
     }
 
     private PortObjectSpec[] configure() {

@@ -9,5 +9,6 @@ package se.redfield.knime.neo4j.connector;
  */
 public enum AuthScheme {
     basic,
-    flowCredentials
+    flowCredentials,
+    OAuth2
 }

@@ -42,7 +42,7 @@ public class ConnectorConfigSerializer {
         settings.addString(USED_DEFAULT_DB_NAME, String.valueOf(config.isUsedDefaultDbName()));
         settings.addInt(S_POOL_SIZE, config.getMaxConnectionPoolSize());
         if (config.getAuth() != null) {
-            saveAuth(config.getAuth(), settings.addConfig(S_AUTH));
+            saveAuth(config.getAuth(), settings.addConfig(S_AUTH), config.getOauthToken());
         }
     }
 
@@ -58,9 +58,17 @@ public class ConnectorConfigSerializer {
         config.setUsedDefaultDbName(Boolean.parseBoolean(settings.getString(USED_DEFAULT_DB_NAME, "true")));
 
         if (settings.containsKey(S_AUTH)) {
-            config.setAuth(loadAuth(settings.getConfig(S_AUTH)));
+            AuthConfig loadedAuth = loadAuth(settings.getConfig(S_AUTH));
+            config.setAuth(loadedAuth);
+            // If the loaded scheme is OAuth2, the token is now in loadedAuth.getCredentials()
+            if (loadedAuth.getScheme() == AuthScheme.OAuth2) {
+                config.setOauthToken(loadedAuth.getCredentials());
+            }
         } else {
-            config.setAuth(null);
+            // If no auth settings are present, initialize with default basic scheme
+            config.setAuth(new AuthConfig());
+            config.getAuth().setScheme(AuthScheme.basic);
+            config.getAuth().setPrincipal("neo4j");
         }
         if (settings.containsKey(S_POOL_SIZE)) {
             config.setMaxConnectionPoolSize(settings.getInt(S_POOL_SIZE));
@@ -71,9 +79,17 @@ public class ConnectorConfigSerializer {
     /**
      * @param auth authentication config.
      * @param settings settings.
+     * @param oauthToken The OAuth2 token to save if the scheme is OAuth2.
      */
-    private void saveAuth(final AuthConfig auth, final ConfigWO settings) {
-        settings.addPassword(S_CREDENTIALS, ENC_KEY, auth.getCredentials());
+    private void saveAuth(final AuthConfig auth, final ConfigWO settings, final String oauthToken) {
+        if (auth.getScheme() == AuthScheme.basic) {
+            settings.addPassword(S_CREDENTIALS, ENC_KEY, auth.getCredentials());
+        } else if (auth.getScheme() == AuthScheme.OAuth2) {
+            // Save OAuth2 token in the credentials field
+            if (oauthToken != null) {
+                settings.addPassword(S_CREDENTIALS, ENC_KEY, oauthToken);
+            }
+        }
         settings.addString(S_PRINCIPAL, auth.getPrincipal());
         settings.addString(S_SCHEME, auth.getScheme().name());
     }
@@ -86,14 +102,26 @@ public class ConnectorConfigSerializer {
     private static AuthConfig loadAuth(final ConfigRO settings)
             throws InvalidSettingsException {
         final AuthConfig auth = new AuthConfig();
-        try {
-            auth.setCredentials(settings.getPassword(S_CREDENTIALS, ENC_KEY));
-        } catch (final Exception e) {
-            //for backward compatibility
-            auth.setCredentials(settings.getString(S_CREDENTIALS));
-        }
         auth.setPrincipal(settings.getString(S_PRINCIPAL));
-        auth.setScheme(AuthScheme.valueOf(settings.getString(S_SCHEME)));
+        AuthScheme scheme = AuthScheme.valueOf(settings.getString(S_SCHEME));
+        auth.setScheme(scheme);
+
+        if (scheme == AuthScheme.basic) {
+            try {
+                auth.setCredentials(settings.getPassword(S_CREDENTIALS, ENC_KEY));
+            } catch (final Exception e) {
+                //for backward compatibility, ensure credentials are not null
+                auth.setCredentials(settings.getString(S_CREDENTIALS, ""));
+            }
+        } else if (scheme == AuthScheme.OAuth2) {
+            // Load OAuth2 token from the credentials field
+            try {
+                auth.setCredentials(settings.getPassword(S_CREDENTIALS, ENC_KEY));
+            } catch (final Exception e) {
+                // For backward compatibility, if loading as password fails, try loading as string
+                auth.setCredentials(settings.getString(S_CREDENTIALS, ""));
+            }
+        }
         return auth;
     }
 }

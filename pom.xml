@@ -35,6 +35,11 @@
             <layout>p2</layout>
             <url>https://update.knime.com/analytics-platform/${knime.version}</url>
         </repository>
+        <repository>
+            <id>p2-knime-update-site-latest</id>
+            <layout>p2</layout>
+            <url>https://update.knime.com/analytics-platform/latest</url>
+        </repository>
     </repositories>
 
 
