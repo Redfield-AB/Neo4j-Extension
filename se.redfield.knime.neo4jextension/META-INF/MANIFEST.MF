@@ -20,7 +20,7 @@ Require-Bundle: org.eclipse.ui,
  org.knime.credentials.base,
  org.knime.core;bundle-version="[5.1.0,6.0.0)",
  org.knime.credentials.base.oauth
-Bundle-RequiredExecutionEnvironment: JavaSE-17
+Bundle-RequiredExecutionEnvironment: JavaSE-21
 Automatic-Module-Name: com.redfield.ab.knime.neo4jconnector
 Bundle-ClassPath: .,
  lib/neo4j-java-driver-5.14.0.jar

@@ -12,8 +12,8 @@
     <properties>
         <revision>1.0.3</revision>
         <changelist>-SNAPSHOT</changelist>
-        <knime.version>5.1</knime.version>
-        <tycho.version>2.7.5</tycho.version>
+        <knime.version>nightly</knime.version>
+        <tycho.version>4.0.13</tycho.version>
         <tycho.extras.version>${tycho.version}</tycho.extras.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -34,11 +34,6 @@
                 <id>p2-knime-update-site</id>
             <layout>p2</layout>
             <url>https://update.knime.com/analytics-platform/${knime.version}</url>
-        </repository>
-        <repository>
-            <id>p2-knime-update-site-latest</id>
-            <layout>p2</layout>
-            <url>https://update.knime.com/analytics-platform/latest</url>
         </repository>
     </repositories>
 
@@ -84,9 +79,9 @@
                     </configuration>
                 </plugin>
                 <plugin>
-                    <groupId>org.eclipse.tycho.extras</groupId>
+                    <groupId>org.eclipse.tycho</groupId>
                     <artifactId>tycho-buildtimestamp-jgit</artifactId>
-                    <version>${tycho.extras.version}</version>
+                    <version>${tycho.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.eclipse.tycho.extras</groupId>
@@ -96,11 +91,6 @@
                 <plugin>
                     <groupId>org.eclipse.tycho.extras</groupId>
                     <artifactId>tycho-p2-extras-plugin</artifactId>
-                    <version>${tycho.extras.version}</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.eclipse.tycho.extras</groupId>
-                    <artifactId>tycho-source-feature-plugin</artifactId>
                     <version>${tycho.extras.version}</version>
                 </plugin>
                 <plugin>
@@ -116,7 +106,7 @@
                 <plugin>
                     <groupId>org.eclipse.tycho.extras</groupId>
                     <artifactId>tycho-dependency-tools-plugin</artifactId>
-                    <version>1.7.0</version>
+                    <version>${tycho.extras.version}</version>
                     <executions>
                         <execution>
                             <id>list-dependencies</id>
@@ -132,27 +122,6 @@
 
         <plugins>
             <plugin>
-                <!-- This plugin configuration block is only needed if the repository contains plug-ins that don't have any sources. If it is omitted
-                 Tycho will complain. -->
-                <groupId>org.eclipse.tycho.extras</groupId>
-                <artifactId>tycho-source-feature-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>source-feature</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>source-feature</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <excludes>
-                        <!-- List all plug-in that do NOT contain sources here. -->
-                        <!-- <plugin id="org.knime.community.template.no-source-files" /> -->
-                    </excludes>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>org.eclipse.tycho</groupId>
                 <artifactId>tycho-maven-plugin</artifactId>
                 <extensions>true</extensions>
@@ -162,9 +131,9 @@
                 <artifactId>tycho-packaging-plugin</artifactId>
                 <dependencies>
                     <dependency>
-                        <groupId>org.eclipse.tycho.extras</groupId>
+                        <groupId>org.eclipse.tycho</groupId>
                         <artifactId>tycho-buildtimestamp-jgit</artifactId>
-                        <version>${tycho.extras.version}</version>
+                        <version>${tycho.version}</version>
                     </dependency>
                 </dependencies>
                 <configuration>
