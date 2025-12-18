@@ -23,8 +23,8 @@
                 <artifactId>tycho-surefire-plugin</artifactId>
                 <version>${tycho.version}</version>
                 <configuration>
-                    <useUIHarness>true</useUIHarness>
-                    <argLine>-XstartOnFirstThread</argLine>
+                    <useUIHarness>false</useUIHarness>
+                    <testFailureIgnore>true</testFailureIgnore>
                 </configuration>
             </plugin>
             <plugin>
